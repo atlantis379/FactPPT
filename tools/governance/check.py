@@ -112,7 +112,18 @@ def verify_frozen_completion(contract: str, root: Path = ROOT) -> None:
         raise ValueError("FROZEN milestone lacks completion or audit evidence")
     report_text = report.read_text(encoding="utf-8")
     audit_text = audit.read_text(encoding="utf-8")
-    if not re.search(r"(?m)^\*\*status:\*\* COMPLETE\s*$", report_text) or not all(re.search(rf"(?m)^- {x}: PASS\s*$", report_text) for x in ("tests", "ci", "golden", "frozen_hash")):
+    golden_none = bool(re.search(r"(?m)^## Golden subset\s*$\nnone;", contract))
+    report_pass = (
+        re.search(r"(?m)^milestone_id: M0\s*$", report_text)
+        and re.search(r"(?m)^status: PASS\s*$", report_text)
+        and re.search(r"(?m)^tests:\s*$\n  passed: [1-9]\d*\s*$\n  failed: 0\s*$", report_text)
+        and re.search(r"(?m)^ci_result: PASS\s*$", report_text)
+        and re.search(r"(?m)^frozen_hash: PASS\s*$", report_text)
+        and re.search(r"(?m)^audit_result: PASS\s*$", report_text)
+        and re.search(r"(?m)^golden_regression: NOT_APPLICABLE\s*$", report_text)
+        and golden_none
+    )
+    if not report_pass:
         raise ValueError("FROZEN completion report lacks passing gates")
     if not re.search(r"(?m)^milestone_id: M0\s*$", audit_text) or not re.search(r"(?m)^result: PASS\s*$", audit_text) or not re.search(r"(?m)^findings: \[\]\s*$", audit_text):
         raise ValueError("FROZEN audit evidence is not a clean PASS")

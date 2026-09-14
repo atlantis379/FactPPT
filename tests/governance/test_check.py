@@ -54,7 +54,7 @@ class TestGovernance(unittest.TestCase):
 
     def test_frozen_with_evidence_allows_governance_path(self):
         contract = (ROOT / "docs/milestones/CURRENT.md").read_text(encoding="utf-8").replace("**status:** ACTIVE", "**status:** FROZEN").replace("- [ ]", "- [x]")
-        report = "**status:** COMPLETE\n- tests: PASS\n- ci: PASS\n- golden: PASS\n- frozen_hash: PASS\n"
+        report = "milestone_id: M0\nstatus: PASS\ntests:\n  passed: 18\n  failed: 0\nci_result: PASS\nfrozen_hash: PASS\naudit_result: PASS\ngolden_regression: NOT_APPLICABLE\n"
         audit = "milestone_id: M0\nresult: PASS\nfindings: []\n"
         original = Path.read_text
         def read_text(path, *args, **kwargs):
@@ -67,6 +67,23 @@ class TestGovernance(unittest.TestCase):
             return original(path, *args, **kwargs)
         with patch("pathlib.Path.read_text", new=read_text), patch("pathlib.Path.is_file", return_value=True):
             check_paths(["tools/governance/check.py"])
+
+    def test_frozen_rejects_golden_na_when_subset_required(self):
+        contract = (ROOT / "docs/milestones/CURRENT.md").read_text(encoding="utf-8").replace("**status:** ACTIVE", "**status:** FROZEN").replace("- [ ]", "- [x]").replace("none; no Golden Set exists in M0.", "critical-set")
+        report = "milestone_id: M0\nstatus: PASS\ntests:\n  passed: 18\n  failed: 0\nci_result: PASS\nfrozen_hash: PASS\naudit_result: PASS\ngolden_regression: NOT_APPLICABLE\n"
+        audit = "milestone_id: M0\nresult: PASS\nfindings: []\n"
+        original = Path.read_text
+        def read_text(path, *args, **kwargs):
+            if str(path).endswith("CURRENT.md"):
+                return contract
+            if str(path).endswith("M0_FINAL.md"):
+                return report
+            if str(path).endswith("M0_AUDIT.yaml"):
+                return audit
+            return original(path, *args, **kwargs)
+        with patch("pathlib.Path.read_text", new=read_text), patch("pathlib.Path.is_file", return_value=True):
+            with self.assertRaisesRegex(ValueError, "lacks passing gates"):
+                check_paths(["tools/governance/check.py"])
 
     def test_registry(self):
         check_registry()
