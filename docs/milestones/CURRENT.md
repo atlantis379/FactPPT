@@ -1,6 +1,6 @@
 # Milestone M0 — Agent Governance Bootstrap
 
-**status:** ACTIVE
+**status:** FROZEN
 
 ## Goal
 Establish enforceable development governance before business implementation.
@@ -36,14 +36,14 @@ Establish enforceable development governance before business implementation.
 
 ## Inputs / outputs
 - Input: v0.3 development contract and System Spec sections 31–43.
-- Output: active milestone contract, frozen manifest, rule enforcement, CI gates, templates, draft report.
+- Output: frozen milestone contract, frozen manifest, rule enforcement, CI gates, templates, and completion report.
 
 ## Acceptance criteria
-- [ ] Current Milestone is machine-readable and constrains changed paths.
-- [ ] Frozen manifest hashes every existing normative artifact and rejects unlisted future v0.2 schema files.
-- [ ] Rule registry identifies implemented M0 gates and defers business rules honestly.
-- [ ] Blocking CI runs governance checks and unit tests, including negative cases.
-- [ ] Independent Audit Pass and completion report precede FROZEN status.
+- [x] Current Milestone is machine-readable and constrains changed paths.
+- [x] Frozen manifest hashes every existing normative artifact and rejects unlisted future v0.2 schema files.
+- [x] Rule registry identifies implemented M0 gates and defers business rules honestly.
+- [x] Blocking CI runs governance checks and unit tests, including negative cases.
+- [x] Independent Audit Pass and completion report precede FROZEN status.
 
 ## Required tests
 - governance unit tests

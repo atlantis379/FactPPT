@@ -44,11 +44,12 @@ class TestGovernance(unittest.TestCase):
 
     def test_frozen_requires_evidence(self):
         contract = (ROOT / "docs/milestones/CURRENT.md").read_text(encoding="utf-8").replace("**status:** ACTIVE", "**status:** FROZEN")
-        with patch("pathlib.Path.read_text", return_value=contract):
+        unchecked = contract.replace("- [x]", "- [ ]", 1)
+        self.assertNotEqual(unchecked, contract)
+        with patch("pathlib.Path.read_text", return_value=unchecked):
             with self.assertRaisesRegex(ValueError, "unchecked acceptance"):
                 check_paths(["tools/governance/check.py"])
-        contract = contract.replace("- [ ]", "- [x]")
-        with patch("pathlib.Path.read_text", return_value=contract):
+        with patch("pathlib.Path.read_text", return_value=contract), patch("pathlib.Path.is_file", return_value=False):
             with self.assertRaisesRegex(ValueError, "lacks completion or audit"):
                 check_paths(["tools/governance/check.py"])
 
