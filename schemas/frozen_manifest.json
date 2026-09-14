@@ -1,0 +1,14 @@
+{
+  "manifest_version": "0.3",
+  "hash_algorithm": "sha256",
+  "inventory_globs": [
+    "docs/specs/*.md",
+    "docs/decisions/ADR-*.md",
+    "schemas/v0_2/**/*"
+  ],
+  "artifacts": {
+    "docs/specs/DEVELOPMENT_CONTRACT.md": "26b3a398833d253fae3592ab5b0b050e6ec638f2b70f61e8ba43c5c25a31e3fd",
+    "docs/specs/SYSTEM_SPEC_v0.3.md": "476d6fa2c16df9c03cd89386e298ade8f77f59bc350a884f7076d94b95970ab8",
+    "docs/decisions/ADR-006-sol-mainline.md": "35b6c67851accd7176286c72ab73faeab3bd345047a97dfc80b1f072dfad5b78"
+  }
+}

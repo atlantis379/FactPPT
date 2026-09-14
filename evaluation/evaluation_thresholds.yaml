@@ -1,0 +1,14 @@
+version: "0.3"
+policy: baseline_no_regression
+critical_errors_allowed: 0
+thresholds:
+  parsing_completeness: null
+  claim_precision: null
+  critical_claim_recall: null
+  numeric_extraction_accuracy: null
+  numeric_deterministic_consistency: 1.0
+  relation_precision: null
+  traceability: 1.0
+notes:
+  - Calibrate null thresholds from Golden Set before enforcing numeric targets.
+  - Threshold changes require an ADR or approved policy Change Request.

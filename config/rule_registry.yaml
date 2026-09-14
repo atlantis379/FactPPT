@@ -1,0 +1,149 @@
+registry_version: '0.3'
+rules:
+- id: CORE-001
+  level: MUST
+  statement: APPROVED Semantic Graph 是 Narrative/SlidePlan 的唯一事实入口。
+  status: ACTIVE
+  enforcement:
+    code: null
+    tests: []
+    ci_gate: null
+- id: EVID-001
+  level: MUST
+  statement: 关键 Claim/NumericFact/Relation 必须可追溯到至少一个 SourceSpan。
+  status: ACTIVE
+  enforcement:
+    code: null
+    tests: []
+    ci_gate: null
+- id: TRACE-001
+  level: MUST
+  statement: 所有派生对象必须保存 schema_version、pipeline_run_id、document_version 与 revision
+    元数据。
+  status: ACTIVE
+  enforcement:
+    code: null
+    tests: []
+    ci_gate: null
+- id: NUM-001
+  level: MUST
+  statement: NumericFact 审计真值必须使用 Decimal/字符串序列化，不使用二进制 float。
+  status: ACTIVE
+  enforcement:
+    code: null
+    tests: []
+    ci_gate: null
+- id: NUM-002
+  level: MUST
+  statement: LLM 只能抽取数字候选，百分比、差值、单位换算和四舍五入由确定性代码完成。
+  status: ACTIVE
+  enforcement:
+    code: null
+    tests: []
+    ci_gate: null
+- id: REL-001
+  level: MUST
+  statement: Embedding 只负责 Relation 候选召回，Relation 类型必须经分类与独立 Gate。
+  status: ACTIVE
+  enforcement:
+    code: null
+    tests: []
+    ci_gate: null
+- id: STATE-001
+  level: MUST
+  statement: 禁止 CANDIDATE→APPROVED 直接跳转。
+  status: ACTIVE
+  enforcement:
+    code: null
+    tests: []
+    ci_gate: null
+- id: STATE-002
+  level: MUST
+  statement: NEEDS_REVIEW / REJECTED / VERIFIED 对象不得进入正式下游。
+  status: ACTIVE
+  enforcement:
+    code: null
+    tests: []
+    ci_gate: null
+- id: SCHEMA-001
+  level: MUST
+  statement: Frozen Artifact 未经 Approved Change Request 不得修改。
+  status: ACTIVE
+  enforcement:
+    code: tools/governance/check.py::check_manifest
+    tests: [tests/governance/test_check.py::TestGovernance.test_manifest]
+    ci_gate: governance
+    change_control: pre-existing unchanged APPROVED CR per affected artifact for post-bootstrap manifest updates
+- id: MILESTONE-001
+  level: MUST
+  statement: Agent 只能修改 Current Milestone 明确允许的路径。
+  status: ACTIVE
+  enforcement:
+    code: tools/governance/check.py::check_paths
+    tests: [tests/governance/test_check.py::TestGovernance.test_paths]
+    ci_gate: governance
+- id: MILESTONE-002
+  level: MUST
+  statement: 每个 Milestone 按 READ→PLAN→IMPLEMENT→TEST→AUDIT→FREEZE 执行。
+  status: ACTIVE
+  enforcement:
+    code: null
+    tests: []
+    ci_gate: null
+- id: CHANGE-001
+  level: MUST
+  statement: 实现若需要破坏 Frozen Contract，必须先生成 Change Request 并停止相关修改。
+  status: ACTIVE
+  enforcement:
+    code: null
+    tests: []
+    ci_gate: null
+- id: TEST-001
+  level: MUST NOT
+  statement: 不得删除、弱化或跳过失败测试以使实现通过。
+  status: ACTIVE
+  enforcement:
+    code: tools/governance/check.py::check_test_integrity
+    tests: [tests/governance/test_check.py::TestGovernance.test_test_integrity]
+    ci_gate: governance
+    limitation: AST test-function and assertion-count preservation cannot prove semantic equivalence; independent audit reviews modified tests
+- id: CI-001
+  level: MUST
+  statement: 关键 Gate、Schema、Golden Set 或 Frozen Hash 失败时禁止标记 Milestone DONE。
+  status: ACTIVE
+  enforcement:
+    code: null
+    tests: []
+    ci_gate: null
+- id: AUDIT-001
+  level: MUST
+  statement: 每个 Milestone 必须在新上下文中执行独立 Audit Pass。
+  status: ACTIVE
+  enforcement:
+    code: null
+    tests: []
+    ci_gate: null
+- id: REVIEW-001
+  level: MUST
+  statement: 关键数字不可验证、OCR 低置信、关系冲突等情况进入 Human Review。
+  status: ACTIVE
+  enforcement:
+    code: null
+    tests: []
+    ci_gate: null
+- id: IDEMP-001
+  level: MUST
+  statement: 每个 stage 必须支持基于幂等键安全重跑，不覆盖历史审计记录。
+  status: ACTIVE
+  enforcement:
+    code: null
+    tests: []
+    ci_gate: null
+- id: SEC-001
+  level: MUST
+  statement: 敏感材料不得写入日志、fixture 或未授权外部服务。
+  status: ACTIVE
+  enforcement:
+    code: null
+    tests: []
+    ci_gate: null
