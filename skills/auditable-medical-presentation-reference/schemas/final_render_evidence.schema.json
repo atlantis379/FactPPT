@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FinalRenderEvidence v0.5",
+  "type": "object",
+  "required": ["artifact_sha256", "slide_number", "renderer", "render"],
+  "properties": {
+    "artifact_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "slide_number": {"type": "integer", "minimum": 1},
+    "renderer": {"type": "object", "required": ["id", "version"], "properties": {"id": {"type": "string", "minLength": 1}, "version": {"type": "string", "minLength": 1}}},
+    "render": {"type": "object", "required": ["path", "sha256"], "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}},
+    "visual_review": {"type": "object", "required": ["reviewer_id", "reviewer_role", "status", "checked"], "properties": {"reviewer_id": {"type": "string", "minLength": 1}, "reviewer_role": {"const": "independent"}, "status": {"enum": ["PASS", "FAIL", "NEEDS_REVIEW"]}, "checked": {"type": "object", "required": ["glyphs", "clipping", "meaning_critical_text"], "properties": {"glyphs": {"type": "boolean"}, "clipping": {"type": "boolean"}, "meaning_critical_text": {"type": "boolean"}}}}}
+  }
+}

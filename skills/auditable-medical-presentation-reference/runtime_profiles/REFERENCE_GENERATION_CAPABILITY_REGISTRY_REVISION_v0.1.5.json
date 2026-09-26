@@ -1,0 +1,37 @@
+{
+  "registry_revision_id": "REFERENCE_GENERATION_CAPABILITY_REGISTRY_REVISION_v0.1.5",
+  "date": "2026-09-04",
+  "base_registry": "REFERENCE_GENERATION_CAPABILITY_REGISTRY_v0.1.json",
+  "prior_revision": "REFERENCE_GENERATION_CAPABILITY_REGISTRY_REVISION_v0.1.4.json",
+  "status": "APPLIED_FOR_REFERENCE_RUNTIME_EFFECTIVE_VIEW",
+  "trigger": "REFERENCE_RUNTIME_QUALIFICATION_RUN_007_W13_P02_CUE_TEXT_EXTENSION_v0.1",
+  "record_updates": [
+    {
+      "capability_record_id": "GEN-EXACT-COMPOSITOR-CURRENT-v0.2",
+      "scope_extension": {
+        "case_id": "REFERENCE_PIPELINE_TEST_001_CMVD",
+        "page_id": "P02",
+        "added_W10_approved_exact_strings": 6,
+        "qualification": "PASS_REFERENCE_SCOPE_EXTENSION",
+        "evidence": "REFERENCE_RUNTIME_QUALIFICATION_RUN_007_W13_P02_CUE_TEXT_EXTENSION_v0.1",
+        "repeatability": "PASS"
+      },
+      "universal_scope_change": false
+    },
+    {
+      "capability_record_id": "GEN-POSITIONED-EXACT-OVERLAY-CURRENT-v0.1",
+      "scope_extension": {
+        "case_id": "REFERENCE_PIPELINE_TEST_001_CMVD",
+        "page_id": "P02",
+        "added_W10_approved_exact_strings": 6,
+        "final_W13_boxes_qualified": true,
+        "overflow_check": "PASS",
+        "evidence": "REFERENCE_RUNTIME_QUALIFICATION_RUN_007_W13_P02_CUE_TEXT_EXTENSION_v0.1",
+        "repeatability": "PASS"
+      },
+      "universal_scope_change": false
+    }
+  ],
+  "effective_registry_status": "REFERENCE_QUALIFIED_FOR_W13_CURRENT_CMVD_CONTRACT",
+  "routing_consequence": "W13 may include all W10-required P02 context cue summaries without reopening W12 route design. No new runtime mechanism is introduced."
+}

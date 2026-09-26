@@ -1,0 +1,68 @@
+[
+  {
+    "id": "negation-reversal",
+    "source": "该观察记录未显示方案甲改善目标结局。",
+    "assertion": "该观察记录显示方案甲改善目标结局。",
+    "decision": "REJECT"
+  },
+  {
+    "id": "comparison-subject-swap",
+    "source": "甲组满意度高于乙组。",
+    "assertion": "乙组满意度高于甲组。",
+    "decision": "REJECT"
+  },
+  {
+    "id": "condition-removed",
+    "source": "如果通过验收，项目可进入下一阶段。",
+    "assertion": "项目可进入下一阶段。",
+    "decision": "REJECT"
+  },
+  {
+    "id": "population-expanded",
+    "source": "在已完成问卷的客户中，满意率为80%。",
+    "assertion": "所有客户的满意率为80%。",
+    "decision": "REJECT"
+  },
+  {
+    "id": "uncertainty-removed",
+    "source": "本期收入约增长20%。",
+    "assertion": "本期收入增长20%。",
+    "decision": "REJECT"
+  },
+  {
+    "id": "causal-upgrade",
+    "source": "培训时长与效率提升相关。",
+    "assertion": "培训导致效率提升。",
+    "decision": "REJECT"
+  },
+  {
+    "id": "year-changed",
+    "source": "2024年销售额为100万元。",
+    "assertion": "2025年销售额为100万元。",
+    "decision": "REJECT"
+  },
+  {
+    "id": "unit-changed",
+    "source": "第三季度营收为100万元。",
+    "assertion": "第三季度营收为100元。",
+    "decision": "REJECT"
+  },
+  {
+    "id": "bounded-paraphrase",
+    "source": "在已完成问卷的客户中，满意率为80%。",
+    "assertion": "已完成问卷的客户满意率为80%。",
+    "decision": "APPROVE"
+  },
+  {
+    "id": "uncertainty-preserved",
+    "source": "本期收入约增长20%。",
+    "assertion": "本期收入增长约20%。",
+    "decision": "APPROVE"
+  },
+  {
+    "id": "verbatim",
+    "source": "第三季度营收为100万元。",
+    "assertion": "第三季度营收为100万元。",
+    "decision": "APPROVE"
+  }
+]

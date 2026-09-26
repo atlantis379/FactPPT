@@ -1,0 +1,13 @@
+{
+  "schema_version": "external-runtime.v1",
+  "artifact_tool": {
+    "package": "@oai/artifact-tool",
+    "version": "2.8.61"
+  },
+  "presentation_finalizer": {
+    "path": "container_tools/artifact_tool_utils.mjs",
+    "sha256": "17e988ef8c486800328e624154aa20b42c30fa85a236f60fbc9254d7a86bf18f"
+  },
+  "qualification": "local-smoke-only",
+  "acquisition": "Codex workspace runtime; independent deployment route not yet qualified"
+}

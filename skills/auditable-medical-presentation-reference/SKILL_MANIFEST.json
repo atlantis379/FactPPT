@@ -1,0 +1,83 @@
+{
+  "skill_name": "auditable-medical-presentation-reference",
+  "skill_version": "v1.0.0",
+  "status": "REFERENCE_SKILL_WITH_EXECUTABLE_CHECKS",
+  "source_of_truth": "Bundled frozen specs + active contracts; explicit user scope is preserved.",
+  "numbered_frozen_rules_compiled": 178,
+  "frozen_specs_changed": false,
+  "active_policies": [
+    "references/project/docs/workflows/SOURCE_READING_TO_NARRATIVE_DERIVATION_POLICY_v0.2.md",
+    "references/project/docs/workflows/REFERENCE_PIPELINE_READING_AUDIT_CHECKLIST_v0.2.md",
+    "references/project/docs/workflows/W01R_RULE_COMPILATION_v1.0.md"
+  ],
+  "additive_stages": [
+    "W01-R (Source Reading → Structure → Narrative → Allocation) — between W01 and W02; W00–W18 numbering unchanged; gate `reading-structure`; method is material-agnostic, material-specific vocabulary is declared per run in `profile`"
+  ],
+  "active_contracts": [
+    "contracts/QUALITY_SYSTEM_v0.5.md",
+    "contracts/INTEGRITY_AND_QUALITY_v0.5.md",
+    "contracts/AI_EDITORIAL_DATA_FUSION_v0.2.md",
+    "contracts/CLIENT_TEMPLATE_INTAKE_v0.1.md",
+    "contracts/PAGE_PRIVACY_AND_DOCUMENT_SURFACE_GATE_v0.1.md",
+    "contracts/INDEPENDENT_FACT_ORACLE_AND_VERSION_CHAIN_v0.1.md",
+    "contracts/NATIVE_EDITABLE_BEAUTIFICATION_MVP_v0.1.md",
+    "contracts/CHATGPT_IMAGE_EDITORIAL_UNDERLAY_v0.1.md",
+    "contracts/STAGE_OUTPUT_CONTRACTS_v0.3.md",
+    "contracts/PORTABLE_RUNTIME_CAPABILITY_CONTRACT_v0.1.md"
+  ],
+  "active_schemas": [
+    "schemas/run_state.schema.json",
+    "schemas/runtime_qualification_result.v0.2.schema.json",
+    "schemas/quality_evaluation.schema.json",
+    "schemas/scene_quality_contract.schema.json",
+    "schemas/editorial_fusion_plan.v0.1.schema.json",
+    "schemas/client_template_contract.v0.1.schema.json",
+    "schemas/final_render_evidence.schema.json",
+    "schemas/source_intake_record.v0.1.schema.json",
+    "schemas/fact_oracle_review.v0.1.schema.json",
+    "schemas/source_version_chain.v0.1.schema.json",
+    "schemas/case_boundary_review.v0.1.schema.json",
+    "schemas/document_structure_audit.v0.1.schema.json",
+    "schemas/privacy_surface_audit.v0.1.schema.json",
+    "schemas/native_beautification_plan.v0.1.schema.json",
+    "schemas/chatgpt_image_editorial_asset.v0.1.schema.json",
+    "schemas/reading_structure_artifact.v0.2.schema.json"
+  ],
+  "active_runtime_registry": "runtime_profiles/ACTIVE_RUNTIME_v0.5.json",
+  "historical_profiles_are_authoritative": false,
+  "frozen_reference_root": "references/project/docs",
+  "runtime_dependencies": "requirements-validation.txt",
+  "offline_cli": "scripts/skill_tool.py",
+  "scope_limitations": [
+    "Geometry qualification is limited to simple final-SVG bar/point/line/interval primitives and explicit linear/log encodings.",
+    "No automatic clinical entailment or final RED approval.",
+    "P05 is a regression fixture, not a full-source recall certification or a mandatory layout.",
+    "Relocation tested locally; cross-OS rendering still requires target-runtime qualification.",
+    "Privacy validators verify page/surface evidence completeness; OCR, face and DICOM inspection still require qualified tools or reviewers.",
+    "Independent-oracle validation proves agreement with a reviewed inventory, not autonomous clinical truth.",
+    "Native beautification MVP supports five deterministic archetypes and up to four Claims per page; ChatGPT Image may supply only a validated non-semantic underlay with a palette/safe-zone fusion theme and is disabled without an explicit manifest.",
+    "The W01-R gate verifies that a reading happened and that its claims are traceable and that all material-specific vocabulary was declared. It does NOT verify that the reading was good, the structure correct or the narrative effective: those remain reviewer-assessed and the gate reports them as not assessed.",
+    "Portability is evidenced by two materials of different kinds run through the unchanged gate (clinical textbook, technical report). A material that appears to need a method change most likely needs a `profile` field instead.",
+    "REG-READ-016 separates the presentation layer from the working layer: the slide surface carries presentation language only, and citation markers, block references, internal ids, editorial labels, elided quotations and commentary on the deck's own structure are working-layer content that belongs in speaker notes and the artifact. The gate checks the declared on_slide_text for these marks; it does not judge whether the wording is clear.",
+    "REG-READ-017 requires the derived structure to be rendered: a roadmap page, the question at each part boundary, every narrative node exposed by some page, and a consolidation page. The gate checks their presence and the page/narrative order agreement; it does not judge whether the rendered structure helps the reader.",
+    "The W01-R rule set (17 rules, 9 checks) is stable and verified end to end, but is not frozen: three of its four corrected gate defects were the same mistake — a criterion written for one page or check kind applied to all of them. When a rule fails on work that satisfies it, suspect the rule first."
+  ],
+  "runtime_portability_manifest": "SKILL_RUNTIME_PORTABILITY_MANIFEST_v0.2.json",
+  "quality_evaluation_cli": "scripts/evaluate_quality.py",
+  "superseded_policies": [
+    "references/project/docs/workflows/SOURCE_READING_AND_STRUCTURE_DERIVATION_POLICY_v0.1.md",
+    "references/project/docs/workflows/REFERENCE_PIPELINE_READING_AUDIT_CHECKLIST_v0.1.md"
+  ],
+  "stable_rule_sets": [
+    {
+      "id": "W01-R",
+      "version": "v1.0",
+      "rules": 17,
+      "checks": 9,
+      "compilation": "references/project/docs/workflows/W01R_RULE_COMPILATION_v1.0.md",
+      "gate": "reading-structure",
+      "frozen": false,
+      "note": "Stable, not frozen. Not part of the 178 frozen Module 01-06 rules; frozen_specs_changed remains false."
+    }
+  ]
+}

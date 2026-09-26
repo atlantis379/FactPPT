@@ -1,0 +1,6 @@
+# Optional, only for deckkit's legacy HTML-to-PNG/PDF renderer.
+# Install alongside app/requirements.lock, then install the matching Chromium build.
+greenlet==3.3.2
+pyee==13.0.1
+playwright==1.58.0
+typing-extensions==4.15.0

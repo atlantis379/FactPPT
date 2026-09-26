@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "QualityEvaluation v0.5",
+  "type": "object",
+  "required": ["schema_version", "subject_id", "subject_sha256", "contract_sha256", "mode", "dimensions", "delivery_eligible"],
+  "properties": {
+    "schema_version": {"const": "0.5"},
+    "subject_id": {"type": "string", "minLength": 1},
+    "subject_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "contract_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "mode": {"enum": ["DESIGN_PROTOTYPE", "DELIVERY"]},
+    "delivery_eligible": {"type": "boolean"},
+    "dimensions": {
+      "type": "object",
+      "required": ["source_coverage", "semantic_integrity", "data_geometry", "visible_glyphs", "composition", "narrative"],
+      "additionalProperties": false,
+      "properties": {
+        "source_coverage": {"$ref": "#/$defs/result"},
+        "semantic_integrity": {"$ref": "#/$defs/result"},
+        "data_geometry": {"$ref": "#/$defs/result"},
+        "visible_glyphs": {"$ref": "#/$defs/result"},
+        "composition": {"$ref": "#/$defs/result"},
+        "narrative": {"$ref": "#/$defs/result"}
+      }
+    }
+  },
+  "$defs": {
+    "result": {
+      "type": "object",
+      "required": ["status", "scope", "evidence"],
+      "properties": {
+        "status": {"enum": ["PASS", "FAIL", "NEEDS_REVIEW", "NOT_APPLICABLE"]},
+        "scope": {"type": "string", "minLength": 1},
+        "reason": {"type": "string", "minLength": 1},
+        "evidence": {"type": "array", "items": {"type": "object", "required": ["ref", "sha256"], "properties": {"ref": {"type": "string", "minLength": 1}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}}}
+      },
+      "allOf": [
+        {"if": {"properties": {"status": {"const": "NOT_APPLICABLE"}}}, "then": {"required": ["reason"]}},
+        {"if": {"properties": {"status": {"enum": ["PASS", "FAIL"]}}}, "then": {"properties": {"evidence": {"minItems": 1}}}}
+      ]
+    }
+  },
+  "allOf": [
+    {"if": {"properties": {"mode": {"const": "DESIGN_PROTOTYPE"}}}, "then": {"properties": {"delivery_eligible": {"const": false}}}}
+  ]
+}

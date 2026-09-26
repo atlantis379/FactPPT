@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "chatgpt_image_editorial_asset.v0.1.schema.json",
+  "title": "ChatGPT Image Non-semantic Editorial Asset",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "asset_id", "provider", "generation_mode", "asset_class", "layer_role", "path", "sha256", "content_type", "page_ids", "placement", "fusion_theme", "prompt_provenance", "content_review"],
+  "properties": {
+    "schema_version": {"const": "chatgpt_image_editorial_asset.v0.1"},
+    "asset_id": {"type": "string", "minLength": 1},
+    "provider": {"const": "chatgpt-image"},
+    "generation_mode": {"const": "built-in-imagegen"},
+    "asset_class": {"const": "NONSEMANTIC_EDITORIAL_BASE"},
+    "layer_role": {"const": "EDITORIAL_UNDERLAY"},
+    "path": {"type": "string", "minLength": 1},
+    "sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
+    "content_type": {"const": "image/png"},
+    "page_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "placement": {
+      "type": "object", "additionalProperties": false,
+      "required": ["left", "top", "width", "height", "fit"],
+      "properties": {"left": {"const": 0}, "top": {"const": 0}, "width": {"const": 1280}, "height": {"const": 720}, "fit": {"const": "cover"}}
+    },
+    "fusion_theme": {
+      "type": "object", "additionalProperties": false,
+      "required": ["reuse_mode", "surface_opacity", "content_zone", "protected_decoration_zone", "palette"],
+      "properties": {
+        "reuse_mode": {"const": "MASTER_UNDERLAY"},
+        "surface_opacity": {"type": "integer", "minimum": 55, "maximum": 88},
+        "content_zone": {
+          "type": "object", "additionalProperties": false,
+          "required": ["left", "top", "width", "height"],
+          "properties": {"left": {"const": 64}, "top": {"const": 36}, "width": {"const": 960}, "height": {"const": 620}}
+        },
+        "protected_decoration_zone": {
+          "type": "object", "additionalProperties": false,
+          "required": ["left", "top", "width", "height"],
+          "properties": {"left": {"const": 1050}, "top": {"const": 0}, "width": {"const": 230}, "height": {"const": 720}}
+        },
+        "palette": {
+          "type": "object", "additionalProperties": false,
+          "required": ["background", "surface", "ink", "muted", "line", "accent", "accent_soft", "warm"],
+          "properties": {
+            "background": {"type": "string", "pattern": "^#[a-fA-F0-9]{6}$"},
+            "surface": {"type": "string", "pattern": "^#[a-fA-F0-9]{6}$"},
+            "ink": {"type": "string", "pattern": "^#[a-fA-F0-9]{6}$"},
+            "muted": {"type": "string", "pattern": "^#[a-fA-F0-9]{6}$"},
+            "line": {"type": "string", "pattern": "^#[a-fA-F0-9]{6}$"},
+            "accent": {"type": "string", "pattern": "^#[a-fA-F0-9]{6}$"},
+            "accent_soft": {"type": "string", "pattern": "^#[a-fA-F0-9]{6}$"},
+            "warm": {"type": "string", "pattern": "^#[a-fA-F0-9]{6}$"}
+          }
+        }
+      }
+    },
+    "prompt_provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["prompt_id", "taxonomy", "prompt", "generated_in_thread"],
+      "properties": {
+        "prompt_id": {"type": "string", "minLength": 1},
+        "taxonomy": {"const": "stylized-concept"},
+        "prompt": {"type": "string", "minLength": 20},
+        "generated_in_thread": {"type": "string", "minLength": 1}
+      }
+    },
+    "content_review": {
+      "type": "object", "additionalProperties": false,
+      "required": ["reviewer_role", "status", "checked"],
+      "properties": {
+        "reviewer_role": {"enum": ["author", "independent"]},
+        "status": {"const": "PASS"},
+        "checked": {
+          "type": "object", "additionalProperties": false,
+          "required": ["no_text", "no_numbers", "no_medical_claim", "no_relationship_encoding", "no_watermark", "safe_regions_clear"],
+          "properties": {
+            "no_text": {"const": true}, "no_numbers": {"const": true}, "no_medical_claim": {"const": true},
+            "no_relationship_encoding": {"const": true}, "no_watermark": {"const": true}, "safe_regions_clear": {"const": true}
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "runtime_qualification_result.v0.1.schema.json",
+  "title": "RuntimeQualificationResult v0.1",
+  "type": "object",
+  "required": [
+    "qualification_run_id",
+    "benchmark_pack_id",
+    "runtime_profile_id",
+    "executed_fixture_ids",
+    "results",
+    "capability_records",
+    "overall_status"
+  ],
+  "properties": {
+    "qualification_run_id": {"type": "string"},
+    "benchmark_pack_id": {"type": "string"},
+    "runtime_profile_id": {"type": "string"},
+    "runtime_profile_version": {"type": "string"},
+    "material_change_reason": {"type": ["string", "null"]},
+    "executed_fixture_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["fixture_id", "executor", "status", "verifier_results"],
+        "properties": {
+          "fixture_id": {"type": "string"},
+          "executor": {
+            "type": "object",
+            "required": ["engine_id", "engine_version"],
+            "properties": {
+              "engine_id": {"type": "string"},
+              "engine_version": {"type": "string"},
+              "implementation_class": {"type": "string"}
+            },
+            "additionalProperties": true
+          },
+          "input_fixture_hash": {"type": ["string", "null"]},
+          "execution_config_hash": {"type": ["string", "null"]},
+          "output_asset_ref": {"type": ["string", "null"]},
+          "output_asset_hash": {"type": ["string", "null"]},
+          "generation_output_manifest_ref": {"type": ["string", "null"]},
+          "status": {"enum": ["PASS", "FAIL", "BLOCK", "NOT_EXECUTED"]},
+          "verifier_results": {"type": "array", "items": {"type": "object"}},
+          "issues": {"type": "array", "items": {"type": "object"}}
+        },
+        "additionalProperties": true
+      }
+    },
+    "capability_records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["capability_record_id", "engine_id", "engine_version", "capability", "qualification_status", "evidence_fixture_ids"],
+        "properties": {
+          "capability_record_id": {"type": "string"},
+          "engine_id": {"type": "string"},
+          "engine_version": {"type": "string"},
+          "capability": {"type": "string"},
+          "qualification_status": {"enum": ["QUALIFIED", "REFERENCE_QUALIFIED", "QUALIFIED_WITH_RESTRICTIONS", "NOT_QUALIFIED", "BLOCKED", "STALE"]},
+          "evidence_fixture_ids": {"type": "array", "items": {"type": "string"}},
+          "limitations": {"type": "array", "items": {"type": "string"}},
+          "invalidation_triggers": {"type": "array", "items": {"type": "string"}}
+        },
+        "additionalProperties": true
+      }
+    },
+    "overall_status": {"enum": ["PASS", "PASS_WITH_WARNINGS", "PARTIAL_PASS", "BLOCKED", "FAIL"]}
+  },
+  "additionalProperties": true
+}

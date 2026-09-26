@@ -1,0 +1,131 @@
+{
+  "registry_version": "semantic-1",
+  "note": "语义能力资格化注册表。与 generation_capabilities.json 同一治理原则：受版本控制、必须带基准证据，请求方不能自行注册或提升资格。语义行为（阅读/结构/叙事/分配）由模型完成，确定性代码只负责复核，模型不给自己打分。operator_model_workflow 指运维方自有的回环模型工作流（不是厂商模型）：它同样必须跑完 SEMANTIC-ACT-QUALIFICATION-v0.1 并留下证据才可路由，且 external_data_egress=false，因此拿不到公网端点的路由资格；openai_compatible_semantic 仍为 PENDING_QUALIFICATION，不会被本条目影响。",
+  "engines": {
+    "local_deterministic": {
+      "engine_id": "local_deterministic",
+      "engine_version": "mvp-1",
+      "execution_kind": "LOCAL_RULE_ENGINE",
+      "qualification_status": "QUALIFIED",
+      "qualification_basis": {
+        "benchmark_suite": "MVP-DETERMINISTIC-SEMANTIC-v0.1",
+        "tested_at": "2026-09-04",
+        "evidence_refs": ["app/test_policy.py", "tests/test_policy.py"]
+      },
+      "external_data_egress": false,
+      "capabilities": ["source_candidate_extraction", "triage", "architect", "verification"]
+    },
+    "operator_model_workflow": {
+      "engine_id": "operator_model_workflow",
+      "engine_version": "operator-workflow-2026-09-13",
+      "execution_kind": "MODEL_PIPELINE",
+      "qualification_status": "QUALIFIED",
+      "qualification_basis": {
+        "required_benchmark_suite": "SEMANTIC-ACT-QUALIFICATION-v0.1",
+        "required_checks": [
+          "full_text_read_completeness",
+          "quote_grounding_precision",
+          "triage_bucket_agreement",
+          "narrative_order_justification",
+          "no_new_content"
+        ],
+        "tested_at": "2026-09-13",
+        "evidence_refs": ["app/validation/qualification/SEMANTIC-ACT-QUALIFICATION-v0.1.json"],
+        "benchmark_material": {
+          "source": "gini_gold/GOLD_2026_COPD/evidence/source.pdf",
+          "sha256": "ea96b3a63c8f8c0f76d74be17e96f539e07079e6a31f65a3dcd3e68ea72a6e7d",
+          "units": 11
+        },
+        "observed": {
+          "char_coverage": 1.0,
+          "quote_grounding_precision": 1.0,
+          "claims": 27,
+          "must_include_seconds": 1304,
+          "capacity_seconds": 1800,
+          "numeric_values_checked": 24,
+          "numeric_values_absent_from_quote": 0
+        },
+        "scope": "OPERATOR_OWNED_LOOPBACK_WORKFLOW",
+        "reproduce_with": "python -m app.validation.semantic_act_qualification --pdf gini_gold/GOLD_2026_COPD/evidence/source.pdf (requires the operator endpoint and its authored answers in app/validation/model_workflow)"
+      },
+      "external_data_egress": false,
+      "capabilities": ["source_candidate_extraction", "triage", "architect"]
+    },
+    "openai_compatible_semantic": {
+      "engine_id": "openai_compatible_semantic",
+      "engine_version": "deployment-declared",
+      "execution_kind": "MODEL_PIPELINE",
+      "qualification_status": "PENDING_QUALIFICATION",
+      "qualification_basis": {
+        "required_benchmark_suite": "SEMANTIC-ACT-QUALIFICATION-v0.1",
+        "required_checks": [
+          "full_text_read_completeness",
+          "quote_grounding_precision",
+          "triage_bucket_agreement",
+          "narrative_order_justification",
+          "no_new_content"
+        ],
+        "tested_at": null,
+        "evidence_refs": []
+      },
+      "external_data_egress": true,
+      "capabilities": ["source_candidate_extraction", "triage", "architect"]
+    }
+  },
+  "capabilities": {
+    "full_source_summary": {
+      "agent": "full_source_summarizer",
+      "semantic_act": "FULL_SOURCE_SECTION_SUMMARY",
+      "output_validated_by": "full_summary_identity_coverage_locator_validator",
+      "rules": ["REG-READ-001", "REG-READ-002", "REG-READ-018"],
+      "egress_contract": {
+        "payload_kind": "FULL_SOURCE_PAGE_TEXT_WITH_BLOCK_IDS",
+        "allowed_fields": ["page", "text", "source_block_ids", "reading_structure_sha256", "source_sha256"],
+        "forbidden_fields": ["patient_identifiers", "slide_layout", "review_notes", "synthetic_cases"],
+        "requires_source_text": true,
+        "minimum_source_text_policy": "FULL_TEXT",
+        "minimization": "Only full extracted page text, page numbers, citation block IDs and immutable source/reading hashes are sent."
+      }
+    },
+    "source_candidate_extraction": {
+      "agent": "source_extractor",
+      "semantic_act": "M1_READ",
+      "output_validated_by": "source_quote_grounding_validator",
+      "rules": ["CT-01"],
+      "egress_contract": {
+        "payload_kind": "SOURCE_PAGE_TEXT",
+        "allowed_fields": ["document_id", "page", "text"],
+        "forbidden_fields": ["patient_identifiers", "relationships", "pages", "review_notes", "synthetic_cases"],
+        "requires_source_text": true,
+        "minimum_source_text_policy": "FULL_TEXT",
+        "minimization": "只发送该文档已抽取的页级文本与其页码，不发送 Claim、关系、页面计划或任何人工审阅备注。"
+      }
+    },
+    "triage": {
+      "agent": "information_triage",
+      "semantic_act": "M2_SELECT",
+      "output_validated_by": "triage_capacity_validator",
+      "rules": ["TR-05"],
+      "egress_contract": {
+        "payload_kind": "CLAIM_DIGEST",
+        "allowed_fields": ["claim_id", "claim_text", "provenance", "risk", "conditions"],
+        "forbidden_fields": ["raw_source_text", "source_quote", "patient_identifiers"],
+        "requires_source_text": false,
+        "minimization": "只发送 Claim 摘要与既有条件；不发送原文引文正文、患者标识或源码文档。"
+      }
+    },
+    "architect": {
+      "agent": "medical_information_architect",
+      "semantic_act": "M3_NARRATIVE_M4_ALLOCATE",
+      "output_validated_by": "page_capacity_and_order_validator",
+      "rules": ["AR-04"],
+      "egress_contract": {
+        "payload_kind": "CLAIM_DIGEST",
+        "allowed_fields": ["claim_id", "claim_text", "bucket", "conditions", "provenance", "risk"],
+        "forbidden_fields": ["raw_source_text", "source_quote", "patient_identifiers"],
+        "requires_source_text": false,
+        "minimization": "只发送已分诊 Claim 的摘要与桶位；不发送原文正文、引文或患者标识。"
+      }
+    }
+  }
+}

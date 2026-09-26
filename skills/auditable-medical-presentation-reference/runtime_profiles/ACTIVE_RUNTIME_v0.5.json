@@ -1,0 +1,47 @@
+{
+  "version": "0.5.0",
+  "status": "TARGET_RUNTIME_QUALIFICATION_REQUIRED",
+  "historical_registry_merge_allowed": false,
+  "validators": [
+    {
+      "id": "deterministic-integrity-v0.5",
+      "implementation": "scripts/integrity.py",
+      "execution_mode": "PYTHON_DETERMINISTIC_DIFF",
+      "authority": "STRUCTURED_INTEGRITY_ONLY",
+      "qualification_status": "NOT_QUALIFIED_UNTIL_LOCAL_BENCHMARK"
+    }
+  ],
+  "renderers": [
+    {
+      "id": "protected-assembler-v0.2",
+      "implementation": "runtime_executors/reference_protected_layer_assembler_v0.1.py",
+      "qualification_status": "NOT_QUALIFIED_UNTIL_LOCAL_BENCHMARK"
+    },
+    {
+      "id": "portable-exact-overlay-v0.5",
+      "implementation": "runtime_executors/exact_overlay.py",
+      "qualification_status": "FONT_AND_RUNTIME_QUALIFICATION_REQUIRED"
+    }
+  ],
+  "statistical_chart_geometry": "SIMPLE_SVG_ADAPTER_AVAILABLE; LOCAL_QUALIFICATION_REQUIRED; OTHER_FORMATS_UNQUALIFIED",
+  "model_review_authority": "SEMANTIC_AND_SECONDARY_VISUAL_ONLY",
+  "red_human_review": "REQUIRED_BEFORE_DELIVERY",
+  "general_quality_checker": {
+    "implementation": "scripts/quality_checks.py",
+    "scope": [
+      "simple SVG raw-data geometry",
+      "independently annotated coverage",
+      "independently annotated narrative"
+    ],
+    "local_benchmark": "scripts/run_quality_benchmarks.py",
+    "qualification_status": "REQUIRES_TARGET_RUN"
+  },
+  "final_format_checker": {
+    "implementation": "scripts/pptx_quality.py",
+    "scope": [
+      "explicit font cmap from actual PPTX runs",
+      "native object composition constraints"
+    ],
+    "requires_separate_rendered_review": true
+  }
+}

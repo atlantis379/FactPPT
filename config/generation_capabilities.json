@@ -1,0 +1,27 @@
+{
+  "registry_version": "mvp-1",
+  "engines": {
+    "local_deterministic_compositor": {
+      "engine_id": "local_deterministic_compositor",
+      "engine_version": "mvp-1",
+      "execution_kind": "LOCAL_LIBRARY",
+      "qualification_status": "QUALIFIED",
+      "qualification_basis": {
+        "benchmark_suite": "MVP-CONTROLLED-RENDER-v0.1",
+        "tested_at": "2026-09-04",
+        "evidence_refs": ["local-artifact-tool"]
+      },
+      "available": true,
+      "external": false,
+      "capabilities": {
+        "exact_text_authority": true,
+        "exact_data_geometry": true,
+        "scale_axis_fidelity": true,
+        "semantic_topology_lock": true,
+        "external_data_egress": false,
+        "post_generation_verification": true,
+        "medical_asset_pipeline": false
+      }
+    }
+  }
+}

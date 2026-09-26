@@ -1,0 +1,69 @@
+{
+  "runtime_profile_id": "REFERENCE_RUNTIME_PROFILE_CHATGPT_MODEL_FIRST",
+  "profile_version": "v0.1",
+  "date": "2026-09-04",
+  "skill_compatibility": ["auditable-medical-presentation-reference v0.3.1 + SKILL_RUNTIME_PORTABILITY_MANIFEST_v0.1"],
+  "environment_name": "ChatGPT model-first reference environment",
+  "platform": "OpenAI ChatGPT product runtime",
+  "reasoning_model": {
+    "model_id": "GPT-5.6 Sol",
+    "model_version": "current_runtime",
+    "role": ["semantic reasoning","model-first routing","structured verification","secondary multimodal review"]
+  },
+  "available_execution_classes": [
+    "MODEL_REASONING",
+    "MULTIMODAL_VISUAL_REVIEW",
+    "PROMPT_DRIVEN_IMAGE_AVAILABLE_BUT_NOT_HARD_QUALIFIED",
+    "AUDIT_PERSISTENCE",
+    "LOCAL_FILE_HASHING"
+  ],
+  "processing_boundary": {
+    "reasoning": "platform_managed",
+    "prompt_image_generation": "platform_managed",
+    "github_audit_persistence": "connected_private_repository",
+    "local_file_hashing": "session_container"
+  },
+  "artifact_persistence": ["GitHub private repository audit artifacts","session local files"],
+  "overall_qualification_status": "PARTIALLY_QUALIFIED",
+  "generation_capability_registry_ref": "skills/auditable-medical-presentation-reference/runtime_profiles/REFERENCE_GENERATION_CAPABILITY_REGISTRY_v0.1.json",
+  "verifier_capability_registry_ref": "skills/auditable-medical-presentation-reference/runtime_profiles/REFERENCE_POSTGEN_VERIFIER_CAPABILITY_REGISTRY_v0.1.json",
+  "data_egress_policy_ref": "skills/auditable-medical-presentation-reference/runtime_profiles/REFERENCE_DATA_EGRESS_POLICY_PUBLIC_MEDICAL_v0.1.json",
+  "medical_visual_asset_contract_refs": [
+    "docs/workflows/runs/REFERENCE_PIPELINE_TEST_001_CMVD_FIG001_MEDICAL_VISUAL_ASSET_CONTRACT_v0.1.json"
+  ],
+  "qualification_evidence_refs": [
+    "docs/workflows/runs/REFERENCE_RUNTIME_POSTGEN_VERIFIER_QUALIFICATION_BENCHMARK_v0.1.json"
+  ],
+  "current_qualified_capabilities": [
+    "model-first W00-W12 semantic/routing reasoning",
+    "structured exact-text/numeric/topology/logic/provenance verification for the CMVD reference scope",
+    "secondary multimodal visual semantic review"
+  ],
+  "current_unqualified_or_missing_capabilities": [
+    "concrete deterministic diagram renderer with topology-lock benchmark",
+    "concrete deterministic matrix/layout renderer with group/logic manifest output",
+    "exact-content compositor with authoritative string injection and render manifest",
+    "verified medical asset renderer with asset-integrity manifest",
+    "prompt-driven editorial image engine qualification for non-semantic base generation"
+  ],
+  "known_limitations": [
+    "The current prompt-driven image runtime must not be used as authoritative exact-text, topology or data-geometry renderer until benchmark-qualified.",
+    "The verifier qualification is reference-scope, not production-wide.",
+    "W12 effective route binding remains blocked for deterministic rendering/composition components until concrete engine/version records are qualified.",
+    "RED pages still require W16 human review before delivery."
+  ],
+  "material_change_invalidation_triggers": [
+    "reasoning model material change",
+    "image-generation engine material change",
+    "runtime processing-boundary change",
+    "GenerationOutputManifest schema change",
+    "verifier model/version change",
+    "renderer/compositor version change",
+    "data-egress policy change"
+  ],
+  "reference_case_bindings": {
+    "case_id": "REFERENCE_PIPELINE_TEST_001_CMVD",
+    "source_classification": "PUBLIC_SOURCE_MEDICAL",
+    "fig001_asset_contract": "REFERENCE_PIPELINE_TEST_001_CMVD_FIG001_MEDICAL_VISUAL_ASSET_CONTRACT_v0.1.json"
+  }
+}

@@ -1,0 +1,29 @@
+# Runtime and test dependencies for a clean checkout.
+# Versions are floors, matching the convention already used here; the ranges were
+# verified against the versions in use on 2026-09-25.
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.30,<1.0
+python-multipart>=0.0.9,<1.0
+pypdf>=5.0,<7.0
+
+# Source extraction (app/source_extract.py): the v2 content contract reads real
+# PDF/Word/Excel bytes, so these are required rather than optional.
+python-docx>=1.1,<2.0
+openpyxl>=3.1,<4.0
+
+# PPTX read-back verification (app/render_readback.py)
+python-pptx>=0.6.23,<2.0
+
+# Text measurement and visual prompt contracts (app/layout_ir.py,
+# app/visual_prompt_contract.py)
+pillow>=10.0
+
+# Ed25519 anchoring for the audit chain (tools/anchor.py)
+cryptography>=42.0
+
+# Test-only: builds the fixture PDFs used by app/test_source_extract.py
+fpdf2>=2.7
+
+# Test-only: FastAPI's TestClient and schema regression fixtures.
+httpx>=0.27,<1.0
+jsonschema>=4.0,<5.0

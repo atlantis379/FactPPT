@@ -1,0 +1,140 @@
+{
+  "updated_modules": [
+    {
+      "module": "Claim Table",
+      "version": "v0.1",
+      "status": "FROZEN",
+      "rules": 7
+    },
+    {
+      "module": "Information Triage",
+      "version": "v0.1",
+      "status": "FROZEN",
+      "rules": 8
+    },
+    {
+      "module": "Medical Information Architect",
+      "version": "v0.1",
+      "status": "FROZEN",
+      "rules": 10
+    },
+    {
+      "module": "Prompt-driven Medical Visual Generation",
+      "version": "v0.1",
+      "status": "PARTIALLY_FROZEN",
+      "frozen_batches": [
+        {
+          "batch": 1,
+          "name": "Visual Generation Contract & Prompt Compiler",
+          "rules": 14,
+          "status": "FROZEN"
+        },
+        {
+          "batch": 2,
+          "name": "Visual Strategy Selector",
+          "rules": 13,
+          "status": "FROZEN",
+          "notes": "Policy Registries versioned; Calibration Config not frozen"
+        },
+        {
+          "batch": 3,
+          "name": "Generation Strategy Router",
+          "rules": 14,
+          "status": "FROZEN",
+          "notes": "Routing policies and capability registry versioned; soft optimization configurable"
+        }
+      ],
+      "total_frozen_rules": 41
+    }
+  ],
+  "documents": {
+    "01_PRD.md": {
+      "bytes": 70020,
+      "sha256": "74721619d1f0d248baf0c79260fe10a6646a2debf8d39388660b3bb6cb4c362f"
+    },
+    "02_ARCHITECTURE.md": {
+      "bytes": 126870,
+      "sha256": "c3997127122626c7252745b51c54d58b06a9e56c14c0b76e80f26a37de257ee7"
+    },
+    "03_DATA_SCHEMA.md": {
+      "bytes": 67092,
+      "sha256": "9d56f753261e6c0d6bf9ed283956b72c6fd916d30b5598825b787984fa8a637e"
+    },
+    "04_QUALITY_AND_COMPLIANCE.md": {
+      "bytes": 40628,
+      "sha256": "9bec4ab8d3b0d5bab5865a37c2120066f737fb11e81add55b5a0129500e2d491"
+    },
+    "05_MVP_TEST_PLAN.md": {
+      "bytes": 54643,
+      "sha256": "b708da68097e42cb21f5823946f114927bdce951d204558bfdde69727c5bb24e"
+    }
+  },
+  "draft_specs": {},
+  "module06_visual_strategy_governance": {
+    "selector_constitution": {
+      "version": "v0.1",
+      "status": "FROZEN",
+      "rules": 13
+    },
+    "policy_registries": {
+      "status": "VERSIONED_NOT_FROZEN",
+      "registries": [
+        "MedicalVisualTaxonomyRegistry",
+        "VisualMappingPolicyRegistry",
+        "StandardVisualPolicyRegistry",
+        "GenerationStrategyPolicyRegistry"
+      ]
+    },
+    "calibration": {
+      "status": "CONFIGURABLE_NOT_FROZEN",
+      "items": [
+        "SelectorScoringConfig",
+        "PenaltyConfig",
+        "SelectionThresholdConfig",
+        "AmbiguityMargin",
+        "AudienceWeighting",
+        "ProjectWeighting"
+      ]
+    }
+  },
+  "consistency_repairs": [
+    {
+      "date": "2026-09-04",
+      "file": "02_ARCHITECTURE.md",
+      "issue": "stale Module06 Batch2 12-rule draft remained after 13-rule freeze",
+      "action": "synchronized Architecture to Batch2 13-rule FROZEN v0.1",
+      "frozen_semantics_changed": false
+    }
+  ],
+  "module06_generation_router_governance": {
+    "router_constitution": {
+      "version": "v0.1",
+      "status": "FROZEN",
+      "rules": 14
+    },
+    "policy_layer": {
+      "status": "VERSIONED_NOT_FROZEN",
+      "registries": [
+        "GenerationComponentRegistry",
+        "GenerationStrategyRegistry",
+        "GenerationCapabilityRegistry",
+        "GenerationRoutingPolicyRegistry",
+        "FullImageEligibilityPolicy",
+        "FallbackPolicyRegistry",
+        "DataEgressPolicyRegistry",
+        "AssetGenerationPolicyRegistry"
+      ]
+    },
+    "optimization_layer": {
+      "status": "CONFIGURABLE_NOT_FROZEN",
+      "items": [
+        "VisualQuality weighting",
+        "Reliability weighting",
+        "Editability weighting",
+        "Latency weighting",
+        "Cost weighting",
+        "Workflow weighting"
+      ]
+    }
+  }
+}

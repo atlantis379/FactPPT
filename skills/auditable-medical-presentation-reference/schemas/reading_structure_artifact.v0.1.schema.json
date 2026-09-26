@@ -1,0 +1,396 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "reading_structure_artifact.v0.1.schema.json",
+  "title": "SUPERSEDED — Source Reading and Structure Derivation Artifact v0.1 — use reading_structure_artifact.v0.2.schema.json",
+  "description": "SUPERSEDED by reading_structure_artifact.v0.2.schema.json. Retained for the version chain. This schema baked a medical role enum and a Chinese clinical marker list into the contract, which made the rule material-bound. v0.2 moves all material-specific vocabulary into a declared `profile`. W01-R artifact. Records a full-text reading pass over the extracted source and the semantic structure derived from it. A heading scan is not a reading: structure built by splitting on heading markers, page boundaries or regular expressions is invalid here and must be re-derived from the read text.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "source",
+    "reading_pass",
+    "blocks",
+    "structure",
+    "checks",
+    "disposition"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "reading_structure_artifact.v0.1"
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "filename",
+        "sha256",
+        "page_count"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "filename": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{64}$"
+        },
+        "page_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "extraction_ref": {
+          "type": "string"
+        }
+      }
+    },
+    "reading_pass": {
+      "type": "object",
+      "description": "Evidence that the whole source was read, not scanned for headings.",
+      "required": [
+        "reading_mode",
+        "blocks_read",
+        "blocks_total",
+        "chars_read",
+        "chars_total",
+        "structure_derivation"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "reading_mode": {
+          "enum": [
+            "FULL_TEXT_READ"
+          ],
+          "description": "Only FULL_TEXT_READ is accepted. HEADING_SCAN, PAGE_SPLIT and REGEX_ONLY are invalid derivations for structure."
+        },
+        "blocks_read": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blocks_total": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "chars_read": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "chars_total": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "structure_derivation": {
+          "enum": [
+            "LLM_SEMANTIC_SYNTHESIS"
+          ],
+          "description": "Structure must be synthesised from reading. Mechanical splitting is not a derivation."
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "blocks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "block_id",
+          "page",
+          "chars",
+          "role",
+          "relation",
+          "relation_status",
+          "signals",
+          "difficulty",
+          "coverage",
+          "structure_node_ids"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "block_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "chars": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "text_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{64}$"
+          },
+          "role": {
+            "enum": [
+              "definition",
+              "mechanism",
+              "classification",
+              "diagnosis",
+              "treatment",
+              "prognosis",
+              "prevention",
+              "pathology",
+              "epidemiology",
+              "other"
+            ]
+          },
+          "relation": {
+            "enum": [
+              "causal",
+              "progressive",
+              "contrast",
+              "example",
+              "exception",
+              "whole_part",
+              "unmarked"
+            ],
+            "description": "Relation to the preceding text, from a closed set."
+          },
+          "relation_status": {
+            "enum": [
+              "EXPLICIT",
+              "INFERRED"
+            ],
+            "description": "EXPLICIT requires relation_evidence to quote the marker in the source. INFERRED means the reader supplied the relation and it may not be presented as the source's own."
+          },
+          "relation_evidence": {
+            "type": "string"
+          },
+          "signals": {
+            "type": "object",
+            "required": [
+              "emphasis_terms",
+              "numeric_facts"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "emphasis_terms": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "numeric_facts": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "difficulty": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "assumed_concept",
+                "multi_step_mechanism",
+                "confusable_pair",
+                "numeric_dense",
+                "negation_or_exception",
+                "long_causal_chain",
+                "cross_section_link"
+              ]
+            }
+          },
+          "difficulty_notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "coverage": {
+            "enum": [
+              "in_deck",
+              "evidence_only"
+            ]
+          },
+          "structure_node_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Semantic structure nodes this block supports. Empty is allowed only when orphan_reason is present."
+          },
+          "orphan_reason": {
+            "type": "string"
+          },
+          "evidence_only_reason": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "structure": {
+      "type": "object",
+      "required": [
+        "thread",
+        "nodes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "thread": {
+          "type": "string",
+          "minLength": 20,
+          "description": "The through-line the reader derived: the reasoning that makes the parts one argument rather than a list of topics. Must be stated in the reader's own words."
+        },
+        "opening_motivation": {
+          "type": "string",
+          "description": "Why this material exists / the question that drives it, as the source states it."
+        },
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "node_id",
+              "label",
+              "why_here",
+              "source_block_ids"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "node_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1
+              },
+              "why_here": {
+                "type": "string",
+                "minLength": 12,
+                "description": "The question this node answers, or the role it plays in the thread. 'Because the textbook has this heading' is not an acceptable answer."
+              },
+              "source_block_ids": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "parent_node_id": {
+                "type": "string"
+              },
+              "emphasis_basis": {
+                "enum": [
+                  "SYLLABUS",
+                  "SOURCE_SIGNAL",
+                  "BOTH",
+                  "NONE"
+                ],
+                "description": "Where the claim to importance comes from. SYLLABUS is external and must be declared as such."
+              },
+              "difficulty_basis": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "checks": {
+      "type": "object",
+      "description": "Five falsifiable checks. Each must be able to report FAIL.",
+      "required": [
+        "thread",
+        "emphasis",
+        "difficulty",
+        "summary",
+        "logic"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "thread": {
+          "$ref": "#/$defs/check",
+          "description": "Is the structure traceable to blocks, and is it more than the source's table of contents?"
+        },
+        "emphasis": {
+          "$ref": "#/$defs/check",
+          "description": "Does every page claimed as important carry a measurable signal, and are high-signal blocks surfaced?"
+        },
+        "difficulty": {
+          "$ref": "#/$defs/check",
+          "description": "Do high-difficulty passages receive more space or a more structured figure?"
+        },
+        "summary": {
+          "$ref": "#/$defs/check",
+          "description": "Does the page allocation follow the source's content distribution, and is any imbalance declared?"
+        },
+        "logic": {
+          "$ref": "#/$defs/check",
+          "description": "Does every causal or staged presentation rest on an EXPLICIT relation in the source?"
+        }
+      }
+    },
+    "coverage_declaration": {
+      "type": "object",
+      "description": "Required whenever a section's page share diverges from its character share.",
+      "additionalProperties": false,
+      "properties": {
+        "basis": {
+          "enum": [
+            "SYLLABUS_MASTERY_SPLIT",
+            "AUDIENCE_PRIORITY",
+            "TIME_BUDGET",
+            "OTHER"
+          ]
+        },
+        "rationale": {
+          "type": "string"
+        },
+        "excluded_content_retained": {
+          "type": "boolean"
+        },
+        "evidence_store_ref": {
+          "type": "string"
+        }
+      }
+    },
+    "disposition": {
+      "enum": [
+        "READING_STRUCTURE_ACCEPTED",
+        "READING_STRUCTURE_ACCEPTED_WITH_DECLARED_GAPS",
+        "READING_STRUCTURE_REJECTED"
+      ]
+    }
+  },
+  "$defs": {
+    "check": {
+      "type": "object",
+      "required": [
+        "status",
+        "method",
+        "failures"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "NOT_CHECKED"
+          ]
+        },
+        "method": {
+          "type": "string",
+          "minLength": 10,
+          "description": "The falsifiable test actually applied. A check whose failure mode cannot be described is NOT_CHECKED."
+        },
+        "failures": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "failure_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

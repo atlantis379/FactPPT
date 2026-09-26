@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "runtime_capability_profile.v0.1.schema.json",
+  "title": "RuntimeCapabilityProfile v0.1",
+  "type": "object",
+  "required": [
+    "runtime_profile_id","profile_version","skill_compatibility","environment_name","platform",
+    "overall_qualification_status","generation_capability_registry_ref","verifier_capability_registry_ref",
+    "data_egress_policy_ref","known_limitations","material_change_invalidation_triggers"
+  ],
+  "properties": {
+    "runtime_profile_id": {"type":"string"},
+    "profile_version": {"type":"string"},
+    "skill_compatibility": {"type":"array","items":{"type":"string"}},
+    "environment_name": {"type":"string"},
+    "platform": {"type":"string"},
+    "reasoning_model": {
+      "type":["object","null"],
+      "properties": {"model_id":{"type":"string"},"model_version":{"type":"string"},"role":{"type":"array","items":{"type":"string"}}},
+      "additionalProperties": true
+    },
+    "available_execution_classes": {"type":"array","items":{"type":"string"}},
+    "processing_boundary": {"type":"object"},
+    "artifact_persistence": {"type":"array","items":{"type":"string"}},
+    "overall_qualification_status": {
+      "enum":["QUALIFIED","REFERENCE_QUALIFIED","PARTIALLY_QUALIFIED","QUALIFICATION_PENDING","UNQUALIFIED","STALE","BLOCKED"]
+    },
+    "generation_capability_registry_ref": {"type":"string"},
+    "verifier_capability_registry_ref": {"type":"string"},
+    "data_egress_policy_ref": {"type":"string"},
+    "medical_visual_asset_contract_refs": {"type":"array","items":{"type":"string"}},
+    "qualification_evidence_refs": {"type":"array","items":{"type":"string"}},
+    "known_limitations": {"type":"array","items":{"type":"string"}},
+    "material_change_invalidation_triggers": {"type":"array","items":{"type":"string"}},
+    "notes": {"type":"array","items":{"type":"string"}}
+  },
+  "additionalProperties": true
+}

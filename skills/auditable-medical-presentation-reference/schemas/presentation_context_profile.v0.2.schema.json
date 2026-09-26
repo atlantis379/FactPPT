@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "presentation_context_profile.v0.2.schema.json",
+  "title": "PresentationContextProfileV0_2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "context_profile_id",
+    "domain_context_profile",
+    "presenter_profile",
+    "audience_profile",
+    "subject_scope_profile",
+    "scenario_profile",
+    "task_intent_profile",
+    "constraint_profile",
+    "adaptation_contract",
+    "context_integrity_status"
+  ],
+  "properties": {
+    "context_profile_id": {"type": "string", "minLength": 1},
+    "domain_context_profile": {
+      "type": "object",
+      "required": ["domain_label"],
+      "properties": {
+        "domain_label": {"type": "string", "minLength": 1},
+        "specialty_tags": {"type": "array", "items": {"type": "string"}, "default": []},
+        "source_material_type": {"type": ["string", "null"]},
+        "jurisdiction_or_regulatory_context": {"type": ["string", "null"]},
+        "domain_notes": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "presenter_profile": {
+      "type": "object",
+      "required": ["role_label"],
+      "properties": {
+        "role_label": {"type": "string", "minLength": 1},
+        "professional_function": {"type": "array", "items": {"type": "string"}, "default": []},
+        "domain_expertise": {"type": "array", "items": {"type": "string"}, "default": []},
+        "expertise_level": {"type": ["string", "null"]},
+        "decision_authority": {"enum": ["NONE", "INFORM", "RECOMMEND", "DECIDE", "MIXED", "UNKNOWN"]},
+        "evidence_literacy": {"enum": ["BASIC", "INTERMEDIATE", "ADVANCED", "EXPERT", "UNKNOWN"]},
+        "presentation_responsibility": {"type": ["string", "null"]},
+        "known_constraints": {"type": "array", "items": {"type": "string"}, "default": []}
+      },
+      "additionalProperties": false
+    },
+    "audience_profile": {
+      "type": "object",
+      "required": ["segments"],
+      "properties": {
+        "segments": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["segment_id", "segment_label", "priority"],
+            "properties": {
+              "segment_id": {"type": "string", "minLength": 1},
+              "segment_label": {"type": "string", "minLength": 1},
+              "professional_or_social_context": {"type": "array", "items": {"type": "string"}, "default": []},
+              "domain_expertise": {"type": "array", "items": {"type": "string"}, "default": []},
+              "expertise_level": {"type": ["string", "null"]},
+              "evidence_literacy": {"type": ["string", "null"]},
+              "decision_responsibility": {"type": ["string", "null"]},
+              "information_need": {"type": "array", "items": {"type": "string"}, "default": []},
+              "expected_action_after_presentation": {"type": "array", "items": {"type": "string"}, "default": []},
+              "priority": {"enum": ["PRIMARY", "SECONDARY", "TERTIARY"]},
+              "estimated_share": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+              "accessibility_or_language_needs": {"type": "array", "items": {"type": "string"}, "default": []}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "subject_scope_profile": {
+      "type": "object",
+      "required": ["scope_label", "source_object_refs"],
+      "properties": {
+        "scope_label": {"type": "string", "minLength": 1},
+        "scope_type": {"type": ["string", "null"]},
+        "population_constraints": {"type": "array", "items": {"type": "string"}, "default": []},
+        "condition_constraints": {"type": "array", "items": {"type": "string"}, "default": []},
+        "intervention_constraints": {"type": "array", "items": {"type": "string"}, "default": []},
+        "time_constraints": {"type": "array", "items": {"type": "string"}, "default": []},
+        "geography_or_setting": {"type": "array", "items": {"type": "string"}, "default": []},
+        "source_object_refs": {"type": "array", "items": {"type": "string"}},
+        "scope_notes": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "scenario_profile": {"type": "object", "additionalProperties": true},
+    "task_intent_profile": {"type": "object", "additionalProperties": true},
+    "constraint_profile": {"type": "object", "additionalProperties": true},
+    "adaptation_contract": {
+      "type": "object",
+      "required": [
+        "depth_level",
+        "terminology_level",
+        "evidence_detail_level",
+        "numeric_detail_level",
+        "background_explanation_need",
+        "visual_complexity",
+        "source_visibility",
+        "adaptation_rationale"
+      ],
+      "properties": {
+        "depth_level": {"type": "string"},
+        "terminology_level": {"type": "string"},
+        "clinical_or_operational_actionability": {"type": ["string", "null"]},
+        "mechanism_depth": {"type": ["string", "null"]},
+        "evidence_detail_level": {"type": "string"},
+        "numeric_detail_level": {"type": "string"},
+        "recommendation_visibility": {"type": ["string", "null"]},
+        "evidence_grade_visibility": {"type": ["string", "null"]},
+        "background_explanation_need": {"type": "string"},
+        "visual_complexity": {"type": "string"},
+        "comparison_detail_level": {"type": ["string", "null"]},
+        "uncertainty_visibility": {"type": ["string", "null"]},
+        "case_example_need": {"type": ["string", "null"]},
+        "appendix_ratio": {"type": ["string", "null"]},
+        "speaker_note_depth": {"type": ["string", "null"]},
+        "source_visibility": {"type": "string"},
+        "primary_audience_segment_ids": {"type": "array", "items": {"type": "string"}, "default": []},
+        "segment_conflict_handling": {"type": ["string", "null"]},
+        "adaptation_rationale": {"type": "array", "items": {"type": "string"}, "minItems": 1}
+      },
+      "additionalProperties": false
+    },
+    "context_integrity_status": {"enum": ["PASS", "PASS_WITH_WARNINGS", "NEEDS_CLARIFICATION", "NEEDS_HUMAN_REVIEW", "BLOCK"]},
+    "warnings": {"type": "array", "items": {"type": "string"}, "default": []},
+    "unresolved_facets": {"type": "array", "items": {"type": "string"}, "default": []}
+  }
+}

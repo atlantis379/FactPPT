@@ -1,0 +1,252 @@
+[
+  {
+    "id": "CT-01",
+    "module": "claim_table",
+    "constraint_type": "HARD",
+    "enforced_by": "schema+verifier",
+    "validated_by": "source_integrity_validator",
+    "violation_action": "BLOCK",
+    "severity": "CRITICAL",
+    "rule": "SOURCE claim must have a source reference and quotation."
+  },
+  {
+    "id": "CT-02",
+    "module": "claim_table",
+    "constraint_type": "HARD",
+    "enforced_by": "policy_gate",
+    "validated_by": "synthetic_case_validator",
+    "violation_action": "BLOCK",
+    "severity": "CRITICAL",
+    "rule": "Synthetic case is off unless explicitly enabled."
+  },
+  {
+    "id": "TR-05",
+    "module": "triage",
+    "constraint_type": "HARD",
+    "enforced_by": "triage_service",
+    "validated_by": "bundle_validator",
+    "violation_action": "BLOCK",
+    "severity": "HIGH",
+    "rule": "Meaning-preserving conditions travel with the selected claim."
+  },
+  {
+    "id": "AR-04",
+    "module": "architect",
+    "constraint_type": "HARD",
+    "enforced_by": "schema+architect",
+    "validated_by": "page_spec_validator",
+    "violation_action": "BLOCK",
+    "severity": "CRITICAL",
+    "rule": "Every page has one primary message and a presentation question."
+  },
+  {
+    "id": "SB-03",
+    "module": "semantic_binding",
+    "constraint_type": "HARD",
+    "enforced_by": "verifier",
+    "validated_by": "title_entailment_validator",
+    "violation_action": "HUMAN_REVIEW",
+    "severity": "HIGH",
+    "rule": "Title strength must not exceed supporting claims."
+  },
+  {
+    "id": "SB-05",
+    "module": "semantic_binding",
+    "constraint_type": "HARD",
+    "enforced_by": "relationship_api",
+    "validated_by": "relationship_provenance_validator",
+    "violation_action": "BLOCK",
+    "severity": "CRITICAL",
+    "rule": "Composed relationships are SYNTHESIS unless a source states the relation."
+  },
+  {
+    "id": "DB-01",
+    "module": "data_binding",
+    "constraint_type": "HARD",
+    "enforced_by": "verifier+review_api",
+    "validated_by": "numeric_binding_validator",
+    "violation_action": "BLOCK",
+    "severity": "CRITICAL",
+    "rule": "RED data requires value, unit, metric, population, timeframe and source."
+  },
+  {
+    "id": "CR-13",
+    "module": "clinical_relationship",
+    "constraint_type": "HARD",
+    "enforced_by": "verifier+review_api",
+    "validated_by": "relationship_fidelity_validator",
+    "violation_action": "HUMAN_REVIEW",
+    "severity": "HIGH",
+    "rule": "RED SYNTHESIS, conflict, or incomplete condition relationship requires human review."
+  },
+  {
+    "id": "VG-07",
+    "module": "visual_generation",
+    "constraint_type": "HARD",
+    "enforced_by": "router+contract",
+    "validated_by": "exact_text_validator",
+    "violation_action": "BLOCK",
+    "severity": "CRITICAL",
+    "rule": "Exact thresholds, doses and CIs cannot be generated as uncontrolled image text."
+  },
+  {
+    "id": "VG-09",
+    "module": "visual_generation",
+    "constraint_type": "HARD",
+    "enforced_by": "router+post_generation_verifier",
+    "validated_by": "protected_layer_validator",
+    "violation_action": "BLOCK",
+    "severity": "CRITICAL",
+    "rule": "Protected semantic layer cannot be repainted by a generative renderer."
+  },
+  {
+    "id": "CP-01",
+    "module": "compliance",
+    "constraint_type": "HARD",
+    "enforced_by": "compliance_service",
+    "validated_by": "compliance_validator",
+    "violation_action": "BLOCK",
+    "severity": "CRITICAL",
+    "rule": "Public output is blocked by unresolved privacy, promotional or treatment-claim risks."
+  },
+  {
+    "id": "CF-01",
+    "module": "claim_table",
+    "constraint_type": "HARD",
+    "enforced_by": "canonicalization+verifier",
+    "validated_by": "conflict_validator",
+    "violation_action": "HUMAN_REVIEW",
+    "severity": "HIGH",
+    "rule": "Cross-source conflicts are isolated and cannot enter delivery unresolved."
+  },
+  {
+    "id": "CAP-01",
+    "module": "policy_engine",
+    "constraint_type": "HARD",
+    "enforced_by": "agent_capability_matrix",
+    "validated_by": "capability_write_validator",
+    "violation_action": "BLOCK",
+    "severity": "CRITICAL",
+    "rule": "An agent may write only resources explicitly declared in its capability matrix."
+  },
+  {
+    "id": "LD-01",
+    "module": "layout_design",
+    "constraint_type": "HARD",
+    "enforced_by": "layout_ir+render_readback",
+    "validated_by": "reading_order_validator",
+    "violation_action": "BLOCK",
+    "severity": "CRITICAL",
+    "rule": "A model-selected composition cannot reorder the approved narrative: the rendered visual reading order must equal the page's approved Claim order."
+  },
+  {
+    "id": "LD-02",
+    "module": "layout_design",
+    "constraint_type": "HARD",
+    "enforced_by": "layout_ir.validate_layout_ir",
+    "validated_by": "focal_claim_precedence_validator",
+    "violation_action": "BLOCK",
+    "severity": "CRITICAL",
+    "rule": "FOCUS_EVIDENCE leads with the page's first approved Claim; promoting a later Claim is a narrative decision that belongs upstream, not in the layout."
+  },
+  {
+    "id": "LD-03",
+    "module": "layout_design",
+    "constraint_type": "HARD",
+    "enforced_by": "layout_ir.assess_plan_text_fit+native_beautifier",
+    "validated_by": "text_frame_fit_validator",
+    "violation_action": "BLOCK",
+    "severity": "HIGH",
+    "rule": "Text capacity is measured against the insets the delivered text frame actually receives, never the declared box."
+  },
+  {
+    "id": "LD-04",
+    "module": "packaging",
+    "constraint_type": "HARD",
+    "enforced_by": "packager._ensure_node_modules_link",
+    "validated_by": "runtime_link_validator",
+    "violation_action": "BLOCK",
+    "severity": "HIGH",
+    "rule": "Packaging fails closed when the Artifact Tool runtime cannot be linked; a node_modules path that does not resolve the package is not a usable build."
+  },
+  {
+    "id": "SM-01",
+    "module": "semantic_model",
+    "constraint_type": "HARD",
+    "enforced_by": "semantic_model.egress_plan",
+    "validated_by": "semantic_egress_validator",
+    "violation_action": "BLOCK",
+    "severity": "CRITICAL",
+    "rule": "A semantic act may leave the machine only when the engine is qualified for that capability in the version-controlled registry and the project declares the matching egress policy."
+  },
+  {
+    "id": "SM-02",
+    "module": "semantic_model",
+    "constraint_type": "HARD",
+    "enforced_by": "main.extract_candidates_with_model+triage_with_model+architect_with_model",
+    "validated_by": "semantic_output_validator",
+    "violation_action": "BLOCK",
+    "severity": "CRITICAL",
+    "rule": "Model-produced semantic output is validated by deterministic code before it is written; the model never grades itself and never sets risk, numeric facts, budget or ids."
+  },
+  {
+    "id": "SM-03",
+    "module": "semantic_model",
+    "constraint_type": "HARD",
+    "enforced_by": "main.resolve_semantic_route",
+    "validated_by": "route_refusal_validator",
+    "violation_action": "BLOCK",
+    "severity": "HIGH",
+    "rule": "A configured but unqualified or unpermitted model route fails the stage; it must not silently degrade into the deterministic engine and hide the refusal."
+  },
+  {
+    "id": "RS-01",
+    "module": "reading_structure",
+    "constraint_type": "HARD",
+    "enforced_by": "reading_structure.validate_reading_structure",
+    "validated_by": "reading_structure_validator",
+    "violation_action": "BLOCK",
+    "severity": "CRITICAL",
+    "rule": "A reading artifact attaches only after its own gate passes: full-text read, model-derived structure, complete and unique block coverage, declared narrative order, page reason and figure intent, and declared gaps for any failing check."
+  },
+  {
+    "id": "RS-02",
+    "module": "reading_structure",
+    "constraint_type": "HARD",
+    "enforced_by": "reading_structure.join_pages_to_claims",
+    "validated_by": "allocation_gap_validator",
+    "violation_action": "BLOCK",
+    "severity": "HIGH",
+    "rule": "An approved Claim the accepted reading never reached, and a reading page that maps to no approved Claim, are reported as allocation gaps; neither is dropped silently."
+  },
+  {
+    "id": "RS-03",
+    "module": "reading_structure",
+    "constraint_type": "HARD",
+    "enforced_by": "main.architect_from_reading_structure+PageSpec",
+    "validated_by": "narrative_anchor_validator",
+    "violation_action": "BLOCK",
+    "severity": "CRITICAL",
+    "rule": "When a reading artifact is attached, the page set, page order and per-page Claim order come from that artifact and are recorded on the PageSpec; the design layer may not re-derive or reorder them."
+  },
+  {
+    "id": "RC-01",
+    "module": "read_units",
+    "constraint_type": "HARD",
+    "enforced_by": "read_units.audit_read_receipts+main.extract_candidates_with_model",
+    "validated_by": "read_receipt_coverage_validator",
+    "violation_action": "BLOCK",
+    "severity": "CRITICAL",
+    "rule": "A reading must account for every source unit: each is either backed by at least one quote-grounded candidate, or declined with a reason from a closed list. A unit the code classifies as carrying content may not be declined."
+  },
+  {
+    "id": "RC-02",
+    "module": "read_units",
+    "constraint_type": "HARD",
+    "enforced_by": "read_units.audit_read_receipts",
+    "validated_by": "meaning_token_accounting_validator",
+    "violation_action": "BLOCK",
+    "severity": "CRITICAL",
+    "rule": "Every meaning-critical value a unit states (threshold, unit-bearing measurement, magnitude) must be covered by an accepted candidate's own words or excluded with a stated reason. Thresholds may not be excluded."
+  }
+]

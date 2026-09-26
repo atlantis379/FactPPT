@@ -1,0 +1,180 @@
+{
+  "skill_name": "auditable-medical-presentation-reference",
+  "skill_version": "v0.4.0",
+  "status": "FORMAL_REFERENCE_SKILL",
+  "compiled_on": "2026-09-04",
+  "source_of_truth": "repository docs/specs/ + frozen reference workflow/checklist + active Skill contracts/policies",
+  "numbered_frozen_rules_compiled": 178,
+  "frozen_specs_changed_by_v0_4_0": false,
+  "frozen_rule_count_change": 0,
+  "module_frozen_counts": {
+    "module01_claim_table": 7,
+    "module02_information_triage": 8,
+    "module03_medical_information_architect": 10,
+    "module04_semantic_relationship_and_evidence_binding": 60,
+    "module05_medical_verifier_batches_1_to_4": 52,
+    "module06_batches_1_to_3": 41
+  },
+  "upstream_repository": "atlantis379/auditable-medical-presentation",
+  "active_skill_policies": [
+    {
+      "path": "docs/workflows/FULL_SOURCE_EVIDENCE_COVERAGE_POLICY_v0.1.md",
+      "status": "ACTIVE_SKILL_POLICY_NOT_FROZEN_SPEC",
+      "purpose": "require whole-source traversal, full evidence-universe construction and coverage audit before Triage/Narrative/PageSpec"
+    },
+    {
+      "path": "docs/workflows/PRESENTATION_CONTEXT_MATCHING_POLICY_v0.2.md",
+      "status": "ACTIVE_SKILL_POLICY_NOT_FROZEN_SPEC",
+      "purpose": "open compositional context model independent of specialty, department, profession, job title, or patient-only subject assumptions"
+    },
+    {
+      "path": "docs/workflows/NARRATIVE_RATIONALITY_AUDIT_POLICY_v0.1.md",
+      "status": "ACTIVE_SKILL_POLICY_NOT_FROZEN_SPEC",
+      "purpose": "require Narrative Rationality Audit and Approved Narrative Architecture before page decomposition"
+    },
+    {
+      "path": "docs/workflows/NARRATIVE_TO_PAGE_DECOMPOSITION_AUDIT_POLICY_v0.1.md",
+      "status": "ACTIVE_SKILL_POLICY_NOT_FROZEN_SPEC",
+      "purpose": "require audited page boundaries, merge/split decisions, main-vs-appendix allocation and Approved Page Allocation Plan before PageSpec construction"
+    },
+    {
+      "path": "docs/workflows/PAGESPEC_VISUAL_STRATEGY_DERIVATION_POLICY_v0.1.md",
+      "status": "ACTIVE_SKILL_POLICY_NOT_FROZEN_SPEC",
+      "purpose": "derive PageSpec from presentation semantics rather than source layout and select Visual Strategy from PageSpec information structure"
+    }
+  ],
+  "active_skill_checklist_supplements": [
+    "docs/workflows/REFERENCE_PIPELINE_FULL_SOURCE_COVERAGE_CHECKLIST_v0.1.md",
+    "docs/workflows/REFERENCE_PIPELINE_CONTEXT_MATCHING_CHECKLIST_v0.1.md",
+    "docs/workflows/REFERENCE_PIPELINE_NARRATIVE_AUDIT_CHECKLIST_v0.1.md"
+  ],
+  "active_skill_contracts": [
+    "skills/auditable-medical-presentation-reference/contracts/STAGE_OUTPUT_CONTRACTS_v0.3.md",
+    "skills/auditable-medical-presentation-reference/contracts/PORTABLE_RUNTIME_CAPABILITY_CONTRACT_v0.1.md"
+  ],
+  "active_skill_schemas": [
+    "skills/auditable-medical-presentation-reference/schemas/run_state.schema.json",
+    "skills/auditable-medical-presentation-reference/schemas/presentation_context_profile.v0.2.schema.json",
+    "skills/auditable-medical-presentation-reference/schemas/runtime_capability_profile.v0.1.schema.json",
+    "skills/auditable-medical-presentation-reference/schemas/post_generation_verifier_capability_registry.v0.1.schema.json",
+    "skills/auditable-medical-presentation-reference/schemas/medical_visual_asset_contract.v0.1.schema.json",
+    "skills/auditable-medical-presentation-reference/schemas/runtime_qualification_result.v0.1.schema.json"
+  ],
+  "runtime_portability_extension": {
+    "version": "v0.1",
+    "status": "ACTIVE_SKILL_EXTENSION_NOT_FROZEN_SPEC",
+    "manifest": "skills/auditable-medical-presentation-reference/SKILL_RUNTIME_PORTABILITY_MANIFEST_v0.1.json",
+    "gate_location": "W12 sub-gate between abstract legal route derivation and effective engine binding",
+    "core_principle": "Runtime capability must be proven, not assumed",
+    "required_runtime_bundle": [
+      "RuntimeCapabilityProfile",
+      "GenerationCapabilityRegistry",
+      "PostGenerationVerifierCapabilityRegistry",
+      "DataEgressPolicy/PrivacyDecision",
+      "MedicalVisualAssetContract[] as applicable",
+      "QualificationEvidence[]",
+      "FallbackCapabilityRecord[] as applicable",
+      "RuntimeInvalidationPolicy"
+    ],
+    "qualification_trigger": [
+      "missing runtime profile",
+      "missing required capability qualification",
+      "new runtime/platform",
+      "material engine/model/renderer/compositor/verifier change",
+      "STALE capability",
+      "new W12 route-class requirement"
+    ],
+    "benchmark_pack": {
+      "protocol": "skills/auditable-medical-presentation-reference/runtime_benchmarks/GENERATION_RUNTIME_QUALIFICATION_BENCHMARK_PACK_v0.1.md",
+      "fixtures": "skills/auditable-medical-presentation-reference/runtime_benchmarks/GENERATION_RUNTIME_QUALIFICATION_FIXTURES_v0.1.json",
+      "fixture_count": 20,
+      "domains": [
+        "DETERMINISTIC_DIAGRAM",
+        "MATRIX_LAYOUT",
+        "EXACT_CONTENT_COMPOSITOR",
+        "VERIFIED_MEDICAL_ASSET_RENDERER",
+        "PROMPT_EDITORIAL_BASE"
+      ]
+    },
+    "incremental_requalification_allowed": true,
+    "upstream_medical_semantics_invalidated_by_runtime_failure": false
+  },
+  "full_source_coverage_model": {
+    "version": "v0.1",
+    "gate_location": "W02-FSC after W02 and before downstream Triage/Narrative use",
+    "required_output": "FullSourceCoverageAudit PASS or PASS_WITH_WARNINGS before W05",
+    "core_principle": "Full evidence universe before presentation relevance",
+    "full_source_extraction_required": true,
+    "presentation_relevant_sampling_is_sufficient": false,
+    "reference_pages_may_be_inventory_only": true,
+    "narrative_changing_omission_invalidates_downstream": true
+  },
+  "context_model": {
+    "version": "v0.2",
+    "model_type": "OPEN_COMPOSITIONAL_FACETS",
+    "closed_role_taxonomy_required": false,
+    "mixed_audience_supported": true,
+    "patient_population_assumption": false,
+    "preset_registry_status": "OPTIONAL_VERSIONED_NON_AUTHORITATIVE"
+  },
+  "narrative_rationality_model": {
+    "version": "v0.1",
+    "gate_location": "W06 sub-gate before page decomposition",
+    "required_input": "NarrativeDraft generated from a W02-FSC-approved evidence universe",
+    "required_output": "ApprovedNarrativeArchitecture",
+    "candidate_pages_before_approval": "CANDIDATE_PAGE_DECOMPOSITION",
+    "deep_dive_exemplar_requires_scope_declaration": true,
+    "page_count_must_not_drive_narrative_unless_hard_constraint": true
+  },
+  "narrative_to_page_decomposition_model": {
+    "version": "v0.1",
+    "gate_location": "after ApprovedNarrativeArchitecture and before W07 PageSpec",
+    "required_input": "ApprovedNarrativeArchitecture",
+    "required_output": "ApprovedPageAllocationPlan",
+    "page_count_default": "EMERGENT",
+    "source_boundaries_do_not_define_page_boundaries": true,
+    "display_intent_is_not_visual_strategy": true
+  },
+  "pagespec_visual_strategy_model": {
+    "version": "v0.1",
+    "core_principle": "Preserve source semantics, not source layout",
+    "source_structure_dependency": [
+      "AUTHORITATIVE_TOPOLOGY",
+      "PARTIAL_SEMANTIC_STRUCTURE",
+      "EVIDENCE_ONLY",
+      "NONE"
+    ],
+    "page_derivation_modes": [
+      "SOURCE_RECONSTRUCTION",
+      "SOURCE_SYNTHESIS",
+      "NARRATIVE_SYNTHESIS"
+    ],
+    "layout_similarity_is_approval_criterion": false
+  },
+  "runtime_regression_rules": [
+    "REG-RUNTIME-001",
+    "REG-RUNTIME-002",
+    "REG-RUNTIME-003",
+    "REG-RUNTIME-004",
+    "REG-RUNTIME-005",
+    "REG-RUNTIME-006",
+    "REG-RUNTIME-007",
+    "REG-RUNTIME-008",
+    "REG-RUNTIME-009",
+    "REG-RUNTIME-010"
+  ],
+  "reference_runtime_profile": "skills/auditable-medical-presentation-reference/runtime_profiles/REFERENCE_RUNTIME_PROFILE_CHATGPT_MODEL_FIRST_v0.1.json",
+  "reference_verifier_registry": "skills/auditable-medical-presentation-reference/runtime_profiles/REFERENCE_POSTGEN_VERIFIER_CAPABILITY_REGISTRY_v0.1.json",
+  "reference_fig001_asset_contract": "docs/workflows/runs/REFERENCE_PIPELINE_TEST_001_CMVD_FIG001_MEDICAL_VISUAL_ASSET_CONTRACT_v0.1.json",
+  "test001_status": "W12_RUNTIME_QUALIFICATION_IN_PROGRESS_ENGINE_BINDING_BLOCKED",
+  "notes": [
+    "Module05 is frozen only through Batch4; do not invent frozen Batch5 behavior.",
+    "v0.4.0 changes no frozen spec and leaves frozen rule count at 178.",
+    "Runtime Qualification is an active W12 Skill sub-gate, not a new W-stage.",
+    "A vendor/model name is never sufficient Hard Capability Evidence.",
+    "Runtime qualification failures do not invalidate W02-W11 unless upstream medical semantics changed.",
+    "Exact text/numeric/topology/logic/provenance verification is manifest-first whenever machine-readable output exists; OCR alone cannot approve RED exact content.",
+    "Prompt Editorial Base qualification never grants exact-text/topology/data-geometry authority.",
+    "Current CMVD reference run has verifier, data-egress and FIG001 asset-contract gaps resolved for reference scope; concrete deterministic generation engines still require benchmark qualification."
+  ]
+}

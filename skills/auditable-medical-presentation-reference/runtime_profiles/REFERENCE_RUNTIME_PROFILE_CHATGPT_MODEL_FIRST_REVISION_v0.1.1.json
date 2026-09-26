@@ -1,0 +1,35 @@
+{
+  "runtime_profile_revision_id": "REFERENCE_RUNTIME_PROFILE_CHATGPT_MODEL_FIRST_REVISION_v0.1.1",
+  "date": "2026-09-04",
+  "base_profile": "REFERENCE_RUNTIME_PROFILE_CHATGPT_MODEL_FIRST_v0.1.json",
+  "status": "APPLIED_FOR_REFERENCE_RUNTIME_EFFECTIVE_VIEW",
+  "skill_compatibility": ["auditable-medical-presentation-reference v0.4.0"],
+  "generation_capability_effective_view": "REFERENCE_GENERATION_CAPABILITY_REGISTRY_v0.1 + revisions v0.1.1/v0.1.2/v0.1.3",
+  "verifier_registry": "REFERENCE_POSTGEN_VERIFIER_CAPABILITY_REGISTRY_v0.1.json",
+  "data_egress_policy": "REFERENCE_DATA_EGRESS_POLICY_PUBLIC_MEDICAL_v0.1.json",
+  "asset_contracts": ["REFERENCE_PIPELINE_TEST_001_CMVD_FIG001_MEDICAL_VISUAL_ASSET_CONTRACT_v0.1.json"],
+  "newly_reference_qualified_capabilities": [
+    "deterministic diagram topology/node-edge-direction/branch-condition rendering via reference_svg_renderer v0.1+scriptsha-02d2765f",
+    "deterministic matrix/group-membership/AND-logic rendering via reference_svg_renderer v0.1+scriptsha-02d2765f",
+    "verified medical asset uniform scale/safe-margin crop with hash lineage via reference_pillow_asset_renderer Pillow-12.3.0+policy-v0.1",
+    "CMVD P01-P08 117-string exact flowing text-box composition via reference_exact_content_compositor v0.2+scriptsha-ecf877db275a",
+    "structured exact-text/numeric/topology/logic/provenance post-generation verification for CMVD reference scope",
+    "secondary multimodal visual-semantic review"
+  ],
+  "remaining_unqualified_required_capabilities_for_full_page_execution": [
+    "positioned exact-content overlay with contract-bound x/y/width/height and stable semantic object binding",
+    "protected-layer deterministic assembler/flattening with layer hash/order/occlusion manifest"
+  ],
+  "optional_unqualified_capabilities": [
+    "prompt-driven non-semantic editorial base"
+  ],
+  "overall_qualification_status": "PARTIALLY_QUALIFIED",
+  "w12_b_status": "BLOCKED_AT_POSITIONED_EXACT_OVERLAY_AND_PROTECTED_LAYER_ASSEMBLY",
+  "w13_authorized": false,
+  "known_limitations": [
+    "Reference qualifications are benchmark/case scoped and do not imply production-wide approval.",
+    "Exact Content Compositor v0.2 is qualified for the tested flowing full-width text-box envelope, not arbitrary final-page placement.",
+    "Qualified semantic and exact outputs cannot be combined into one authoritative final page until a protected-layer assembler is qualified.",
+    "RED pages still require W16 human review before delivery."
+  ]
+}

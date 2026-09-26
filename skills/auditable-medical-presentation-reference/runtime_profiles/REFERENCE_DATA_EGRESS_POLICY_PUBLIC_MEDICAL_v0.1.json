@@ -1,0 +1,50 @@
+{
+  "policy_id": "REFERENCE_DATA_EGRESS_POLICY_PUBLIC_MEDICAL",
+  "policy_version": "v0.1",
+  "date": "2026-09-04",
+  "status": "ACTIVE_REFERENCE_POLICY",
+  "scope": "CMVD Reference Case 001 and analogous public, user-provided medical publications used for internal reference validation",
+  "default_unknown_classification_action": "DENY_EXTERNAL_PROCESSING",
+  "classifications": {
+    "PUBLIC_SOURCE_MEDICAL": {
+      "platform_managed_reasoning": "ALLOW",
+      "platform_managed_generation": "ALLOW_REFERENCE_TEST_ONLY",
+      "third_party_external_processing": "DENY_UNLESS_SEPARATELY_APPROVED",
+      "audit_persistence": "ALLOW_DERIVED_STRUCTURED_ARTIFACTS",
+      "source_asset_persistence": "REQUIRE_EXPLICIT_PROJECT_DECISION"
+    },
+    "LICENSED_OR_RESTRICTED_SOURCE": {
+      "platform_managed_reasoning": "ALLOW_ONLY_IF_USER_AUTHORIZED_AND_PLATFORM_POLICY_PERMITS",
+      "platform_managed_generation": "DENY_BY_DEFAULT",
+      "third_party_external_processing": "DENY",
+      "audit_persistence": "METADATA_ONLY_UNLESS_LICENSE_ALLOWS"
+    },
+    "PATIENT_PHI_PII": {
+      "platform_managed_reasoning": "REQUIRE_DEIDENTIFICATION_OR_APPROVED_PRIVATE_BOUNDARY",
+      "platform_managed_generation": "DENY_BY_DEFAULT",
+      "third_party_external_processing": "DENY",
+      "audit_persistence": "MINIMUM_NECESSARY_DEIDENTIFIED_ONLY"
+    },
+    "INTERNAL_CONFIDENTIAL": {
+      "platform_managed_reasoning": "PROJECT_POLICY_REQUIRED",
+      "platform_managed_generation": "DENY_BY_DEFAULT",
+      "third_party_external_processing": "DENY",
+      "audit_persistence": "CONTROLLED_PRIVATE_STORE_ONLY"
+    }
+  },
+  "derived_prompt_rules": [
+    "Derived prompts inherit the highest sensitivity of the source content they contain.",
+    "Public-source reference prompts may be used in platform-managed generation for this reference test only.",
+    "Do not include patient identifiers, private credentials, internal network data, or unrelated sensitive metadata in visual prompts."
+  ],
+  "figure_asset_rules": [
+    "Source figures may be processed in the current platform-managed reference workflow only when the project has a MedicalVisualAssetContract.",
+    "This policy does not grant redistribution or publication rights beyond the user's authorized use; rights/permission remain separate governance concerns."
+  ],
+  "logging_and_retention": {
+    "persist_exact_sensitive_prompt": "NO_BY_DEFAULT",
+    "persist_prompt_hash_and_safe_reference": "YES",
+    "persist_public_source_derived_audit_artifacts": "YES",
+    "persist_patient_or_confidential_raw_assets": "NO_UNLESS_SEPARATELY_APPROVED"
+  }
+}

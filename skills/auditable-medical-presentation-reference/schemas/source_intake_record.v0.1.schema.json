@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SourceIntakeRecord v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "source_id", "path", "http_status", "final_url", "declared_content_type", "byte_length", "sha256", "retrieved_at", "redirect_chain"],
+  "properties": {
+    "schema_version": {"const": "0.1"},
+    "source_id": {"type": "string", "minLength": 1},
+    "path": {"type": "string", "minLength": 1},
+    "http_status": {"type": "integer", "minimum": 100, "maximum": 599},
+    "final_url": {"type": "string", "minLength": 8},
+    "declared_content_type": {"type": "string", "minLength": 1},
+    "byte_length": {"type": "integer", "minimum": 1},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "retrieved_at": {"type": "string", "minLength": 8},
+    "redirect_chain": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "license_status": {"type": "string"}
+  }
+}

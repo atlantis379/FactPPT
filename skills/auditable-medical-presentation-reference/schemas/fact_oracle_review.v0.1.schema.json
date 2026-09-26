@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FactOracleReview v0.1",
+  "type": "object",
+  "required": ["schema_version", "source_sha256", "total_pages", "extraction_run_id", "extractor_identity", "review_run_id", "reviewer_identity", "denominator_status", "page_reviews", "facts", "reviewer_signed_at"],
+  "properties": {
+    "schema_version": {"const": "0.1"},
+    "source_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "total_pages": {"type": "integer", "minimum": 1},
+    "extraction_run_id": {"type": "string", "minLength": 1},
+    "extractor_identity": {"type": "string", "minLength": 1},
+    "review_run_id": {"type": "string", "minLength": 1},
+    "reviewer_identity": {"type": "string", "minLength": 1},
+    "denominator_status": {"enum": ["REVIEWED_COMPLETE", "UNKNOWN", "PARTIAL"]},
+    "reviewer_signed_at": {"type": "string", "minLength": 8},
+    "page_reviews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["page_number", "status", "review_evidence_refs"],
+        "properties": {
+          "page_number": {"type": "integer", "minimum": 1},
+          "status": {"enum": ["REVIEWED", "REVIEWED_NO_SUBSTANTIVE_CONTENT", "PENDING", "UNREADABLE"]},
+          "review_evidence_refs": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "facts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["fact_id", "risk", "review_status", "source_anchors"],
+        "properties": {
+          "fact_id": {"type": "string", "minLength": 1},
+          "risk": {"enum": ["GREEN", "YELLOW", "RED"]},
+          "review_status": {"enum": ["APPROVED", "REJECTED", "DISAGREEMENT"]},
+          "source_anchors": {"type": "array", "items": {"type": "string"}},
+          "resolution_ref": {"type": "string"}
+        }
+      }
+    }
+  }
+}

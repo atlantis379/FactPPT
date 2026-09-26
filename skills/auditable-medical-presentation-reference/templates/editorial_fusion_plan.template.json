@@ -1,0 +1,51 @@
+{
+  "fusion_plan_id": "FUSION-<PAGESPEC_ID>-v1",
+  "fusion_plan_version": "0.1",
+  "source_identity": {
+    "source_sha256": "<64-char-source-sha256>",
+    "semantic_object_ids": ["<APPROVED_SEMANTIC_OBJECT_ID>"]
+  },
+  "page_id": "<PAGESPEC_ID>",
+  "editorial_asset": {
+    "asset_id": "<EDITORIAL_BASE_ASSET_ID>",
+    "asset_sha256": "<64-char-asset-sha256>",
+    "asset_class": "NONSEMANTIC_EDITORIAL_BASE",
+    "prompt_provenance_ref": "assets/<asset-id>.provenance.json"
+  },
+  "integration_mode": "FIELD_INTEGRATED",
+  "semantic_layers": [
+    {
+      "object_id": "<APPROVED_SEMANTIC_OBJECT_ID>",
+      "source_anchor": "<source-page-or-figure-anchor>",
+      "native_editable": true,
+      "box": [64, 220, 480, 160],
+      "z_order": 2,
+      "visual_relation": "GROUPING_ONLY"
+    }
+  ],
+  "editorial_zones": [
+    {
+      "zone_id": "lower-rhythm",
+      "box": [0, 560, 1280, 160],
+      "role": "LOWER_RHYTHM",
+      "z_order": 0
+    }
+  ],
+  "protected_zones": [
+    {
+      "zone_id": "body-field",
+      "box": [560, 220, 620, 300],
+      "minimum_uncovered_area_ratio": 0.5
+    }
+  ],
+  "render_review": {
+    "reviewer_role": "author",
+    "status": "NEEDS_REVIEW",
+    "checked": {
+      "background_visible": true,
+      "semantic_text_legible": true,
+      "visual_hierarchy_aligned": true,
+      "no_semantic_replacement": true
+    }
+  }
+}

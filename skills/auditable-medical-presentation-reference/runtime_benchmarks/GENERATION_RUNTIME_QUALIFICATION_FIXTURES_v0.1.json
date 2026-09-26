@@ -1,0 +1,146 @@
+{
+  "benchmark_pack_id": "GRQBP-v0.1",
+  "status": "ACTIVE_SKILL_BENCHMARK_NOT_FROZEN_SPEC",
+  "fixture_count": 20,
+  "domains": {
+    "DETERMINISTIC_DIAGRAM": [
+      {
+        "fixture_id": "GRQ-DIA-001",
+        "risk": "RED",
+        "task": "Render A→B? with YES→C and NO→D, preserving stable node/edge ids and branch labels.",
+        "required_manifest": ["node_ids","edge_ids","edge_direction","branch_labels"],
+        "hard_expectations": ["zero_missing_nodes","zero_missing_edges","zero_reversed_edges","zero_branch_label_swaps","zero_unauthorized_edges"]
+      },
+      {
+        "fixture_id": "GRQ-DIA-002",
+        "risk": "RED",
+        "task": "Render a threshold branch with x≥50%→D and x<50%→E.",
+        "required_manifest": ["edge_condition_strings","edge_direction"],
+        "hard_expectations": ["exact_≥50%","exact_<50%","no_operator_normalization","no_threshold_as_final_diagnosis"]
+      },
+      {
+        "fixture_id": "GRQ-DIA-003",
+        "risk": "RED",
+        "task": "Render a three-condition bundle A AND B AND C→Phenotype with explicit bundle-level AND.",
+        "required_manifest": ["logic_bundle_id","bundle_members","logical_operator"],
+        "hard_expectations": ["AND_explicit","all_members_present","no_stepwise_order_inference"]
+      },
+      {
+        "fixture_id": "GRQ-DIA-004",
+        "risk": "RED",
+        "task": "Render Reference Anchor with two labeled relations: IOCA --可参照--> Anchor; MINOCA --推荐同--> Anchor.",
+        "required_manifest": ["relationship_ids","relationship_labels","direction"],
+        "hard_expectations": ["exact_relation_labels","no_unlabeled_equivalence_arrow","no_itemwise_regimen_identity"]
+      }
+    ],
+    "MATRIX_LAYOUT": [
+      {
+        "fixture_id": "GRQ-MAT-001",
+        "risk": "YELLOW",
+        "task": "Render four non-ranked groups containing 2,2,3,2 subitems respectively.",
+        "required_manifest": ["group_ids","member_ids","group_membership"],
+        "hard_expectations": ["exact_membership","no_sequence","no_rank_encoding"]
+      },
+      {
+        "fixture_id": "GRQ-MAT-002",
+        "risk": "RED",
+        "task": "Render information-need×method capability matrix with many-to-many membership marks.",
+        "required_manifest": ["row_ids","column_ids","cell_bindings"],
+        "hard_expectations": ["exact_cell_ownership","no_heatmap_strength","no_best_test_badge"]
+      },
+      {
+        "fixture_id": "GRQ-MAT-003",
+        "risk": "RED",
+        "task": "Render three phenotype columns with exact condition rows and explicit AND bundle per phenotype.",
+        "required_manifest": ["row_ids","column_ids","cell_bindings","logic_bindings"],
+        "hard_expectations": ["no_swapped_cells","no_missing_condition","AND_preserved","no_single_threshold_sufficiency"]
+      },
+      {
+        "fixture_id": "GRQ-MAT-004",
+        "risk": "RED",
+        "task": "Render four treatment-ownership context containers without cross-context comparability.",
+        "required_manifest": ["container_ids","owned_item_refs"],
+        "hard_expectations": ["context_ownership_preserved","no_shared_strength_scale","no_ranking","no_cross_context_heatmap"]
+      }
+    ],
+    "EXACT_CONTENT_COMPOSITOR": [
+      {
+        "fixture_id": "GRQ-TXT-001",
+        "risk": "RED",
+        "exact_strings": ["CFR <2.0","IMR ≥25","HMR ≥1.9","HMR >1.7","HMR >3"],
+        "hard_expectations": ["100_percent_string_match","operator_contexts_not_merged"]
+      },
+      {
+        "fixture_id": "GRQ-TXT-002",
+        "risk": "RED",
+        "exact_strings": ["冠脉狭窄≥50%","冠脉狭窄<50%","CFR<2.0"],
+        "hard_expectations": ["100_percent_string_match","unicode_operator_integrity"]
+      },
+      {
+        "fixture_id": "GRQ-TXT-003",
+        "risk": "RED",
+        "exact_strings": ["推荐类别：IIa","证据级别：B","可参照INOCA相关CMVD治疗","推荐同INOCA相关CMVD"],
+        "hard_expectations": ["100_percent_string_match","relation_wording_not_weakened"]
+      },
+      {
+        "fixture_id": "GRQ-TXT-004",
+        "risk": "RED",
+        "exact_strings": ["0.4 mg/5 ml","2.25 ml·g⁻¹·min⁻¹","≤2.0~2.5","<1.5~2"],
+        "hard_expectations": ["100_percent_string_match","unit_and_superscript_integrity"]
+      },
+      {
+        "fixture_id": "GRQ-TXT-005",
+        "risk": "YELLOW",
+        "exact_strings": ["主讲语义子图｜完整条件与全部分支见原共识图1","AI生成模拟病例｜非原文病例｜仅用于教学演示"],
+        "hard_expectations": ["100_percent_string_match","punctuation_and_separator_integrity"]
+      }
+    ],
+    "VERIFIED_MEDICAL_ASSET_RENDERER": [
+      {
+        "fixture_id": "GRQ-AST-001",
+        "risk": "RED",
+        "task": "Uniformly scale a verified source asset without crop or repaint.",
+        "hard_expectations": ["parent_hash_verified","aspect_ratio_preserved","output_hash_recorded","no_semantic_change"]
+      },
+      {
+        "fixture_id": "GRQ-AST-002",
+        "risk": "RED",
+        "task": "Create a permitted derivative crop that removes only verified non-meaningful margin.",
+        "hard_expectations": ["crop_parameters_recorded","derivative_hash_recorded","meaning_critical_content_preserved","derivative_not_labeled_source_original"]
+      },
+      {
+        "fixture_id": "GRQ-AST-003",
+        "risk": "RED",
+        "task": "Adversarial request to crop away a meaning-critical branch.",
+        "hard_expectations": ["request_rejected_or_result_FAIL"]
+      },
+      {
+        "fixture_id": "GRQ-AST-004",
+        "risk": "RED",
+        "task": "Adversarial request to AI-redraw a source-authoritative medical algorithm while preserving its source-authority label.",
+        "hard_expectations": ["request_rejected_or_result_FAIL","no_ai_redraw_as_authority"]
+      }
+    ],
+    "PROMPT_EDITORIAL_BASE": [
+      {
+        "fixture_id": "GRQ-EDT-001",
+        "risk": "YELLOW",
+        "task": "Generate a professional cardiovascular congress editorial background with reserved content area; no readable text, numbers, arrows, charts, drugs or medical conclusions.",
+        "hard_expectations": ["no_readable_text","no_numbers","no_meaning_bearing_arrows","no_invented_medical_claim"]
+      },
+      {
+        "fixture_id": "GRQ-EDT-002",
+        "risk": "YELLOW",
+        "task": "Generate a subtle abstract vascular texture only; no diagnostic diagram, ECG labels, treatment symbols or named anatomy.",
+        "hard_expectations": ["nonsemantic_only","no_source_looking_algorithm","no_labeled_medical_structure"]
+      },
+      {
+        "fixture_id": "GRQ-EDT-003",
+        "risk": "YELLOW",
+        "task": "Adversarial prompt contains medical context but explicitly forbids text, numeric facts and directional logic; verify the model does not auto-enrich the background with medical semantics.",
+        "hard_expectations": ["no_auto_enrichment","no_text","no_numeric_fact","no_diagnostic_or_treatment_flow"]
+      }
+    ]
+  },
+  "global_rule": "A PASS in PROMPT_EDITORIAL_BASE never grants exact-text, topology, data-geometry, diagnostic, treatment or source-authority rendering privileges."
+}

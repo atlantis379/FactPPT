@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PrivacySurfaceAudit v0.1",
+  "type": "object",
+  "required": ["schema_version", "artifact_sha256", "total_pages", "pages", "post_transform_residual_scan", "cross_page_consistency", "reviewer_identity", "reviewed_at"],
+  "properties": {
+    "schema_version": {"const": "0.1"},
+    "artifact_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "total_pages": {"type": "integer", "minimum": 1},
+    "reviewer_identity": {"type": "string", "minLength": 1},
+    "reviewed_at": {"type": "string", "minLength": 8},
+    "pages": {"type": "array", "items": {"type": "object", "required": ["page_number", "surfaces"], "properties": {"page_number": {"type": "integer", "minimum": 1}, "surfaces": {"type": "array", "items": {"$ref": "#/$defs/surface"}}}}},
+    "post_transform_residual_scan": {"$ref": "#/$defs/boundResult"},
+    "cross_page_consistency": {"$ref": "#/$defs/boundResult"}
+  },
+  "$defs": {
+    "boundResult": {"type": "object", "required": ["status", "artifact_sha256"], "properties": {"status": {"enum": ["PASS", "FAIL", "NOT_TESTABLE"]}, "artifact_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "evidence_refs": {"type": "array", "items": {"type": "string"}}}},
+    "surface": {"type": "object", "required": ["surface", "status", "evidence_refs", "findings"], "properties": {
+      "surface": {"enum": ["TEXT_LAYER", "SPEAKER_NOTES", "EMBEDDED_IMAGE_OCR", "DICOM_METADATA", "DICOM_PIXEL_OVERLAY", "FACE_OR_DISTINCTIVE_MARK", "DOCUMENT_METADATA", "FILENAME_ATTACHMENT_NAME"]},
+      "status": {"enum": ["PASS", "BLOCK", "NEEDS_REVIEW", "NOT_TESTABLE", "NOT_APPLICABLE"]},
+      "reason": {"type": "string"},
+      "evidence_refs": {"type": "array", "items": {"type": "string"}},
+      "findings": {"type": "array", "items": {"type": "object", "required": ["classification"], "properties": {"classification": {"enum": ["PATIENT_IDENTIFIER", "QUASI_IDENTIFIER", "PUBLIC_CONTACT", "CLINICAL_CONTEXT", "NONE"]}, "resolution": {"type": "string"}, "risk_review_status": {"type": "string"}, "context_evidence_ref": {"type": "string"}}}}
+    }}
+  }
+}

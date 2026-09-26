@@ -1,0 +1,438 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AuditableMedicalPresentationReferenceRunState",
+  "type": "object",
+  "required": [
+    "test_id",
+    "skill_version",
+    "workflow_version",
+    "checklist_version",
+    "stages",
+    "final_disposition",
+    "schema_version",
+    "mode",
+    "risk",
+    "subgates",
+    "quality",
+    "blocking_issues",
+    "stale_object_ids",
+    "human_review"
+  ],
+  "properties": {
+    "test_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "skill_version": {
+      "const": "v0.5.0"
+    },
+    "workflow_version": {
+      "const": "REFERENCE_PIPELINE_WORKFLOW_v0.1"
+    },
+    "checklist_version": {
+      "const": "REFERENCE_PIPELINE_CHECKLIST_v0.1"
+    },
+    "presentation_context": {
+      "type": "object",
+      "properties": {
+        "presenter_role": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "audience": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scenario_or_project_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "presentation_question": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "duration": {
+          "type": [
+            "string",
+            "number",
+            "null"
+          ]
+        },
+        "language": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "external_research_allowed": {
+          "type": "boolean"
+        },
+        "synthetic_case": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "external_research_allowed",
+        "synthetic_case"
+      ]
+    },
+    "stages": {
+      "type": "object",
+      "required": [
+        "W00",
+        "W01",
+        "W02",
+        "W03",
+        "W04",
+        "W05",
+        "W06",
+        "W07",
+        "W08",
+        "W09",
+        "W10",
+        "W11",
+        "W12",
+        "W13",
+        "W14",
+        "W15",
+        "W16",
+        "W17",
+        "W18"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "W00": {
+          "$ref": "#/$defs/stageState"
+        },
+        "W01": {
+          "$ref": "#/$defs/stageState"
+        },
+        "W02": {
+          "$ref": "#/$defs/stageState"
+        },
+        "W03": {
+          "$ref": "#/$defs/stageState"
+        },
+        "W04": {
+          "$ref": "#/$defs/stageState"
+        },
+        "W05": {
+          "$ref": "#/$defs/stageState"
+        },
+        "W06": {
+          "$ref": "#/$defs/stageState"
+        },
+        "W07": {
+          "$ref": "#/$defs/stageState"
+        },
+        "W08": {
+          "$ref": "#/$defs/stageState"
+        },
+        "W09": {
+          "$ref": "#/$defs/stageState"
+        },
+        "W10": {
+          "$ref": "#/$defs/stageState"
+        },
+        "W11": {
+          "$ref": "#/$defs/stageState"
+        },
+        "W12": {
+          "$ref": "#/$defs/stageState"
+        },
+        "W13": {
+          "$ref": "#/$defs/stageState"
+        },
+        "W14": {
+          "$ref": "#/$defs/stageState"
+        },
+        "W15": {
+          "$ref": "#/$defs/stageState"
+        },
+        "W16": {
+          "$ref": "#/$defs/stageState"
+        },
+        "W17": {
+          "$ref": "#/$defs/stageState"
+        },
+        "W18": {
+          "$ref": "#/$defs/stageState"
+        }
+      }
+    },
+    "blocking_issues": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "final_disposition": {
+      "type": "string",
+      "enum": [
+        "APPROVED_REFERENCE_OUTPUT",
+        "PARTIAL_WITH_BLOCKERS",
+        "FAILED_REFERENCE_RUN"
+      ]
+    },
+    "schema_version": {
+      "const": "0.5.0"
+    },
+    "mode": {
+      "enum": [
+        "DESIGN_PROTOTYPE",
+        "DELIVERY"
+      ]
+    },
+    "risk": {
+      "enum": [
+        "GREEN",
+        "YELLOW",
+        "RED"
+      ]
+    },
+    "stale_object_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "subgates": {
+      "type": "object",
+      "required": [
+        "W02-FSC",
+        "W06-NR",
+        "W06-NP",
+        "W12-A",
+        "W12-RQ",
+        "W12-B"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "W02-FSC": {
+          "$ref": "#/$defs/stageState"
+        },
+        "W06-NR": {
+          "$ref": "#/$defs/stageState"
+        },
+        "W06-NP": {
+          "$ref": "#/$defs/stageState"
+        },
+        "W12-A": {
+          "$ref": "#/$defs/stageState"
+        },
+        "W12-RQ": {
+          "$ref": "#/$defs/stageState"
+        },
+        "W12-B": {
+          "$ref": "#/$defs/stageState"
+        }
+      }
+    },
+    "quality": {
+      "type": "object",
+      "required": [
+        "source_semantic",
+        "numeric_logic",
+        "composition",
+        "rendered_review"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source_semantic": {
+          "$ref": "#/$defs/stageState"
+        },
+        "numeric_logic": {
+          "$ref": "#/$defs/stageState"
+        },
+        "composition": {
+          "$ref": "#/$defs/stageState"
+        },
+        "rendered_review": {
+          "$ref": "#/$defs/stageState"
+        }
+      }
+    },
+    "human_review": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "enum": [
+            "PENDING",
+            "APPROVED",
+            "REJECTED"
+          ]
+        },
+        "reviewer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "artifact_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "status"
+      ]
+    },
+    "artifact_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "delivery_eligible": {
+      "type": "boolean"
+    }
+  },
+  "$defs": {
+    "stageState": {
+      "type": "string",
+      "enum": [
+        "NOT_STARTED",
+        "IN_PROGRESS",
+        "PASS",
+        "PASS_WITH_WARNINGS",
+        "PARTIAL_PASS",
+        "BLOCKED",
+        "NEEDS_HUMAN_REVIEW",
+        "FAIL",
+        "STALE"
+      ]
+    }
+  },
+  "$id": "run_state.v0.5.schema.json",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "final_disposition": {
+            "const": "APPROVED_REFERENCE_OUTPUT"
+          }
+        },
+        "required": [
+          "final_disposition"
+        ]
+      },
+      "then": {
+        "required": [
+          "artifact_sha256"
+        ],
+        "properties": {
+          "mode": {
+            "const": "DELIVERY"
+          },
+          "blocking_issues": {
+            "maxItems": 0
+          },
+          "stale_object_ids": {
+            "maxItems": 0
+          },
+          "stages": {
+            "additionalProperties": {
+              "enum": [
+                "PASS",
+                "PASS_WITH_WARNINGS"
+              ]
+            }
+          },
+          "subgates": {
+            "additionalProperties": {
+              "enum": [
+                "PASS",
+                "PASS_WITH_WARNINGS"
+              ]
+            }
+          },
+          "quality": {
+            "additionalProperties": {
+              "enum": [
+                "PASS",
+                "PASS_WITH_WARNINGS"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "risk": {
+            "const": "RED"
+          },
+          "final_disposition": {
+            "const": "APPROVED_REFERENCE_OUTPUT"
+          }
+        },
+        "required": [
+          "risk",
+          "final_disposition"
+        ]
+      },
+      "then": {
+        "properties": {
+          "human_review": {
+            "required": [
+              "reviewer",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "status": {
+                "const": "APPROVED"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "DESIGN_PROTOTYPE"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "required": [
+          "delivery_eligible"
+        ],
+        "properties": {
+          "delivery_eligible": {
+            "const": false
+          },
+          "stages": {
+            "properties": {
+              "W14": {
+                "not": {
+                  "enum": [
+                    "PASS",
+                    "PASS_WITH_WARNINGS"
+                  ]
+                }
+              },
+              "W17": {
+                "not": {
+                  "enum": [
+                    "PASS",
+                    "PASS_WITH_WARNINGS"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

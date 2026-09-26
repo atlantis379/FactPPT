@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "presentation_context_profile.schema.json",
+  "title": "PresentationContextProfile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "context_profile_id",
+    "presenter_profile",
+    "audience_profile",
+    "subject_population_profile",
+    "scenario_profile",
+    "goal_profile",
+    "duration_profile",
+    "adaptation_contract",
+    "context_integrity_status"
+  ],
+  "properties": {
+    "context_profile_id": {"type": "string", "minLength": 1},
+    "presenter_profile": {
+      "type": "object",
+      "required": ["role"],
+      "properties": {
+        "role": {"type": "string"},
+        "specialty": {"type": ["string", "null"]},
+        "expertise_level": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "audience_profile": {
+      "type": "object",
+      "required": ["audience_type"],
+      "properties": {
+        "audience_type": {"type": "string"},
+        "medical_background": {"type": ["string", "null"]},
+        "expected_baseline_knowledge": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "subject_population_profile": {
+      "type": "object",
+      "required": ["population_scope", "authoritative_scope_source_ids"],
+      "properties": {
+        "population_scope": {"type": "array", "items": {"type": "string"}},
+        "subgroups": {"type": "array", "items": {"type": "string"}, "default": []},
+        "exclusions": {"type": "array", "items": {"type": "string"}, "default": []},
+        "authoritative_scope_source_ids": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "scenario_profile": {"type": "object", "additionalProperties": true},
+    "goal_profile": {"type": "object", "additionalProperties": true},
+    "duration_profile": {
+      "type": "object",
+      "properties": {
+        "minutes": {"type": ["number", "null"], "minimum": 0}
+      },
+      "additionalProperties": true
+    },
+    "adaptation_contract": {
+      "type": "object",
+      "required": [
+        "depth_level",
+        "terminology_level",
+        "clinical_actionability",
+        "mechanism_depth",
+        "evidence_detail_level",
+        "numeric_detail_level",
+        "recommendation_visibility",
+        "evidence_grade_visibility",
+        "background_explanation_need",
+        "visual_complexity",
+        "appendix_ratio",
+        "speaker_note_depth",
+        "source_visibility"
+      ],
+      "properties": {
+        "depth_level": {"enum": ["BASIC", "INTERMEDIATE", "ADVANCED", "EXPERT"]},
+        "terminology_level": {"enum": ["EXPLAIN_ALL", "EXPLAIN_SPECIALIST_TERMS", "SPECIALIST_NATIVE"]},
+        "clinical_actionability": {"enum": ["EDUCATIONAL", "PRACTICE_ORIENTED", "DECISION_SUPPORTING_PRESENTATION"]},
+        "mechanism_depth": {"enum": ["LOW", "MEDIUM", "HIGH"]},
+        "evidence_detail_level": {"enum": ["LOW", "MEDIUM", "HIGH", "FULL"]},
+        "numeric_detail_level": {"enum": ["CORE_ONLY", "DECISION_CRITICAL", "FULL_RELEVANT"]},
+        "recommendation_visibility": {"enum": ["HIDE_NONCRITICAL", "KEY_ONLY", "FULL_RELEVANT"]},
+        "evidence_grade_visibility": {"enum": ["HIDE_NONCRITICAL", "KEY_ONLY", "FULL_RELEVANT"]},
+        "background_explanation_need": {"enum": ["LOW", "MEDIUM", "HIGH"]},
+        "visual_complexity": {"enum": ["LOW", "MEDIUM", "HIGH"]},
+        "case_example_need": {"enum": ["NONE", "OPTIONAL", "RECOMMENDED"]},
+        "appendix_ratio": {"enum": ["LOW", "MEDIUM", "HIGH"]},
+        "speaker_note_depth": {"enum": ["LOW", "MEDIUM", "HIGH"]},
+        "source_visibility": {"enum": ["STANDARD", "HIGH", "MAXIMUM"]}
+      },
+      "additionalProperties": false
+    },
+    "context_integrity_status": {"enum": ["PASS", "PASS_WITH_WARNINGS", "NEEDS_HUMAN_REVIEW", "BLOCK"]},
+    "warnings": {"type": "array", "items": {"type": "string"}, "default": []}
+  }
+}

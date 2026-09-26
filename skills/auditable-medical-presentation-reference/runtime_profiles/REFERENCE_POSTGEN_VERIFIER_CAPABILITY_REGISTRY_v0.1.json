@@ -1,0 +1,103 @@
+{
+  "registry_id": "REFERENCE_POSTGEN_VERIFIER_CAPABILITY_REGISTRY",
+  "registry_version": "v0.1",
+  "date": "2026-09-04",
+  "status": "REFERENCE_QUALIFIED",
+  "scope": "CMVD Reference Case 001 model-first runtime; structured manifest verification plus secondary multimodal review",
+  "qualification_evidence_refs": [
+    "docs/workflows/runs/REFERENCE_RUNTIME_POSTGEN_VERIFIER_QUALIFICATION_BENCHMARK_v0.1.json"
+  ],
+  "validators": [
+    {
+      "verifier_capability_id": "PGV-EXACT-TEXT-REF-v0.1",
+      "verifier_version": "v0.1",
+      "verification_targets": ["EXACT_TEXT_REGISTER","rendered_text_manifest","operator_strings","unit_strings","recommendation_class","evidence_level","relation_labels"],
+      "authority_level": "AUTHORITATIVE",
+      "qualification_status": "REFERENCE_QUALIFIED",
+      "execution_mode": "STRUCTURED_STRING_DIFF_BY_MODEL_FIRST_VERIFIER",
+      "required_input_artifacts": ["ExactTextRegister","GenerationOutputManifest.text_items"],
+      "output_artifact_type": "ExactTextVerificationResult",
+      "qualification_evidence_refs": ["REFERENCE_RUNTIME_POSTGEN_VERIFIER_QUALIFICATION_BENCHMARK_v0.1:VQ-01,VQ-02,VQ-03"],
+      "known_limitations": ["Authoritative only when the renderer/compositor emits machine-readable actual text; pixel-only OCR is not sufficient."],
+      "failure_action": "BLOCK_PAGE_AND_REQUIRE_RECOMPOSITION"
+    },
+    {
+      "verifier_capability_id": "PGV-NUMERIC-BINDING-REF-v0.1",
+      "verifier_version": "v0.1",
+      "verification_targets": ["NumericFact id","value","operator","range","unit","context namespace"],
+      "authority_level": "AUTHORITATIVE",
+      "qualification_status": "REFERENCE_QUALIFIED",
+      "execution_mode": "STRUCTURED_NUMERIC_FACT_DIFF_BY_MODEL_FIRST_VERIFIER",
+      "required_input_artifacts": ["approved NumericFacts","GenerationOutputManifest.numeric_items"],
+      "output_artifact_type": "NumericBindingVerificationResult",
+      "qualification_evidence_refs": ["REFERENCE_RUNTIME_POSTGEN_VERIFIER_QUALIFICATION_BENCHMARK_v0.1:VQ-04,VQ-05"],
+      "known_limitations": ["Does not validate statistical chart geometry unless a separate geometry validator is registered."],
+      "failure_action": "BLOCK_PAGE_AND_REQUIRE_CORRECTION"
+    },
+    {
+      "verifier_capability_id": "PGV-TOPOLOGY-REF-v0.1",
+      "verifier_version": "v0.1",
+      "verification_targets": ["node ids","edge ids","edge direction","branch labels","condition ownership","group membership"],
+      "authority_level": "AUTHORITATIVE",
+      "qualification_status": "REFERENCE_QUALIFIED",
+      "execution_mode": "STRUCTURED_GRAPH_DIFF_BY_MODEL_FIRST_VERIFIER",
+      "required_input_artifacts": ["ApprovedSemanticPageGraph","GenerationOutputManifest.semantic_graph"],
+      "output_artifact_type": "TopologyVerificationResult",
+      "qualification_evidence_refs": ["REFERENCE_RUNTIME_POSTGEN_VERIFIER_QUALIFICATION_BENCHMARK_v0.1:VQ-06,VQ-07"],
+      "known_limitations": ["Requires semantic renderer/compositor to preserve stable object/relationship IDs in output manifest."],
+      "failure_action": "BLOCK_PAGE_AND_REQUIRE_RERENDER"
+    },
+    {
+      "verifier_capability_id": "PGV-LOGIC-REF-v0.1",
+      "verifier_version": "v0.1",
+      "verification_targets": ["AND","OR","NOT","EXCEPT","required bundle members"],
+      "authority_level": "AUTHORITATIVE",
+      "qualification_status": "REFERENCE_QUALIFIED",
+      "execution_mode": "STRUCTURED_LOGIC_DIFF_BY_MODEL_FIRST_VERIFIER",
+      "required_input_artifacts": ["approved logic bundles","GenerationOutputManifest.logic_bindings"],
+      "output_artifact_type": "LogicVerificationResult",
+      "qualification_evidence_refs": ["REFERENCE_RUNTIME_POSTGEN_VERIFIER_QUALIFICATION_BENCHMARK_v0.1:VQ-08,VQ-09"],
+      "known_limitations": ["Visual adjacency alone is not accepted as proof of AND logic; output manifest must explicitly encode bundle logic."],
+      "failure_action": "BLOCK_PAGE_AND_REQUIRE_RERENDER"
+    },
+    {
+      "verifier_capability_id": "PGV-PROVENANCE-REF-v0.1",
+      "verifier_version": "v0.1",
+      "verification_targets": ["source refs","asset ids","asset hashes","contract ids","protected-layer ids"],
+      "authority_level": "AUTHORITATIVE",
+      "qualification_status": "REFERENCE_QUALIFIED",
+      "execution_mode": "STRUCTURED_PROVENANCE_DIFF_BY_MODEL_FIRST_VERIFIER",
+      "required_input_artifacts": ["source/provenance contracts","GenerationOutputManifest.provenance"],
+      "output_artifact_type": "ProvenanceVerificationResult",
+      "qualification_evidence_refs": ["REFERENCE_RUNTIME_POSTGEN_VERIFIER_QUALIFICATION_BENCHMARK_v0.1:VQ-10,VQ-11"],
+      "known_limitations": [],
+      "failure_action": "BLOCK_PAGE_OR_ASSET"
+    },
+    {
+      "verifier_capability_id": "PGV-VISUAL-SEMANTIC-REF-v0.1",
+      "verifier_version": "GPT-5.6-Sol-vision-current",
+      "verification_targets": ["visible branch structure","occlusion","clipping","misleading hierarchy","unauthorized visual ranking","source-asset apparent integrity"],
+      "authority_level": "SECONDARY",
+      "qualification_status": "QUALIFIED_WITH_LIMITATIONS",
+      "execution_mode": "MULTIMODAL_RENDERED_ASSET_REVIEW",
+      "required_input_artifacts": ["rendered final page image","VisualGenerationContract","ApprovedSemanticPageGraph"],
+      "output_artifact_type": "VisualSemanticReviewResult",
+      "qualification_evidence_refs": ["REFERENCE_RUNTIME_POSTGEN_VERIFIER_QUALIFICATION_BENCHMARK_v0.1:VQ-12"],
+      "known_limitations": ["Not an exact-text or exact-numeric authority.","Must be paired with structured manifest validators for RED pages."],
+      "failure_action": "BLOCK_OR_REQUIRE_HUMAN_REVIEW"
+    }
+  ],
+  "required_combination_for_red_pages": [
+    "at least one AUTHORITATIVE structured validator for every locked obligation",
+    "PGV-VISUAL-SEMANTIC-REF-v0.1 as secondary rendered-asset review",
+    "W16 human review before delivery"
+  ],
+  "invalidation_triggers": [
+    "reasoning model material change",
+    "multimodal model material change",
+    "GenerationOutputManifest schema change",
+    "semantic graph schema change",
+    "asset contract schema change",
+    "qualification benchmark change"
+  ]
+}

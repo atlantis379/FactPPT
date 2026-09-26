@@ -1,0 +1,34 @@
+{
+  "registry_revision_id": "REFERENCE_GENERATION_CAPABILITY_REGISTRY_REVISION_v0.1.1",
+  "date": "2026-09-04",
+  "base_registry": "REFERENCE_GENERATION_CAPABILITY_REGISTRY_v0.1.json",
+  "trigger": "REFERENCE_RUNTIME_QUALIFICATION_RUN_003_CMVD_EXACT_CONTENT_INCREMENTAL_v0.1",
+  "status": "APPLIED_FOR_REFERENCE_RUNTIME_EFFECTIVE_VIEW",
+  "record_updates": [
+    {
+      "capability_record_id": "GEN-EXACT-COMPOSITOR-CURRENT-v0.1",
+      "engine_id": "reference_svg_renderer",
+      "engine_version": "v0.1+scriptsha-02d2765ffb",
+      "implementation_class": "EXACT_CONTENT_COMPOSITOR_CANDIDATE",
+      "qualification_status": "UNQUALIFIED",
+      "qualification_evidence_ids": [
+        "REFERENCE_RUNTIME_QUALIFICATION_RUN_002_DETERMINISTIC_EXECUTORS_v0.1",
+        "REFERENCE_RUNTIME_QUALIFICATION_RUN_003_CMVD_EXACT_CONTENT_INCREMENTAL_v0.1"
+      ],
+      "exact_text_authority": "NOT_QUALIFIED_FOR_P01_P08_PAGE_SCOPED_USE",
+      "structured_string_manifest_integrity": "PASS_117_OF_117_ON_CURRENT_CORPUS",
+      "required_character_cmap_coverage": "PASS_336_OF_336",
+      "required_operator_relation_glyphs": "PASS_IN_RENDERED_INSPECTION",
+      "hmr_plain_exponent_unit": "PASS_mmHg·cm^-1·s^-1",
+      "page_text_box_fit": "FAIL",
+      "known_failure_modes": [
+        "GRQ-TXT-004 previously exposed missing rendered glyphs for Unicode superscript minus/one in scientific-unit typography.",
+        "Run 003 exposed horizontal clipping of 9 meaning-bearing exact/canonical strings across P01-P08 because render_exact uses a fixed 1200px canvas with unwrapped SVG text."
+      ],
+      "partial_non_authoritative_observation": "Short exact labels, numeric operators and treatment-reference wording can render correctly, but no W12-B exact-content authority is issued until the page-level text-box fit problem is qualified.",
+      "required_remediation": "Qualify a new compositor version with deterministic wrapping or contract-bound explicit line segmentation and a manifest that preserves both original exact string and rendered line layout."
+    }
+  ],
+  "routing_consequence": "W12-B exact-content binding remains blocked. No page-scoped exact compositor CapabilityRecord is issued for P01-P08 from this candidate version.",
+  "upstream_semantics_invalidated": false
+}

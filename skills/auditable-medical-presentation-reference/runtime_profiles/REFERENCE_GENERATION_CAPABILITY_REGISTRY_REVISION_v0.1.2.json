@@ -1,0 +1,47 @@
+{
+  "registry_revision_id": "REFERENCE_GENERATION_CAPABILITY_REGISTRY_REVISION_v0.1.2",
+  "date": "2026-09-04",
+  "base_registry": "REFERENCE_GENERATION_CAPABILITY_REGISTRY_v0.1.json",
+  "prior_revision": "REFERENCE_GENERATION_CAPABILITY_REGISTRY_REVISION_v0.1.1.json",
+  "trigger": "REFERENCE_RUNTIME_QUALIFICATION_RUN_004_CMVD_EXACT_CONTENT_V02_v0.1",
+  "status": "APPLIED_FOR_REFERENCE_RUNTIME_EFFECTIVE_VIEW",
+  "record_updates": [
+    {
+      "capability_record_id": "GEN-EXACT-COMPOSITOR-CURRENT-v0.2",
+      "engine_id": "reference_exact_content_compositor",
+      "engine_version": "v0.2+scriptsha-ecf877db275a",
+      "implementation_class": "EXACT_CONTENT_COMPOSITOR",
+      "component_types_supported": ["EXACT_TEXT","PROVENANCE_OVERLAY","CANONICAL_PRESENTATION_TEXT"],
+      "strategies_supported": ["EXACT_CONTENT_COMPOSITOR"],
+      "qualification_status": "REFERENCE_QUALIFIED",
+      "qualification_evidence_ids": ["REFERENCE_RUNTIME_QUALIFICATION_RUN_004_CMVD_EXACT_CONTENT_V02_v0.1"],
+      "exact_text_authority": "QUALIFIED_FOR_CMVD_P01_P08_CORPUS_ONLY",
+      "deterministic_text_box": "QUALIFIED",
+      "controlled_wrapping": "QUALIFIED_FOR_TESTED_LAYOUT_ENVELOPE",
+      "line_segmentation_manifest": "QUALIFIED",
+      "rendered_glyph_integrity": "QUALIFIED_FOR_TESTED_336_CHARACTER_CORPUS",
+      "deterministic_output_manifest_support": "QUALIFIED",
+      "repeatable_output": "PASS_IDENTICAL_SVG_AND_PNG_HASHES_ON_REPEAT_RUN",
+      "qualified_scope": {
+        "case_id": "REFERENCE_PIPELINE_TEST_001_CMVD",
+        "page_ids": ["P01","P02","P03","P04","P05","P06","P07","P08"],
+        "corpus_sha256": "53b184a24fe95715c5ea99b6044947e0f97d401d6bbf2fe76b302670d7972d21",
+        "exact_string_count": 117,
+        "tested_character_count": 336,
+        "font_sha256": "fe952e55617275142d9cefd4d79eade4df446517b0478b2567d9bc7df49f70e2",
+        "layout_policy": {"canvas_width_px":1200,"left_px":60,"right_px":60,"top_px":54,"bottom_px":54,"text_box_width_px":1080,"wrap_measurement_width_px":1044,"object_gap_px":18,"wrapping":"DETERMINISTIC_GREEDY_EXACT_SUBSTRING","original_string_mutation_allowed":false}
+      },
+      "known_limitations": [
+        "Reference qualification is scoped to the exact P01-P08 corpus and pinned font/render stack; it is not blanket approval for arbitrary future strings or fonts.",
+        "Unicode superscript typography such as ⁻¹ remains outside this qualified scope; use the qualified current main-deck string mmHg·cm^-1·s^-1 unless a later W13 contract chooses and separately qualifies another notation.",
+        "Final W13 page-specific text-box dimensions must remain within a qualified layout envelope or trigger incremental requalification.",
+        "This exact-content capability does not grant topology, chart geometry, or medical asset rendering authority."
+      ],
+      "invalidation_triggers": ["implementation sha change","CairoSVG version change","Pillow version material change affecting font metrics","font file/hash change","new exact-character class outside tested corpus","W13 text-box geometry outside qualified envelope","GenerationOutputManifest schema change"],
+      "fallback_compatibility": ["requalify_new_exact_corpus_or_new_text_box_envelope"]
+    }
+  ],
+  "supersession_note": "GEN-EXACT-COMPOSITOR-CURRENT-v0.1 remains historical UNQUALIFIED evidence. v0.2 is a new page/corpus-scoped qualified record; it does not retroactively make v0.1 qualified.",
+  "routing_consequence": "The exact-content blocker identified in Run 003 is resolved for the current CMVD P01-P08 corpus. W12-B may use this v0.2 record only within its qualified corpus/layout/font envelope.",
+  "upstream_semantics_invalidated": false
+}

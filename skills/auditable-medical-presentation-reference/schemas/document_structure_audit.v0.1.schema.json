@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DocumentStructureAudit v0.1",
+  "type": "object",
+  "required": ["schema_version", "document_sha256", "total_pages", "pages", "tables", "dicom_assets"],
+  "properties": {
+    "schema_version": {"const": "0.1"},
+    "document_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "total_pages": {"type": "integer", "minimum": 1},
+    "pages": {"type": "array", "items": {"type": "object", "required": ["page_number", "text_extraction_quality", "rendered_review_status", "ocr_status", "contains_red_exact_text", "exact_text_authority"], "properties": {
+      "page_number": {"type": "integer", "minimum": 1},
+      "text_extraction_quality": {"enum": ["GOOD", "CORRUPT", "IMAGE_ONLY", "EMPTY_CONFIRMED", "EMPTY_UNEXPLAINED"]},
+      "rendered_review_status": {"enum": ["PASS", "FAIL", "NOT_RUN", "NOT_APPLICABLE"]},
+      "ocr_status": {"enum": ["PASS", "PASS_SECONDARY_ONLY", "FAIL", "NOT_RUN", "NOT_APPLICABLE"]},
+      "contains_red_exact_text": {"type": "boolean"},
+      "exact_text_authority": {"enum": ["MANIFEST", "NATIVE_TEXT", "HUMAN_VERIFIED", "OCR_ONLY", "NONE"]}
+    }}, "minItems": 1},
+    "tables": {"type": "array", "items": {"type": "object", "required": ["table_id", "page_numbers", "repeated_header_verified", "footnote_ownership_verified", "cell_ownership_verified"], "properties": {
+      "table_id": {"type": "string"}, "page_numbers": {"type": "array", "items": {"type": "integer", "minimum": 1}}, "continuation_group_id": {"type": ["string", "null"]}, "repeated_header_verified": {"type": "boolean"}, "footnote_ownership_verified": {"type": "boolean"}, "cell_ownership_verified": {"type": "boolean"}
+    }}},
+    "dicom_assets": {"type": "array", "items": {"type": "object", "required": ["asset_id", "metadata_scan_status", "pixel_overlay_scan_status", "evidence_refs"], "properties": {"asset_id": {"type": "string"}, "metadata_scan_status": {"enum": ["PASS", "FAIL", "NOT_TESTABLE"]}, "pixel_overlay_scan_status": {"enum": ["PASS", "FAIL", "NOT_TESTABLE"]}, "evidence_refs": {"type": "array", "items": {"type": "string"}}}}}
+  }
+}

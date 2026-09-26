@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "medical_visual_asset_contract.v0.1.schema.json",
+  "title": "MedicalVisualAssetContract v0.1",
+  "type": "object",
+  "required": [
+    "asset_contract_id","asset_contract_version","asset_id","asset_version","asset_role",
+    "source_identity","authority_level","allowed_transforms","prohibited_transforms",
+    "ai_generation_permission","provenance_requirements","integrity_verification","usage_scope"
+  ],
+  "properties": {
+    "asset_contract_id":{"type":"string"},
+    "asset_contract_version":{"type":"string"},
+    "asset_id":{"type":"string"},
+    "asset_version":{"type":"string"},
+    "asset_role":{"type":"string"},
+    "source_identity":{"type":"object"},
+    "page_figure_region_pointer":{"type":"object"},
+    "canonical_asset":{"type":["object","null"]},
+    "authority_level":{"enum":["RENDER_AUTHORITATIVE","SOURCE_REFERENCE","VERIFIED_DERIVATIVE","DECORATIVE_ONLY"]},
+    "allowed_transforms":{"type":"array","items":{"type":"string"}},
+    "prohibited_transforms":{"type":"array","items":{"type":"string"}},
+    "ai_generation_permission":{"enum":["FORBIDDEN_AS_AUTHORITY","ALLOWED_DECORATIVE_ONLY","ALLOWED_WITH_MEDICAL_QA","NOT_APPLICABLE"]},
+    "derivative_asset_requirements":{"type":"array","items":{"type":"string"}},
+    "provenance_requirements":{"type":"array","items":{"type":"string"}},
+    "integrity_verification":{"type":"object"},
+    "post_generation_qa_requirements":{"type":"array","items":{"type":"string"}},
+    "usage_scope":{"type":"array","items":{"type":"string"}},
+    "notes":{"type":"array","items":{"type":"string"}}
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CaseBoundaryReview v0.1",
+  "type": "object",
+  "required": ["schema_version", "claims"],
+  "properties": {
+    "schema_version": {"const": "0.1"},
+    "claims": {"type": "array", "items": {"type": "object", "required": ["claim_id", "source_function", "source_language_strength", "target_scope", "assertion_role", "provenance", "external_support_refs", "human_review_status"], "properties": {
+      "claim_id": {"type": "string"},
+      "source_function": {"enum": ["CASE_REPORT", "CASE_SERIES", "GUIDELINE", "CONSENSUS", "PRIMARY_STUDY", "OTHER"]},
+      "source_language_strength": {"enum": ["OBSERVED", "ASSOCIATED", "CAUSAL", "RECOMMENDATION"]},
+      "target_scope": {"enum": ["SINGLE_CASE", "CASE_SERIES_DESCRIPTIVE", "POPULATION", "UNIVERSAL"]},
+      "assertion_role": {"enum": ["OBSERVATION", "TEMPORAL_SEQUENCE", "ASSOCIATION", "CAUSAL", "EFFICACY", "DIAGNOSTIC_SUFFICIENCY", "POPULATION_RECOMMENDATION"]},
+      "provenance": {"enum": ["SOURCE", "SUMMARY", "SYNTHESIS", "EXTERNAL_VERIFICATION"]},
+      "external_support_refs": {"type": "array", "items": {"type": "string"}},
+      "human_review_status": {"enum": ["NOT_REQUIRED", "PENDING", "APPROVED", "REJECTED"]}
+    }}}
+  }
+}

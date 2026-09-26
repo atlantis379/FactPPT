@@ -1,0 +1,1341 @@
+{
+  "schema_version": "factppt.implementation.v1",
+  "at": "2026-09-26T18:34:26.361477+00:00",
+  "product": "FactPPTv2",
+  "version": "2.0.0",
+  "workflow": "57098-full-slide.v1",
+  "source_head": "e15163834ca5fb0a81cf1cf13ebee61296578197",
+  "baseline": "57098ca072fe05ec8e6ad54e9f13753754862fd4",
+  "original_source_unchanged": true,
+  "historical_projects_imported": false,
+  "ui_status": "AWAITING_USER_TEMPLATE_SELECTION",
+  "custom_ui_deployed": false,
+  "verification": {
+    "new_workflow_tests": 15,
+    "legacy_core_tests": 29,
+    "passed": 44,
+    "pngs_and_approvals": "ISOLATED_TEST_FIXTURES_NOT_REAL_GENERATION_OR_APPROVAL"
+  },
+  "files": [
+    {
+      "path": ".gitignore",
+      "sha256": "c1954159166fa0bb40556f84d7373a5513ad6a80dfe97279a77a8de8d35939b7",
+      "bytes": 236
+    },
+    {
+      "path": ".nvmrc",
+      "sha256": "73fb1b615e2043a933be1c0895cde4358036acc28d785692509b822aa53c761f",
+      "bytes": 8
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "af088ebdf7f07f8dd4f6a0e2fe951c6fc0c32057aa5e9cc050d43e1600406c6d",
+      "bytes": 2100
+    },
+    {
+      "path": "README.md",
+      "sha256": "fdd2bbac89f96709c966330ffde0be34baa6e5d75ce682771336eeda6cd83c66",
+      "bytes": 1591
+    },
+    {
+      "path": "app/CONTENT_CONTRACT.md",
+      "sha256": "9a0aa604c477076fb3ecf8da7a20d1682b3f1ea9a42d7a709b0cd0f56e292986",
+      "bytes": 2427
+    },
+    {
+      "path": "app/LAYOUT_DESIGN.md",
+      "sha256": "a688e4563e5d83ef9fa224fac483d1067d85a6b6dbffc77e9a13b4dc2aedb215",
+      "bytes": 17035
+    },
+    {
+      "path": "app/REMEDIATION_PLAN.md",
+      "sha256": "5ca947416f06b788d4d2fd9857f06d71b4f20f6c50dec9227bb59a0849d2dc35",
+      "bytes": 43323
+    },
+    {
+      "path": "app/REPRODUCIBILITY.md",
+      "sha256": "88e5aea8c5dfd63ac62311fe2d80fe3b5717a23993974b98aa98130f5fc340ab",
+      "bytes": 3464
+    },
+    {
+      "path": "app/REUSABLE_PIPELINE.md",
+      "sha256": "0986152d27a58873c925d56a2dfad5eb800353277fb0185f6144f1d1f24cc496",
+      "bytes": 2920
+    },
+    {
+      "path": "app/SEMANTIC_MODEL_ROUTE.md",
+      "sha256": "3347517f9b509b18284a0a1f59cbdf0363f468be9057e600a6bdb359f88af6af",
+      "bytes": 17162
+    },
+    {
+      "path": "app/VISUAL_ASSET_REUSE.md",
+      "sha256": "3b4c8bea41f931377184733a892dd1b1d8ff8c301ba4e8a15064f499eda061db",
+      "bytes": 3184
+    },
+    {
+      "path": "app/__init__.py",
+      "sha256": "a46e097aa2139dbecaff6da4ff5f862e89dadafdc613beb28cff7ec8f0959fe1",
+      "bytes": 42
+    },
+    {
+      "path": "app/beautify_cli.py",
+      "sha256": "66afac97744b16ca1cc0603359b6683950a8494592da3eed43e814bad3f2be4e",
+      "bytes": 3940
+    },
+    {
+      "path": "app/compare_renderers.py",
+      "sha256": "7bfcf0298e05fa19af5e1ae1a84b7163828d8120cd8bfd734133bf628e74d770",
+      "bytes": 5014
+    },
+    {
+      "path": "app/content_contract.py",
+      "sha256": "a78d8113f45848abde8d943ac96847db4d29ff143d5f6d8c8048730a0d141e46",
+      "bytes": 16329
+    },
+    {
+      "path": "app/content_validation.py",
+      "sha256": "ff06aff7d1e9b009300984d1ec9deddbd2e33f6c751017aaa3cecbdce8d26f74",
+      "bytes": 9022
+    },
+    {
+      "path": "app/delivery_evidence.py",
+      "sha256": "f7732b193462e00b4f01d695fc42ed4ee14cfb29def1a428bd9f922a3a21a7b9",
+      "bytes": 5786
+    },
+    {
+      "path": "app/delivery_gate.py",
+      "sha256": "3fb9a4f3ad13ee3ecea98df75c9753bdba670c5fe866948f3ee6a3ec1d823735",
+      "bytes": 5032
+    },
+    {
+      "path": "app/editorial_assets.py",
+      "sha256": "4f08f936ece1355448deb637b28cd6a0b2cae34b4343e4b2f6b02353f4f9e781",
+      "bytes": 5385
+    },
+    {
+      "path": "app/external_runtime.lock.json",
+      "sha256": "a6b21a78f5085670517d8f32d12769918b206786ba8c3a676e3f891c6931da16",
+      "bytes": 435
+    },
+    {
+      "path": "app/fact57098.py",
+      "sha256": "2d8ee2a3937109eadc50f2cb049a9a96cc94ebcdd869ab5fcd646601e2e663fe",
+      "bytes": 45996
+    },
+    {
+      "path": "app/fact57098_api.py",
+      "sha256": "2fcc0ca180811ebcde0c2d2eab1dac3e197c92d67c5237149418dbdf859696f3",
+      "bytes": 8877
+    },
+    {
+      "path": "app/fact57098_writer.mjs",
+      "sha256": "2b97573febd0e9a97f045c5f2bfa4f7cf96845e32a068e9ed23d994748b9297b",
+      "bytes": 2217
+    },
+    {
+      "path": "app/full_summary.py",
+      "sha256": "bad9d04bcaa503570f8d44fad5668d80a4ca04d117ce02cadb7bf2c9ede66d0e",
+      "bytes": 7150
+    },
+    {
+      "path": "app/layout_ir.py",
+      "sha256": "de1d8b4b0720d2128c24e32911d6c58b476b1207256ec1a9a2dd8291830b9e1a",
+      "bytes": 20568
+    },
+    {
+      "path": "app/main.py",
+      "sha256": "6c2ec431f840cc299534a0b87f0f4207d72048548dee741e2828dcad5b361273",
+      "bytes": 285513
+    },
+    {
+      "path": "app/model_adapter.py",
+      "sha256": "e7c7a1fa3caaed70c7bb3917c8b595f1245690df8157ebcdcac90427db2e5cf4",
+      "bytes": 3938
+    },
+    {
+      "path": "app/native_beautifier.py",
+      "sha256": "8c2e6fbb09482cfc074e2577fe808277980fdcb89962d76ed8dc6eba95397e22",
+      "bytes": 52663
+    },
+    {
+      "path": "app/packager.py",
+      "sha256": "ad06d274250bb2040b79970c9e2a6c25de256f1083fb9e6124d30af4d09828e4",
+      "bytes": 31254
+    },
+    {
+      "path": "app/pptxgenjs_compare.mjs",
+      "sha256": "7e9c3c6d437165706f6ea65ad4d44b39fd87b6130874fcfc720ffec8985f22ca",
+      "bytes": 4704
+    },
+    {
+      "path": "app/pptxgenjs_writer.mjs",
+      "sha256": "a35ddb29374399866c8614f566e41314139b43f71ebb7ef260546d164c4841ab",
+      "bytes": 7132
+    },
+    {
+      "path": "app/projection_quality.py",
+      "sha256": "bce261642c0e76fac7e3ccc111ae81650cf5c8e1a87d28a9690a8be4173eceb3",
+      "bytes": 8419
+    },
+    {
+      "path": "app/read_units.py",
+      "sha256": "54ba89728c6328719e1f13795f8f26d1a3bc943f8a274ac4fd42c2c2c1efd1cf",
+      "bytes": 21836
+    },
+    {
+      "path": "app/reading_structure.py",
+      "sha256": "ae6263a12fdd0a80132e16cd4b40de93e9a02188aec95bc74b8de6fbffe23bdf",
+      "bytes": 31250
+    },
+    {
+      "path": "app/render_readback.py",
+      "sha256": "6aaaa12860bd76afd750ad11a6c5bc8e90f2f3f6fb9ac7411ef93ca246dfc642",
+      "bytes": 24249
+    },
+    {
+      "path": "app/reproducibility.py",
+      "sha256": "7415c19fdc753f135ccc6ad6972bde84f5c712ab60bf7b6df0c4876b2603df5b",
+      "bytes": 3836
+    },
+    {
+      "path": "app/requirements.lock",
+      "sha256": "560e0abdcc202644e05bafde5300abf3a45eb6f4b77dda998eee2bbbd9ad7c1b",
+      "bytes": 1301
+    },
+    {
+      "path": "app/review_issuance.py",
+      "sha256": "bbfb7d365feafabcac9de9b41d94634051f629285243716ddccc823c35774bd4",
+      "bytes": 7859
+    },
+    {
+      "path": "app/review_qualification.py",
+      "sha256": "6d134597f1653850b45a9b68d5892275193b0652673e053bd168357ef913560b",
+      "bytes": 2207
+    },
+    {
+      "path": "app/reviewer_benchmark.json",
+      "sha256": "ab1da7223246102204274e6212f3193c1604f70f9870f5b3574e6c945af52f62",
+      "bytes": 1925
+    },
+    {
+      "path": "app/runtime.env.example",
+      "sha256": "fd016b3bd827ca0ccc93c47d067aea2de57104677858300d7bdb17cebc534eec",
+      "bytes": 629
+    },
+    {
+      "path": "app/semantic_benchmark.json",
+      "sha256": "d1281b5a4de9e5d665cdf21314b8411a8311f417d99d7fed5718c25e654ffe1d",
+      "bytes": 2028
+    },
+    {
+      "path": "app/semantic_fidelity.py",
+      "sha256": "5ada35d8fa04b127f4b4f1459cf9e677d03c9426475ec71f6e6dc11bf15e6eef",
+      "bytes": 4273
+    },
+    {
+      "path": "app/semantic_model.py",
+      "sha256": "545c1983a650cf81e9ae4b2143537f0c2002d3b0258785fba7ba10a5000b9acf",
+      "bytes": 22877
+    },
+    {
+      "path": "app/source_extract.py",
+      "sha256": "9af9aba04e43874edc95eed7cc47da4c4ae9c3cb96a55b9ffd3edd42532347f0",
+      "bytes": 7932
+    },
+    {
+      "path": "app/stage_contract.py",
+      "sha256": "28f15af80ebc51823ececa69ae1c22b46c4d43797da3a343b72dd6b6d4f6befe",
+      "bytes": 2379
+    },
+    {
+      "path": "app/test_content_contract.py",
+      "sha256": "5b80ffc228483f0f133756c48dd0b6129f083f5f5c25a1e7620169af62d79632",
+      "bytes": 10829
+    },
+    {
+      "path": "app/test_content_integrity.py",
+      "sha256": "d800c400198facb3a93ddfa3fc228c450cf0cab4ea08c9e89f70a1282c16566d",
+      "bytes": 9473
+    },
+    {
+      "path": "app/test_content_validation.py",
+      "sha256": "b40b2aed78c83f7ae8b0920a3962305670e91fd11ee6ba3ff7f3ca0e94a35bd5",
+      "bytes": 7028
+    },
+    {
+      "path": "app/test_delivery_evidence.py",
+      "sha256": "562233131e4b85cb499487b48d41dea8ff93bd1d1ac473aa6884aac7f70c5594",
+      "bytes": 4087
+    },
+    {
+      "path": "app/test_delivery_gate.py",
+      "sha256": "c924460bda6966c866289ccf0173999079c7bf5a480f589dad96ef7b750dd70b",
+      "bytes": 7396
+    },
+    {
+      "path": "app/test_full_summary.py",
+      "sha256": "37f673e83cd2bc8c92e57998dad8f58e051bc3fefce4f1937e12358e51d13c4e",
+      "bytes": 5284
+    },
+    {
+      "path": "app/test_layout_ir.py",
+      "sha256": "7c6841a9888f428991e4ed7b06578f99704564c9c8716c1d53a08286bce0f3df",
+      "bytes": 20874
+    },
+    {
+      "path": "app/test_projection_quality.py",
+      "sha256": "ba5b4b6e0b57a7e648f5f848300e440a3fc44704ad6eaa2f850377372a69ebb7",
+      "bytes": 2206
+    },
+    {
+      "path": "app/test_reading_structure.py",
+      "sha256": "80ab1bbc8fec4cdfd5668b80e6caa9aff2361d4a69e0b7d3abdbf4ab8b983277",
+      "bytes": 20396
+    },
+    {
+      "path": "app/test_review_api.py",
+      "sha256": "c83a60e67d98d4e1d6e1937fde250ce2381a1a8b7571f7fa7707e86dddecbb33",
+      "bytes": 2350
+    },
+    {
+      "path": "app/test_review_delivery_route.py",
+      "sha256": "309fe617e239b71f9866dbc5d1b7050e805d7859ab2b66abd7384a3a95c1517a",
+      "bytes": 9043
+    },
+    {
+      "path": "app/test_review_issuance.py",
+      "sha256": "2607a3c59b8059287e968a8ce2f367ade26ce591a1032a6174d69077b1e818dd",
+      "bytes": 7849
+    },
+    {
+      "path": "app/test_review_qualification.py",
+      "sha256": "82ce517db4954894076d59dcce0f49a344b9485e17adb392e7683e7e8ede360b",
+      "bytes": 1225
+    },
+    {
+      "path": "app/test_semantic_benchmark.py",
+      "sha256": "9f379a341a91bb2ace41330b8609be1393b75fdc1e2c2c10ab7fa4fa17175eeb",
+      "bytes": 869
+    },
+    {
+      "path": "app/test_semantic_fidelity.py",
+      "sha256": "a44866f4650f91a841d4a70e4397b65a6e66ad90d49e8037683b7f3129c7fa3d",
+      "bytes": 3764
+    },
+    {
+      "path": "app/test_semantic_model.py",
+      "sha256": "ac81949a58f28383568f37e7dad150e33416fb1ed84d8212d8ca2d4713382757",
+      "bytes": 24174
+    },
+    {
+      "path": "app/test_source_extract.py",
+      "sha256": "fa1faf160efe665f93c4b792a793fb590fdaca05df458881c054f29f568c2b58",
+      "bytes": 7143
+    },
+    {
+      "path": "app/test_visual_prompt_contract.py",
+      "sha256": "aff5f6bcfe27383ca94dbd04983cdbae9f328388f98b2c3656df9d48e4fd04ae",
+      "bytes": 2342
+    },
+    {
+      "path": "app/test_visual_quality.py",
+      "sha256": "25681314dc11a175efe21291bfa8a0f5e498b9351634e0e08dc54ec61a2b53bc",
+      "bytes": 768
+    },
+    {
+      "path": "app/test_visual_review.py",
+      "sha256": "4fc8705d7ec6cb9579e40d0caf7142ee1bbbf69e7e457e694042251411e0d684",
+      "bytes": 2294
+    },
+    {
+      "path": "app/validation/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "app/validation/render_with_powerpoint.py",
+      "sha256": "1ca75ade2f3b72e952d05faed782effdd3b78de768e31084e8442c0f37e37460",
+      "bytes": 2347
+    },
+    {
+      "path": "app/visual_prompt_contract.py",
+      "sha256": "18426daefc0a9247dd5aef0994fdfe5625cdf972b76aa849a885738119b32d94",
+      "bytes": 21823
+    },
+    {
+      "path": "app/visual_quality.py",
+      "sha256": "a0fca307fc1bd9d5b9737dd5e2b5e2265063dc2465c110b1da82d3500f94e7e1",
+      "bytes": 1646
+    },
+    {
+      "path": "app/visual_review.py",
+      "sha256": "5e55fd8fefed95afa7789702a1b7c33d4aebd3717fc8ca7a4a6a679bee4adf13",
+      "bytes": 2808
+    },
+    {
+      "path": "config/generation_capabilities.json",
+      "sha256": "420970ba2a8a1c44fed9a25441ea5e347d8d0275c4532917039cf8e3cc0ebe7d",
+      "bytes": 810
+    },
+    {
+      "path": "config/rules/mvp_rules.json",
+      "sha256": "ce1590f33952c1296be9cd77085ba04e468f4786a45799070a812f28f6b5b9eb",
+      "bytes": 9886
+    },
+    {
+      "path": "config/semantic_model_capabilities.json",
+      "sha256": "a969a384155880aaf4acbc7493d7c47919c252f2bf6786bd94c7f1642c12b203",
+      "bytes": 6363
+    },
+    {
+      "path": "deckkit/README.md",
+      "sha256": "a8be90581276cac55a6e2f3f18fab0b7f7060c5c44c0b081751e78dc76879265",
+      "bytes": 21996
+    },
+    {
+      "path": "deckkit/REPORT.md",
+      "sha256": "77634e3c499eb0b70fd3bd2e791773c2f27c46bbada9ed0db08033653b78c231",
+      "bytes": 7412
+    },
+    {
+      "path": "deckkit/__init__.py",
+      "sha256": "3deaefd767686b5d81cc496288bf976d9bf8e01ce7d41c6f8bc576036d01b35e",
+      "bytes": 1185
+    },
+    {
+      "path": "deckkit/__main__.py",
+      "sha256": "c81ac315ff9e105ec21b07a1284d7c6a21928d33bd10888fcead08365a10c7b3",
+      "bytes": 24716
+    },
+    {
+      "path": "deckkit/audit.py",
+      "sha256": "5e85505219337f9602f863bb7bd19acff92d44f38908cfd292baaeb41b4e3711",
+      "bytes": 2710
+    },
+    {
+      "path": "deckkit/build.py",
+      "sha256": "a0657c948593faf9485fd8b84f41bb43bcdb17fa4199abd7f690b0658278366f",
+      "bytes": 2951
+    },
+    {
+      "path": "deckkit/chart_geometry.py",
+      "sha256": "2d4f6c993023f81b3f80bc720824481f8238c054c0b016e4cffbca76b64ba1f2",
+      "bytes": 11647
+    },
+    {
+      "path": "deckkit/charts.py",
+      "sha256": "bd892b072740a7490967ae87cb6dfc2594f57166f71fd94ed38078766c3ff274",
+      "bytes": 10270
+    },
+    {
+      "path": "deckkit/colorutil.py",
+      "sha256": "da429ba5df2321e5e772d507bed13160abfa812402a9e25a298c9e1ca17e97f0",
+      "bytes": 3081
+    },
+    {
+      "path": "deckkit/css.py",
+      "sha256": "d4b9c5e7ebd6846ac312828772eea5f3c9838549c9c1c67bdc00eb1d30d74f89",
+      "bytes": 19169
+    },
+    {
+      "path": "deckkit/exhibits.py",
+      "sha256": "90022ac8f1cdef478122431dc38c144ca6af5464565f64da78a147c93a64a695",
+      "bytes": 11432
+    },
+    {
+      "path": "deckkit/extract.py",
+      "sha256": "4054808f9e57830b7cc2930c5226e8116b11e8af5dc5a5af05906eb2ea8712bc",
+      "bytes": 33745
+    },
+    {
+      "path": "deckkit/image_geometry.py",
+      "sha256": "522e0c9269a0217bcc1f8ab36b2c7564c65aae459aecfdabb6f688ff4a2633e2",
+      "bytes": 7202
+    },
+    {
+      "path": "deckkit/images.py",
+      "sha256": "9cde0744c1603aac5b6359dda6de452d5f80a1205f69ebbddfa8dd6b3b263e97",
+      "bytes": 7489
+    },
+    {
+      "path": "deckkit/layouts.py",
+      "sha256": "4cae231beca54a73e8e7a03f2d89379fe9fbcb19d96493ee9b3a4c94e6baa6cf",
+      "bytes": 19255
+    },
+    {
+      "path": "deckkit/motif_png.py",
+      "sha256": "f413014d1c329628c1d2a7aa69349d21d8c94653589893c2af0e14298739f564",
+      "bytes": 2078
+    },
+    {
+      "path": "deckkit/motifs.py",
+      "sha256": "03fb7f5ae10aaf24657e00105cef2bd56b4311bf1dd48459f4c046cf6e0d20f1",
+      "bytes": 7538
+    },
+    {
+      "path": "deckkit/narrative_gates.py",
+      "sha256": "49665f10df31e4887ccd70bd0d45b3231c8359dee351b7ef315b4bae8fb82e1c",
+      "bytes": 9433
+    },
+    {
+      "path": "deckkit/ocr.py",
+      "sha256": "abc59eca5d1bb9a07ad9d7125f8821663e81754b4011398f50c8783b49dea9ea",
+      "bytes": 13699
+    },
+    {
+      "path": "deckkit/outline.py",
+      "sha256": "fd0f6cf6d1edb3786b5cd4532a7eba8fe0d0e2e93bd1a6de217afa90cc4da3ef",
+      "bytes": 8636
+    },
+    {
+      "path": "deckkit/page_contract.py",
+      "sha256": "7a59526d93bdcad40254acf8511fe8adba70393a4e2556f5675657b40f4d4aee",
+      "bytes": 9613
+    },
+    {
+      "path": "deckkit/pdf_columns.py",
+      "sha256": "84d5fc6862de3bb0e934f216817c46204bafb704527e3b3f7b6f7de1308be3e1",
+      "bytes": 13972
+    },
+    {
+      "path": "deckkit/pipeline.py",
+      "sha256": "8bfe849538ac4bd8bc148cf76f018b3e3b7da2cee42c0df64ffc4dedab5df92b",
+      "bytes": 12318
+    },
+    {
+      "path": "deckkit/pptx_export.py",
+      "sha256": "158da0260ef84a14d3c0dd0395bd5925b771182e0a91b12a624ffbf8becbf099",
+      "bytes": 33125
+    },
+    {
+      "path": "deckkit/pptx_theme.py",
+      "sha256": "2532dc96ac851f6d56594e76c9e828608edd683c4afb2dbf5c4eafc86e74160e",
+      "bytes": 6303
+    },
+    {
+      "path": "deckkit/render.py",
+      "sha256": "7f49d6d17eda60d41609b1b9c18a4575b7f6747dbf9d18edb872804f29d23b79",
+      "bytes": 2606
+    },
+    {
+      "path": "deckkit/requirements-render.txt",
+      "sha256": "73d40e4a4433cee5066e462b600d3c88646ad21a3d5d84bab94f2acaa247bf7d",
+      "bytes": 223
+    },
+    {
+      "path": "deckkit/teaching_pages.py",
+      "sha256": "949e51d6965550e6865f1e849a5b4af77b0a20dd1126f14639137e14079a2c8d",
+      "bytes": 25467
+    },
+    {
+      "path": "deckkit/theme_from_pptx.py",
+      "sha256": "9685510b0004ba401380305e86b2bafe143a34e98a0b3d9ba505ef5dd8fd0504",
+      "bytes": 8126
+    },
+    {
+      "path": "deckkit/theme_gen.py",
+      "sha256": "55f07f418b2414c8e47a3cd9be1e20b8e35ef51a5eff3863932a8ea34244cf8d",
+      "bytes": 5970
+    },
+    {
+      "path": "deckkit/themes.py",
+      "sha256": "fea7cf427a05405dde2514598773df13d05c8d1bcc5575f4aa997c35178c449f",
+      "bytes": 7769
+    },
+    {
+      "path": "deckkit/themes_user/acme-corp.json",
+      "sha256": "705cc1a30a70dc6007b5ad8dac759b270da3a2155365e4e657551c4075ea3b5a",
+      "bytes": 1382
+    },
+    {
+      "path": "deckkit/themes_user/acme-dark.json",
+      "sha256": "170ce645c9f259b567d50c1970574a08e6503315bb1917e67e9ce363e57b12e0",
+      "bytes": 1380
+    },
+    {
+      "path": "deckkit/themes_user/brand-green.json",
+      "sha256": "95228edee82c25e3ad743516b1343b3cd54c1edd65de0c74a2f9d42fd5307c1b",
+      "bytes": 998
+    },
+    {
+      "path": "deckkit/themes_user/brand-purple.json",
+      "sha256": "27c2dafb3f3a7e5ca0f8738397bb34655413f4b7a942e36f7ecf0e2f0dd2474f",
+      "bytes": 997
+    },
+    {
+      "path": "deckkit/themes_user/cmcc-red.json",
+      "sha256": "8b624cbc90b876785e6b5a68a53087cb194e936abc394edd36f8a9cbfa5d5898",
+      "bytes": 995
+    },
+    {
+      "path": "deckkit/themes_user/telecom-blue.json",
+      "sha256": "ad3ee7309f0c97216a9d24dd93f6f2a54be777c99d48e651bb00c8f19ccc6a8f",
+      "bytes": 999
+    },
+    {
+      "path": "docs/FACTPPTV2.md",
+      "sha256": "7519c0aa9daebf51bae65c708ecaadf8dde614b073be7e291afae6a9010ef1c4",
+      "bytes": 4332
+    },
+    {
+      "path": "docs/IMPLEMENTATION_STATUS.md",
+      "sha256": "05345a5a356d9c7ac7ebbab8fb878259e858a5a8cdf8446b6eca07dfd690d28c",
+      "bytes": 1335
+    },
+    {
+      "path": "docs/specs/01_PRD.md",
+      "sha256": "74721619d1f0d248baf0c79260fe10a6646a2debf8d39388660b3bb6cb4c362f",
+      "bytes": 70020
+    },
+    {
+      "path": "docs/specs/02_ARCHITECTURE.md",
+      "sha256": "c3997127122626c7252745b51c54d58b06a9e56c14c0b76e80f26a37de257ee7",
+      "bytes": 126870
+    },
+    {
+      "path": "docs/specs/03_DATA_SCHEMA.md",
+      "sha256": "9d56f753261e6c0d6bf9ed283956b72c6fd916d30b5598825b787984fa8a637e",
+      "bytes": 67092
+    },
+    {
+      "path": "docs/specs/04_QUALITY_AND_COMPLIANCE.md",
+      "sha256": "9bec4ab8d3b0d5bab5865a37c2120066f737fb11e81add55b5a0129500e2d491",
+      "bytes": 40628
+    },
+    {
+      "path": "docs/specs/05_MVP_TEST_PLAN.md",
+      "sha256": "b708da68097e42cb21f5823946f114927bdce951d204558bfdde69727c5bb24e",
+      "bytes": 54643
+    },
+    {
+      "path": "docs/specs/CURRENT_SNAPSHOT_STATUS.md",
+      "sha256": "5f1e67fc2daf6f6c5a196ce0407424cd33995725a9ab81cf3475387c854b5bbd",
+      "bytes": 1186
+    },
+    {
+      "path": "docs/specs/FROZEN_SPEC_MANIFEST.json",
+      "sha256": "dac9034521dd02b08d96dd7e8e37e5e5203e3cd6ea4b3a2c2dd1351a93175664",
+      "bytes": 3814
+    },
+    {
+      "path": "docs/可行性研究与竞品分析_20260911.md",
+      "sha256": "7afc64460ea2ccea42abf01231c59806d128c496f5e08efe6265c33cc7b4db31",
+      "bytes": 34273
+    },
+    {
+      "path": "install.ps1",
+      "sha256": "bf05b97d118e4f90e2881c6d09eafeec7c4e6c348806d4aabd863e48f098d2fd",
+      "bytes": 893
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "153dcc44bd69eb1ae7e1fea423c01cbe333efc47c284ddf5e0ed1e99a15071e7",
+      "bytes": 7023
+    },
+    {
+      "path": "package.json",
+      "sha256": "a32cb702b9c9d0c378c856b03348428ed6a7981bbc0193933ccb1372dff0b8b8",
+      "bytes": 203
+    },
+    {
+      "path": "pytest.ini",
+      "sha256": "8d198cb3506d0e62dd37b8c3f9c9c8a41457452a85cb47b580cabda4ec5c2172",
+      "bytes": 529
+    },
+    {
+      "path": "requirements.txt",
+      "sha256": "be5adc5ab4b5e6d8421a01b017ef4969b58b99fb6d5b8f664049863a64cd2d07",
+      "bytes": 935
+    },
+    {
+      "path": "runtime.env.example",
+      "sha256": "160e9328924372b554ce3cf9ff45c8f0919eba567d1b2335246bb3b8a6cc5bcb",
+      "bytes": 307
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/PACKAGE_LOCK.json",
+      "sha256": "912a2a5ae2b0d9d2f0032ddcb4f68ab960c7b5028309832a818271dc0b9e9ab6",
+      "bytes": 38766
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/SKILL.md",
+      "sha256": "9097da45e1b1b589290a96ba6638e1e82c46e00d3701c867501898add8b90027",
+      "bytes": 15076
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/SKILL_MANIFEST.json",
+      "sha256": "f2a5cc6f1e18c69ff9814e97379dbe397d9fbea872b8624285bd5a767ea2c69d",
+      "bytes": 5991
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/SKILL_RUNTIME_PORTABILITY_MANIFEST_v0.1.json",
+      "sha256": "65392299c3649e1d5da8e4a5c6d0592f40c0800748cff49e66d2f572ffbb50dc",
+      "bytes": 163
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/SKILL_RUNTIME_PORTABILITY_MANIFEST_v0.2.json",
+      "sha256": "814e7381e38908d8b31b1cf850688254d7be4934aa03f6dd82553b385d6f7d17",
+      "bytes": 936
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/contracts/AI_EDITORIAL_ASSET_FUSION_v0.1.md",
+      "sha256": "422431a41210cf6dd48d8e36e957da4d3856088e79653ca84644cf144c1368c9",
+      "bytes": 3694
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/contracts/AI_EDITORIAL_DATA_FUSION_v0.2.md",
+      "sha256": "c4c6d20fa423cfc65656815dd33f4c2f7b26fd64fa61f9f8dc0955b9aef53417",
+      "bytes": 6197
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/contracts/CHATGPT_IMAGE_EDITORIAL_UNDERLAY_v0.1.md",
+      "sha256": "ee126bd44624e79832f43cca24b64a8c772f46c1515b491cdc5c935743eed1f9",
+      "bytes": 3229
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/contracts/CLIENT_TEMPLATE_INTAKE_v0.1.md",
+      "sha256": "0e95dfa97162c59195db85114d291ca814cb4408d4a551bc665ea1bfff137857",
+      "bytes": 3850
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/contracts/INDEPENDENT_FACT_ORACLE_AND_VERSION_CHAIN_v0.1.md",
+      "sha256": "8ea21b494393e7dd30e1adfead7283993a00569c9a042dc4465772e4b8ef28c4",
+      "bytes": 1908
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/contracts/INTEGRITY_AND_QUALITY_v0.5.md",
+      "sha256": "e96a8fd03b0f61c04231d1233acd950ae4149fa0a2b292a7d8b4bdfad92d70a0",
+      "bytes": 7922
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/contracts/NATIVE_EDITABLE_BEAUTIFICATION_MVP_v0.1.md",
+      "sha256": "433067ebdcfb74acbd607179428b891a40fc11a8f92a0f7e7f82a225a2da0d27",
+      "bytes": 3531
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/contracts/PAGE_PRIVACY_AND_DOCUMENT_SURFACE_GATE_v0.1.md",
+      "sha256": "cf0295325e67da8f855eea234ba54db4549ed46a6683a42412876f6f4b44dee0",
+      "bytes": 3541
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/contracts/PORTABLE_RUNTIME_CAPABILITY_CONTRACT_v0.1.md",
+      "sha256": "4583fe6c1252c4e25b431afef8de992094457e836d0a71d0be9f56c616b278f8",
+      "bytes": 9988
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/contracts/QUALITY_SYSTEM_v0.5.md",
+      "sha256": "b80b0da8efed0e521509cdffad20d7fcebbe2679a2d68c56bf70e8314d992c5e",
+      "bytes": 10815
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/contracts/STAGE_OUTPUT_CONTRACTS.md",
+      "sha256": "0d7edca6e310404bf7eb2f4b7de50bd0217ec385aff2c4fc86d70f14feb8fb67",
+      "bytes": 3332
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/contracts/STAGE_OUTPUT_CONTRACTS_v0.2.md",
+      "sha256": "8378ef785de7a00fc8d69240e756e0098e2fea0c16fdf4b00cd62f1aef1b5f69",
+      "bytes": 4512
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/contracts/STAGE_OUTPUT_CONTRACTS_v0.3.md",
+      "sha256": "6dc229731ab20956eadcf96840a3ce2c97d1e186ffe95d39cfb3678ef8c96e30",
+      "bytes": 5405
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/CASE_REPORT_EVIDENCE_BOUNDARY_v0.1.md",
+      "sha256": "27da8af6c9db012b4eab3e475877f0cca6f967ba0b5a3813349fb9f465f22dd2",
+      "bytes": 1180
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/FROZEN_RULES_COMPILATION.md",
+      "sha256": "e970be67153deda15a7d9f8ebff622652688f3fa51a63960f8f2ed0485267a1b",
+      "bytes": 15316
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/HISTORICAL_SKILL_MANIFEST_v0.4.json",
+      "sha256": "d42b9ff8ad2093d5f15c9f9ffb8ca66472508f05187af8367e66e172ad3567b6",
+      "bytes": 9243
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/HISTORICAL_SKILL_v0.4.md",
+      "sha256": "cca4695fbc1c4e6d7cdaa2a180038db88666171d48addbd2e6ef6e26a65dd26e",
+      "bytes": 33435
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/TEST_001_CMVD_LESSONS.md",
+      "sha256": "4c2b8c32d1dff4e8ef7cc6048d34776a6909b4f4ed3349c25a56e76e220cd839",
+      "bytes": 4764
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/specs/01_PRD.md",
+      "sha256": "74721619d1f0d248baf0c79260fe10a6646a2debf8d39388660b3bb6cb4c362f",
+      "bytes": 70020
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/specs/02_ARCHITECTURE.md",
+      "sha256": "c3997127122626c7252745b51c54d58b06a9e56c14c0b76e80f26a37de257ee7",
+      "bytes": 126870
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/specs/03_DATA_SCHEMA.md",
+      "sha256": "9d56f753261e6c0d6bf9ed283956b72c6fd916d30b5598825b787984fa8a637e",
+      "bytes": 67092
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/specs/04_QUALITY_AND_COMPLIANCE.md",
+      "sha256": "9bec4ab8d3b0d5bab5865a37c2120066f737fb11e81add55b5a0129500e2d491",
+      "bytes": 40628
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/specs/05_MVP_TEST_PLAN.md",
+      "sha256": "b708da68097e42cb21f5823946f114927bdce951d204558bfdde69727c5bb24e",
+      "bytes": 54643
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/specs/06_COMPETITIVE_PRICING_BENCHMARK.md",
+      "sha256": "26e615d630117fca12edade2f9700c98f5c609c19fe24f8f78dd0f354e50ff18",
+      "bytes": 14254
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/specs/07_DEMAND_VALIDATION.md",
+      "sha256": "a17ba2fae027fc6eb6a6a0c302abb8cdd9e08ee91cb9228c4252f8a4de01bb43",
+      "bytes": 14352
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/specs/08_MARKET_DATA_SAAS_PATH.md",
+      "sha256": "238b324e04719a57f099ad9a925a633ebc310e9fca207654760e6a7918757b34",
+      "bytes": 5883
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/specs/09_BRAND_CONFLICT_REVIEW.md",
+      "sha256": "6ceb1993a3d1437ba07bbdeaa3787ef092b747900f0afd47823e0edbbf511e15",
+      "bytes": 7852
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/specs/CURRENT_SNAPSHOT_STATUS.md",
+      "sha256": "099583c963bb275597300162e170e8607422895e9e10fe1dc85dac7ee6aeff82",
+      "bytes": 1222
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/specs/FROZEN_SPEC_MANIFEST.json",
+      "sha256": "0652b5952120c2d3568212485d744e59e1e87d028883902f869a810d1f9b47fe",
+      "bytes": 3953
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/workflows/FULL_SOURCE_EVIDENCE_COVERAGE_POLICY_v0.1.md",
+      "sha256": "60518d404af04435573ab49bf81c0c30d452baf062435087e2313bc1b3129a98",
+      "bytes": 9152
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/workflows/NARRATIVE_RATIONALITY_AUDIT_POLICY_v0.1.md",
+      "sha256": "26abd6e0330459442dc3e92e8518053c60e6a8c337b839eb0890ce5631182fd2",
+      "bytes": 10348
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/workflows/NARRATIVE_TO_PAGE_DECOMPOSITION_AUDIT_POLICY_v0.1.md",
+      "sha256": "1361fe20ce2b2650e2f7bb579fda9baeb87450b4a90d3efdda36c100a72cc28f",
+      "bytes": 8193
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/workflows/PAGESPEC_VISUAL_STRATEGY_DERIVATION_POLICY_v0.1.md",
+      "sha256": "5aa3a599915d1a5ef065f6dd8372c49dc059ed9a4870fa3b1167f5640386f1ff",
+      "bytes": 10322
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/workflows/PRESENTATION_CONTEXT_MATCHING_POLICY_v0.1.md",
+      "sha256": "0863d24e4d96adef72f585cfcf1e8e3f87e6306cb5e7a6ea93929c41cd72cc90",
+      "bytes": 7023
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/workflows/PRESENTATION_CONTEXT_MATCHING_POLICY_v0.2.md",
+      "sha256": "f5a34b6f8c4a23cd82ffbc8c386ecd69a5b66968ab4b120551a586e10059924e",
+      "bytes": 10223
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/workflows/PROMPT_TO_VISUAL_TRANSFER_AUDIT_PROTOCOL_v0.1_DRAFT.md",
+      "sha256": "f5d9af37a60ce536907e00a17e87afa1982d5917b2e4b9d8e056ae24d2153578",
+      "bytes": 5163
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/workflows/REFERENCE_PIPELINE_CHECKLIST_v0.1.md",
+      "sha256": "d567cf4b9a78099d98952fe627885ed189e62d8413650222e51a68e53be71aef",
+      "bytes": 8804
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/workflows/REFERENCE_PIPELINE_CONTEXT_MATCHING_CHECKLIST_v0.1.md",
+      "sha256": "afce3fde64f97e1f90bd3d573bc34649b886c87e16278548e27376c98d8b1f2e",
+      "bytes": 2845
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/workflows/REFERENCE_PIPELINE_FULL_SOURCE_COVERAGE_CHECKLIST_v0.1.md",
+      "sha256": "517ff0f3d94aafa9a22c119734c4c2c516b38116297efdf39a9e8e98362e1e5e",
+      "bytes": 3222
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/workflows/REFERENCE_PIPELINE_NARRATIVE_AUDIT_CHECKLIST_v0.1.md",
+      "sha256": "4681f3f9903fd49357e56384cf6d52aa0f20b17ba21eeb11c05ca48ccda1c971",
+      "bytes": 2825
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/workflows/REFERENCE_PIPELINE_READING_AUDIT_CHECKLIST_v0.1.md",
+      "sha256": "e9f60a5226cdc3711cf2addd8dc1a0c1a68a64983ef6a42c754bc07d689a0ccf",
+      "bytes": 6164
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/workflows/REFERENCE_PIPELINE_READING_AUDIT_CHECKLIST_v0.2.md",
+      "sha256": "8eb128ac78f81325f5099f879a25ba9dee6e397da3b5be7b52d88cc3dc2dc512",
+      "bytes": 9547
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/workflows/REFERENCE_PIPELINE_RUN_RECORD_TEMPLATE_v0.1.md",
+      "sha256": "2e01eb94321bfd6c5049d1e02d7b978adc75c8c51f52ea676ecd9ca75c4c68c2",
+      "bytes": 2403
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/workflows/REFERENCE_PIPELINE_WORKFLOW_v0.1.md",
+      "sha256": "179eafb5703339c99404c2fe79fa942486abe2c2686a3cf5dcbd22f13ccd83db",
+      "bytes": 9143
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/workflows/SEMANTIC_NARRATIVE_AUDIT_PROTOCOL_v0.1_DRAFT.md",
+      "sha256": "680f646b3edda8549012e917b0d92c8fb74152ce22e94eee20602d9f3aef4869",
+      "bytes": 5337
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/workflows/SOURCE_READING_AND_STRUCTURE_DERIVATION_POLICY_v0.1.md",
+      "sha256": "10ab85ad60fee3b09cfcd215fe4e3ae3bb4c839720f4babf7fa5622553af9224",
+      "bytes": 15651
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/workflows/SOURCE_READING_TO_NARRATIVE_DERIVATION_POLICY_v0.2.md",
+      "sha256": "1bad251fd9120998bfec018bdd2ed9e447d709ef5ce4956200b7b36da7acd9ce",
+      "bytes": 24776
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/references/project/docs/workflows/W01R_RULE_COMPILATION_v1.0.md",
+      "sha256": "0f01358dba5767be3010900ae3a8b96fda9fa3876bc8ee54d379d744c5113df9",
+      "bytes": 14156
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/requirements-validation.txt",
+      "sha256": "f9a94d34c3a0c5897886878e7cb1b9b6ec732b765d40f6b5e028e41ed9123940",
+      "bytes": 127
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/runtime_benchmarks/GENERAL_RULE_CALIBRATION_v0.5.md",
+      "sha256": "cdedf919e931cd6a0e21979363003cf3cf4efa060408787191248592e9440ca7",
+      "bytes": 2012
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/runtime_benchmarks/GENERATION_RUNTIME_QUALIFICATION_BENCHMARK_PACK_v0.1.md",
+      "sha256": "f4e6e79f851f19a48a301c01f2fc539075f5c25c7c61127ecb2a62261444b569",
+      "bytes": 6274
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/runtime_benchmarks/GENERATION_RUNTIME_QUALIFICATION_FIXTURES_v0.1.json",
+      "sha256": "1a603a1158a0086b67eff9c8c534a2ec103889d43fcd6b934aa1e9b3f5f570f9",
+      "bytes": 7305
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/runtime_executors/exact_overlay.py",
+      "sha256": "dda653e1f8e6ea17778d89aa1699d7ca350472411c67f89fc42a7381a006ae4c",
+      "bytes": 4253
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/runtime_executors/grq_reference_renderer_v0_1.py",
+      "sha256": "a376befb546fcd6a2a44fff3ab1263f5ad8ba9704ce485058a7ba68f87bd3d75",
+      "bytes": 11827
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/runtime_executors/reference_exact_content_compositor_v0.2.py",
+      "sha256": "7b41b93dfbc1864d73276bb9b9cfe1c75a7d2b90f77ddedc18d0967e7ac75674",
+      "bytes": 351
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/runtime_executors/reference_positioned_exact_overlay_v0.1.py",
+      "sha256": "7b41b93dfbc1864d73276bb9b9cfe1c75a7d2b90f77ddedc18d0967e7ac75674",
+      "bytes": 351
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/runtime_executors/reference_protected_layer_assembler_v0.1.py",
+      "sha256": "2b7060b309080dcfac46896a6f0c7237e0e78bd250f35c5eb9cc510b39780eeb",
+      "bytes": 4914
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/runtime_profiles/ACTIVE_RUNTIME_v0.5.json",
+      "sha256": "c4af8a179699f0c8e3efc0e9972b083d7822e0e4569cad81eb755670c6bc14ef",
+      "bytes": 1712
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/runtime_profiles/REFERENCE_DATA_EGRESS_POLICY_PUBLIC_MEDICAL_v0.1.json",
+      "sha256": "2c825918794ce14b7af2f4507010bee5d2c28faa286f368d4fbf2a8fc3ed8409",
+      "bytes": 2664
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/runtime_profiles/REFERENCE_GENERATION_CAPABILITY_REGISTRY_REVISION_v0.1.1.json",
+      "sha256": "6b0c14d963de8a55a3f15607e7dbac8434472845cee2ffd3b8cde42459da2fbe",
+      "bytes": 2319
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/runtime_profiles/REFERENCE_GENERATION_CAPABILITY_REGISTRY_REVISION_v0.1.2.json",
+      "sha256": "1d3f83bef77713f0429d86a9814c0619ca8357da999759e7b954d5d2c7a0139c",
+      "bytes": 3757
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/runtime_profiles/REFERENCE_GENERATION_CAPABILITY_REGISTRY_REVISION_v0.1.3.json",
+      "sha256": "a8caa56a7e4762f7f682a5933e595290fbadacb0aa7ade61fca23af01641e7c0",
+      "bytes": 8234
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/runtime_profiles/REFERENCE_GENERATION_CAPABILITY_REGISTRY_REVISION_v0.1.4.json",
+      "sha256": "f7dada5302aa2c140a7bd2952fa855daaa92c4d9245aa2c765e268ec1f4bfa72",
+      "bytes": 4007
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/runtime_profiles/REFERENCE_GENERATION_CAPABILITY_REGISTRY_REVISION_v0.1.5.json",
+      "sha256": "d045dc17e5faa394f863156c8fc2771aeef19b611f9faf1fb00d96da32c410c6",
+      "bytes": 1689
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/runtime_profiles/REFERENCE_GENERATION_CAPABILITY_REGISTRY_v0.1.json",
+      "sha256": "6c2704829183fec444d1f95b0ca0768b3aace17fa86c77b59aac37e4b41f6731",
+      "bytes": 6137
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/runtime_profiles/REFERENCE_POSTGEN_VERIFIER_CAPABILITY_REGISTRY_v0.1.json",
+      "sha256": "3198221ea045b2cdbb67a9796259398e78310f701c1a446cfc4e78c819503156",
+      "bytes": 6279
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/runtime_profiles/REFERENCE_RUNTIME_PROFILE_CHATGPT_MODEL_FIRST_REVISION_v0.1.1.json",
+      "sha256": "548e39f8752543b5f7766d4dbb357b90793889e889cd40db0907af2177b78e27",
+      "bytes": 2546
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/runtime_profiles/REFERENCE_RUNTIME_PROFILE_CHATGPT_MODEL_FIRST_v0.1.json",
+      "sha256": "6a937d592ae83758d8f661e93455f82a08ef5bb8086dfeef0f9af9a6c847cef1",
+      "bytes": 3775
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/schemas/case_boundary_review.v0.1.schema.json",
+      "sha256": "14d398e759ee23b6f2558673bb332b3ef6ff99a7fa952e13662dfe8bd2c8629a",
+      "bytes": 1267
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/schemas/chatgpt_image_editorial_asset.v0.1.schema.json",
+      "sha256": "d99314fd611db335d9a85b0f0f635924637e824f12261b43f7d8c682e36df463",
+      "bytes": 4309
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/schemas/client_template_contract.v0.1.schema.json",
+      "sha256": "0e5f1b26555d185e33e4a990c377796ce39c5f27401b5858f92d8bc6c5243114",
+      "bytes": 3056
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/schemas/document_structure_audit.v0.1.schema.json",
+      "sha256": "6a7204c13ffb95ce20231cb3a00263c25d4d6a04840472e6a6abc5fdc322024c",
+      "bytes": 2137
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/schemas/editorial_fusion_plan.v0.1.schema.json",
+      "sha256": "0482068708ff97dc5d5797f38e51b3d45969f4d9af253b4dcecc044f092fbc4b",
+      "bytes": 4081
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/schemas/fact_oracle_review.v0.1.schema.json",
+      "sha256": "103f42071cd600383c1414ee0820bba79c056931b357b7aced665f30554e9477",
+      "bytes": 1880
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/schemas/final_render_evidence.schema.json",
+      "sha256": "d749eabc57bf131b835be2ef61faf8fc6f45cd1c04d94f428cab83d45ca43327",
+      "bytes": 1192
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/schemas/medical_visual_asset_contract.v0.1.schema.json",
+      "sha256": "457f63b7c01965a0dd6f6efbe3ef278294e56194259d292e5d8350ecdc342a90",
+      "bytes": 1707
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/schemas/native_beautification_plan.v0.1.schema.json",
+      "sha256": "8a9b37fa43f07ec063119d2218eab72dd0ad93fa525b0840069b505149454f82",
+      "bytes": 6614
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/schemas/post_generation_verifier_capability_registry.v0.1.schema.json",
+      "sha256": "f727a6113be7c0df8ae12d2b3aadcfa5659e10d074056851eb68f78e93a25808",
+      "bytes": 1677
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/schemas/presentation_context_profile.schema.json",
+      "sha256": "ef35e7e0a30e496ee1c6fee61768e01036e029f27b2f178caaa65b9deed45aca",
+      "bytes": 4049
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/schemas/presentation_context_profile.v0.2.schema.json",
+      "sha256": "dea4a0c0e648422eb5cc08fc1ea722c83b244c6c7802f3f2f386ff426b0720eb",
+      "bytes": 6562
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/schemas/privacy_surface_audit.v0.1.schema.json",
+      "sha256": "07ded9fc6af94a80bf62c633f627f4d17487fbd16bde988999b4f83fd2103135",
+      "bytes": 2144
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/schemas/quality_evaluation.schema.json",
+      "sha256": "3ef01673e700b1cf62927dbea87a8e6deecfc7eabf513df14e6ccd377e83e794",
+      "bytes": 2129
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/schemas/reading_structure_artifact.v0.1.schema.json",
+      "sha256": "f2c86ca7e2ce8f61853edd2c47cf79b44a60f054b6e097b90413ec74394c29fa",
+      "bytes": 11902
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/schemas/reading_structure_artifact.v0.2.schema.json",
+      "sha256": "b10552c30f9135e2d5cf6ad9b5546921c3e8547388f23bebeedc6db3ae6725c4",
+      "bytes": 21025
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/schemas/run_state.schema.json",
+      "sha256": "47124d8a682d012aeed783e8fc439ab1bd536c5594e95ffb996d8088b95eafed",
+      "bytes": 9305
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/schemas/runtime_capability_profile.v0.1.schema.json",
+      "sha256": "aab13850818c90c6c0a89773193481e8bba25d98f0223cd358aad92bd3c7439e",
+      "bytes": 1979
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/schemas/runtime_qualification_result.v0.1.schema.json",
+      "sha256": "b7a44af91d4de22bd8f4fc1893451150c5d01b47cd8e2eb6cffee9a5a259dc29",
+      "bytes": 3040
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/schemas/runtime_qualification_result.v0.2.schema.json",
+      "sha256": "07eb3035ab958bd781db40a376b83e263bfa64646cd6c21a4654728a0b9018fa",
+      "bytes": 8760
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/schemas/scene_quality_contract.schema.json",
+      "sha256": "0e84271cf3406719a413f3c8b545e96065b122bc02607b357dca2c6079a41298",
+      "bytes": 4932
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/schemas/source_intake_record.v0.1.schema.json",
+      "sha256": "0f5b38d79f00d361c7cd803386fe2c36cc782b3c1b6a2a343ea5b6b092d65afd",
+      "bytes": 976
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/schemas/source_version_chain.v0.1.schema.json",
+      "sha256": "02a6d3d48948dbf123741dbc5133ab08d4654353f05c80bc043922b9f92ce5b8",
+      "bytes": 1708
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/scripts/evaluate_quality.py",
+      "sha256": "d6206a8fabb86d1796617ba67bef4bca007c457d5cd2d72906b3f8e818e24dc4",
+      "bytes": 4906
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/scripts/integrity.py",
+      "sha256": "46f9fb13bf8e789bedc4d661964f2406e6b89cb1d047a13a3e531b733c2ffeaa",
+      "bytes": 12844
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/scripts/medical_gates.py",
+      "sha256": "b8b1c52ef805a14ebbe210452397167c75b36126993addb159e0c922e1de9b9b",
+      "bytes": 16663
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/scripts/p05_adapter.py",
+      "sha256": "3d5c0a276ad1c57f852361f35ab52e7e8281594cad2fbdc4b3c0027bde0f9b02",
+      "bytes": 3668
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/scripts/pptx_quality.py",
+      "sha256": "bdbfb0bae27a6351d58431138505c2bbe085df419bcfbd9717cabdd922cbcce9",
+      "bytes": 13970
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/scripts/quality_checks.py",
+      "sha256": "96c82cb4adc4af21777136a6450d795b1072192fd209b82f2cac2e2bbd27a5e8",
+      "bytes": 20563
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/scripts/run_benchmarks.py",
+      "sha256": "5299948d97c25f18e9357c39b4a14b7260d7991b3062bd6c964dc2b52cbd21bf",
+      "bytes": 11341
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/scripts/run_medical_gate_benchmarks.py",
+      "sha256": "50416c1660fee6c3b0f5e11d0bd0dd72f5a287ab6a2ce26be448880cc8446ce1",
+      "bytes": 6597
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/scripts/run_quality_benchmarks.py",
+      "sha256": "94a77b0f10e29e25401936991f27dc1f982e4b57809ba88afd41513c9f49f803",
+      "bytes": 20822
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/scripts/skill_tool.py",
+      "sha256": "5bb9911b86fd8179ab4a5b6815390dfbe9b028cd43d121050ff63bffbe7cc54c",
+      "bytes": 22713
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/templates/RUN_RECORD.md",
+      "sha256": "8036697f84d7765cb9c22dbec4c56936a9c26919e5dff886f260f0fbebb44481",
+      "bytes": 1657
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/templates/client_template_contract.template.json",
+      "sha256": "880a03a167c28f922d2b10be4d2e09302526f3c2068551553f6883e4e6bd7ed0",
+      "bytes": 868
+    },
+    {
+      "path": "skills/auditable-medical-presentation-reference/templates/editorial_fusion_plan.template.json",
+      "sha256": "40a433eaf786a0e9ebd0926bf872b770b0a095316945a9d43ce4fe352bb44d48",
+      "bytes": 1362
+    },
+    {
+      "path": "start.cmd",
+      "sha256": "b831971f35d1ce53ef7e0693498b6e8ba3ae01ae143cccaa027fea7374b77437",
+      "bytes": 86
+    },
+    {
+      "path": "start.ps1",
+      "sha256": "bf3864306a6ec4977f97d610b148c9098f3426d0c76e8b54b800a21a25f09172",
+      "bytes": 764
+    },
+    {
+      "path": "tests/test_anchor.py",
+      "sha256": "a90d9b216b52bd62312fb359971e0864110f63889d703796a42686fd567ea5b5",
+      "bytes": 16749
+    },
+    {
+      "path": "tests/test_anchor_app.py",
+      "sha256": "cbf65178c783849c25b6948652a10950309f7f66aa3da5fd3c2f692b8634e76a",
+      "bytes": 6207
+    },
+    {
+      "path": "tests/test_fact57098.py",
+      "sha256": "2746e27c485c598e980b2fc96e5d3dd8634281a7744ddaf9e75ba2794c377aae",
+      "bytes": 13653
+    },
+    {
+      "path": "tests/test_medical_gates.py",
+      "sha256": "c39e8b09074daf47adbaef737d51bc4bfe57bd39526acf8b6f6e0b32e2f7578c",
+      "bytes": 9773
+    },
+    {
+      "path": "tests/test_native_beautifier.py",
+      "sha256": "3ee5ac567964c79340de3013060b2d6e74fa36f5d90f119c18435fc04eec5faa",
+      "bytes": 9804
+    },
+    {
+      "path": "tests/test_paragraph_accounting.py",
+      "sha256": "d31cb1b529e3aa35f50ad754d66a7ae7ddfba523931ec401b099892ddbe69ab6",
+      "bytes": 4828
+    },
+    {
+      "path": "tests/test_pipeline_regressions.py",
+      "sha256": "a6e14e5c033d5267424ca51ea5b45bc0405cb7f2617d9b39cadb88bead643fed",
+      "bytes": 13642
+    },
+    {
+      "path": "tests/test_policy.py",
+      "sha256": "65262d4163af1a38f7e83001ddb9d1ce9941639e4fa19ea1d6e844c0d64d8b72",
+      "bytes": 87546
+    },
+    {
+      "path": "tests/test_provenance.py",
+      "sha256": "1539362d172dc67d1b854e6d737e4c85676f56a38a5a8f0fcb196e74dd0a7e9c",
+      "bytes": 8196
+    },
+    {
+      "path": "tests/test_provenance_app.py",
+      "sha256": "7db6749cc426ae972a8d06e80203b6828b1dfee2e12561fa539ece2aea3293f0",
+      "bytes": 6889
+    },
+    {
+      "path": "tests/test_read_units.py",
+      "sha256": "0c169685ff9eeec13ee438734866255e320737fad861374eda42424ccac6d9d4",
+      "bytes": 9359
+    },
+    {
+      "path": "tests/test_reading_allocation.py",
+      "sha256": "868d1df37f6d9b79cf16a92b78da677ce019caeeed7d65bb79a83bd461ee8d42",
+      "bytes": 5865
+    },
+    {
+      "path": "tests/test_render_readback.py",
+      "sha256": "4aa80bff8b931c50c33e6db0f90b4b8fad46d648e5da3baa723b733912cf4c8f",
+      "bytes": 21155
+    },
+    {
+      "path": "tests/test_render_readback_integration.py",
+      "sha256": "5e6d2fa9f11fa4c58ff2d317b499b5454f29f3a9026f55fd7912569ec9b7ee32",
+      "bytes": 5082
+    },
+    {
+      "path": "tests/test_structure_pages.py",
+      "sha256": "e7034929cba987c938db00f177c4d1f4576e6a39355e4ab4bbcadbb0a642123b",
+      "bytes": 3136
+    },
+    {
+      "path": "tests/test_teaching_pages.py",
+      "sha256": "3a388ccce069a2028ff841b5c3be0f5c1898a1de39c4e635cfc4a1dd33bbdce1",
+      "bytes": 8639
+    },
+    {
+      "path": "tools/README.md",
+      "sha256": "d04fdde8d2a8626be98d318524c0bb59c464ec0034acef58cd84d4ff0994370e",
+      "bytes": 5558
+    },
+    {
+      "path": "tools/__init__.py",
+      "sha256": "0f7bf4d28da538d8d283169dda28d6557c66c9e19a9b7a4b52f1687ec7b7816c",
+      "bytes": 189
+    },
+    {
+      "path": "tools/anchor.py",
+      "sha256": "ddda64e4f4ffdb86c2de6cc8b0bd7b5f457da219fb29ca7fb873e349dece1112",
+      "bytes": 19420
+    },
+    {
+      "path": "tools/codex_worker.py",
+      "sha256": "2d30b5dc2723b440eede587eb987fab5def0d1fdc8c54d861092304404873092",
+      "bytes": 4540
+    },
+    {
+      "path": "tools/provenance.py",
+      "sha256": "9f7f46886588ee15fd349303ae5d064c0893c058aa8c9421efecd62639d14af8",
+      "bytes": 14558
+    },
+    {
+      "path": "web/app.js",
+      "sha256": "3bf64eaca317244a1d22d807cd4f9fe79f557af2020d15d1cc48f11386e0d986",
+      "bytes": 19160
+    },
+    {
+      "path": "web/index.html",
+      "sha256": "60a2b6338dac24edb55b7437ac35d6d45774d880f6c33c4fedddb30d225149b2",
+      "bytes": 1395
+    },
+    {
+      "path": "web/overrides.css",
+      "sha256": "b76223fafcbdb750cf82b01b143ae9506ab723fc0a0e0a0fa315b358b00caf9c",
+      "bytes": 757
+    },
+    {
+      "path": "web/review.css",
+      "sha256": "27ada70d6ffad1e88bae895f7fc6da7e2653220ecc761eddab24f2a54fc444b9",
+      "bytes": 1034
+    },
+    {
+      "path": "web/styles.css",
+      "sha256": "968f7665ac9e3c92c44fbedb45aacdaba8b1641b4a6f5f0f03d0491f2748d5bb",
+      "bytes": 5546
+    }
+  ]
+}

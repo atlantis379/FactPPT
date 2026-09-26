@@ -1,0 +1,44 @@
+.config-panel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.config-panel h3,
+.config-panel p { grid-column: 1 / -1; }
+
+.config-panel label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.config-panel input,
+.config-panel select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 9px;
+  background: #fbfcfa;
+  color: var(--ink);
+  font: 13px inherit;
+}
+
+.config-panel .check-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+}
+
+.config-panel .check-label input {
+  width: auto;
+}
+
+.config-panel button { justify-self: start; }
+
+@media (max-width: 800px) {
+  .config-panel { grid-template-columns: 1fr; }
+}

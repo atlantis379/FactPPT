@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "client_template_contract.v0.1.schema.json",
+  "title": "ClientTemplateContract v0.1",
+  "type": "object",
+  "required": [
+    "template_id", "template_version", "client_supplied", "source_type",
+    "template_sha256", "application_mode", "embedded_text_policy", "canvas",
+    "brand_regions", "semantic_safe_regions", "review"
+  ],
+  "properties": {
+    "template_id": {"type": "string", "minLength": 1},
+    "template_version": {"type": "string", "minLength": 1},
+    "client_supplied": {"const": true},
+    "source_type": {"enum": ["PPTX_TEMPLATE", "BACKGROUND_IMAGE"]},
+    "template_sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
+    "application_mode": {"enum": ["PRESERVE_MASTERS_AND_LAYOUTS", "BACKGROUND_UNDERLAY"]},
+    "embedded_text_policy": {"enum": ["BRAND_ONLY_CONFIRMED", "INSPECT_BEFORE_USE"]},
+    "canvas": {"type": "array", "items": {"type": "number", "exclusiveMinimum": 0}, "minItems": 2, "maxItems": 2},
+    "brand_regions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["region_id", "role", "box", "preserve"],
+        "properties": {
+          "region_id": {"type": "string", "minLength": 1},
+          "role": {"enum": ["LOGO", "HEADER", "FOOTER", "DECORATIVE_FRAME"]},
+          "box": {"$ref": "#/$defs/box"},
+          "preserve": {"const": true}
+        },
+        "additionalProperties": false
+      }
+    },
+    "semantic_safe_regions": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["region_id", "box"],
+        "properties": {
+          "region_id": {"type": "string", "minLength": 1},
+          "box": {"$ref": "#/$defs/box"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "review": {
+      "type": "object",
+      "required": ["reviewer_role", "status", "checked"],
+      "properties": {
+        "reviewer_role": {"enum": ["author", "independent"]},
+        "status": {"enum": ["PASS", "FAIL", "NEEDS_REVIEW"]},
+        "checked": {
+          "type": "object",
+          "required": ["client_asset_identity", "brand_regions", "embedded_text", "semantic_safe_regions"],
+          "properties": {
+            "client_asset_identity": {"type": "boolean"},
+            "brand_regions": {"type": "boolean"},
+            "embedded_text": {"type": "boolean"},
+            "semantic_safe_regions": {"type": "boolean"}
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"source_type": {"const": "PPTX_TEMPLATE"}}},
+      "then": {"properties": {"application_mode": {"const": "PRESERVE_MASTERS_AND_LAYOUTS"}}}
+    },
+    {
+      "if": {"properties": {"source_type": {"const": "BACKGROUND_IMAGE"}}},
+      "then": {"properties": {"application_mode": {"const": "BACKGROUND_UNDERLAY"}}}
+    }
+  ],
+  "$defs": {
+    "box": {"type": "array", "items": {"type": "number", "minimum": 0}, "minItems": 4, "maxItems": 4}
+  },
+  "additionalProperties": false
+}

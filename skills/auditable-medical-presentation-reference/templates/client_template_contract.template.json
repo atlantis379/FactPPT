@@ -1,0 +1,27 @@
+{
+  "template_id": "CLIENT-<ORGANIZATION>-v1",
+  "template_version": "1",
+  "client_supplied": true,
+  "source_type": "PPTX_TEMPLATE",
+  "template_sha256": "<64-char-template-sha256>",
+  "application_mode": "PRESERVE_MASTERS_AND_LAYOUTS",
+  "embedded_text_policy": "INSPECT_BEFORE_USE",
+  "canvas": [1280, 720],
+  "brand_regions": [
+    {"region_id": "hospital-logo", "role": "LOGO", "box": [48, 24, 180, 56], "preserve": true},
+    {"region_id": "template-footer", "role": "FOOTER", "box": [0, 650, 1280, 70], "preserve": true}
+  ],
+  "semantic_safe_regions": [
+    {"region_id": "title-and-body", "box": [64, 112, 1152, 500]}
+  ],
+  "review": {
+    "reviewer_role": "author",
+    "status": "NEEDS_REVIEW",
+    "checked": {
+      "client_asset_identity": true,
+      "brand_regions": true,
+      "embedded_text": true,
+      "semantic_safe_regions": true
+    }
+  }
+}

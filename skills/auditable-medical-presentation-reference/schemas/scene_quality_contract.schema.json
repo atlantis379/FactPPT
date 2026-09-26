@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SceneQualityContract v0.5",
+  "type": "object",
+  "required": ["contract_version", "basis", "canvas", "background_color", "minimum_contrast_ratio", "minimum_font_px", "constraint_rationale", "content_safe_regions", "mandatory_texts"],
+  "properties": {
+    "contract_version": {"type": "string", "minLength": 1},
+    "basis": {"type": "string", "minLength": 1},
+    "canvas": {"type": "array", "prefixItems": [{"type": "number", "exclusiveMinimum": 0}, {"type": "number", "exclusiveMinimum": 0}], "minItems": 2, "maxItems": 2},
+    "background_color": {"type": "string", "pattern": "^[A-Fa-f0-9]{6}$"},
+    "minimum_contrast_ratio": {"type": "number", "exclusiveMinimum": 1, "maximum": 21},
+    "minimum_font_px": {"type": "number", "exclusiveMinimum": 0},
+    "constraint_rationale": {"type": "string", "minLength": 1},
+    "content_safe_regions": {"type": "array", "items": {"type": "object", "required": ["id", "box"], "properties": {"id": {"type": "string", "minLength": 1}, "box": {"type": "array", "items": {"type": "number", "minimum": 0}, "minItems": 4, "maxItems": 4}}}},
+    "mandatory_texts": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "visual_base": {
+      "type": "object",
+      "required": ["mode", "binding_id", "binding_sha256"],
+      "properties": {
+        "mode": {"enum": ["AI_EDITORIAL_BASE", "CLIENT_TEMPLATE"]},
+        "binding_id": {"type": "string", "minLength": 1},
+        "binding_sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "client_template_binding": {
+      "type": "object",
+      "required": ["template_id", "template_sha256", "brand_regions"],
+      "properties": {
+        "template_id": {"type": "string", "minLength": 1},
+        "template_sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
+        "brand_regions": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["region_id", "box"],
+            "properties": {
+              "region_id": {"type": "string", "minLength": 1},
+              "box": {"type": "array", "items": {"type": "number", "minimum": 0}, "minItems": 4, "maxItems": 4}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "editorial_assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["asset_id", "asset_class", "policy", "layer_role", "asset_sha256", "placement", "prohibited_content"],
+        "properties": {
+          "asset_id": {"type": "string", "minLength": 1},
+          "asset_class": {"enum": ["NONSEMANTIC_EDITORIAL_BASE", "CONTEXTUAL_ILLUSTRATION", "SOURCE_BOUND_MEDICAL_ASSET"]},
+          "policy": {"enum": ["REQUIRED", "OPTIONAL", "FORBIDDEN"]},
+          "layer_role": {"enum": ["EDITORIAL_UNDERLAY", "CONTEXTUAL_ART", "SOURCE_BOUND_EVIDENCE"]},
+          "asset_sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
+          "relative_path": {"type": "string", "minLength": 1},
+          "placement": {"type": "array", "items": {"type": "number", "minimum": 0}, "minItems": 4, "maxItems": 4},
+          "placement_tolerance_px": {"type": "number", "minimum": 0},
+          "allow_content_safe_underlay": {"type": "boolean"},
+          "prohibited_content": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true},
+          "content_review": {
+            "type": "object",
+            "properties": {
+              "status": {"enum": ["PASS", "FAIL", "NEEDS_REVIEW"]},
+              "reviewer_role": {"enum": ["independent", "author"]},
+              "checked": {"type": "object"}
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "uniqueItems": true
+    },
+    "editorial_fusion": {
+      "type": "object",
+      "required": ["fusion_plan_id", "asset_id", "integration_mode", "protected_zones"],
+      "properties": {
+        "fusion_plan_id": {"type": "string", "minLength": 1},
+        "asset_id": {"type": "string", "minLength": 1},
+        "integration_mode": {"enum": ["EDGE_FRAMED", "FIELD_INTEGRATED", "SECTION_RHYTHM"]},
+        "protected_zones": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["zone_id", "box", "minimum_uncovered_area_ratio"],
+            "properties": {
+              "zone_id": {"type": "string", "minLength": 1},
+              "box": {"type": "array", "items": {"type": "number", "minimum": 0}, "minItems": 4, "maxItems": 4},
+              "minimum_uncovered_area_ratio": {"type": "number", "minimum": 0, "maximum": 1}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

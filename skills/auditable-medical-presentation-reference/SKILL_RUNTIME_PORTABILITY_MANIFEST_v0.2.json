@@ -1,0 +1,16 @@
+{
+  "manifest_id": "SKILL_RUNTIME_PORTABILITY_MANIFEST",
+  "version": "0.2",
+  "applies_to_skill": "v0.5.0",
+  "active_contract": "contracts/INTEGRITY_AND_QUALITY_v0.5.md",
+  "active_runtime_registry": "runtime_profiles/ACTIVE_RUNTIME_v0.5.json",
+  "schema": "schemas/runtime_qualification_result.v0.2.schema.json",
+  "preflight": "python scripts/skill_tool.py preflight --font PATH",
+  "qualification": "python scripts/run_benchmarks.py --out NEW_DIR --font CJK_FONT --symbol-font SYMBOL_FONT",
+  "package": "python scripts/skill_tool.py package OUTPUT.zip",
+  "verification": "python scripts/skill_tool.py verify-package EXTRACTED_DIR",
+  "historical_evidence": "references/project/docs/workflows/runs",
+  "historical_evidence_grants_target_qualification": false,
+  "font_distribution": "user-supplied; no font redistribution",
+  "general_quality_benchmark": "python scripts/run_quality_benchmarks.py --out NEW_DIR"
+}

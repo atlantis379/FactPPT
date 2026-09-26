@@ -1,0 +1,658 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "reading_structure_artifact.v0.2.schema.json",
+  "title": "Source Reading, Structure, Narrative and Page Allocation Artifact v0.2",
+  "description": "W01-R artifact, MATERIAL-AGNOSTIC. Covers the whole chain the method must serve for any material: read the full text, derive the structure, state the narrative, allocate per-page content. Everything material-specific (language, domain roles, marker lexicon) is DECLARED in `profile` rather than baked into this schema, so the same contract applies to a medical textbook, a business report, a research paper or a slide source.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "profile",
+    "source",
+    "reading_pass",
+    "blocks",
+    "structure",
+    "checks",
+    "disposition"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "reading_structure_artifact.v0.2"
+    },
+    "profile": {
+      "type": "object",
+      "description": "Everything that varies by material. Declaring it is what lets one rule serve all materials; leaving it implicit is what makes a rule material-bound.",
+      "required": [
+        "material_kind",
+        "language",
+        "role_vocabulary",
+        "signal_lexicon",
+        "relation_lexicon"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "material_kind": {
+          "enum": [
+            "MEDICAL_SOURCE",
+            "TECHNICAL_REPORT",
+            "BUSINESS_REPORT",
+            "RESEARCH_PAPER",
+            "SLIDE_SOURCE",
+            "POLICY_DOCUMENT",
+            "OTHER"
+          ],
+          "description": "Declared, not inferred. Determines nothing by itself; it exists so downstream stages and reviewers know what they are handling."
+        },
+        "language": {
+          "type": "string",
+          "minLength": 2
+        },
+        "role_vocabulary": {
+          "type": "object",
+          "description": "Core roles are fixed and material-agnostic. A run may add EXTENSION roles for its domain, but must declare them.",
+          "required": [
+            "extensions"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "extensions": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{1,31}$"
+              },
+              "description": "Domain roles beyond the core set, e.g. [diagnosis, treatment, prognosis, pathology] for a clinical source, or [market, architecture, roadmap] for a business source."
+            },
+            "extension_rationale": {
+              "type": "string"
+            }
+          }
+        },
+        "signal_lexicon": {
+          "type": "object",
+          "description": "The literal markers code counts. Declared per run so counts are reproducible and portable across languages and domains.",
+          "required": [
+            "emphasis_markers",
+            "fact_pattern"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "emphasis_markers": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Words the material itself uses to mark importance in THIS language and domain."
+            },
+            "fact_pattern": {
+              "type": "string",
+              "minLength": 1,
+              "description": "A regular expression matching one countable fact in THIS language (usually a numeric or quantitative token)."
+            },
+            "declared_but_unmatched": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "relation_lexicon": {
+          "type": "object",
+          "description": "Literal markers per relation type, for THIS language. Absence of a marker means the relation is the reader's, not the material's.",
+          "required": [
+            "markers"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "markers": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "filename",
+        "sha256",
+        "unit_count",
+        "unit_label"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "filename": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{64}$"
+        },
+        "unit_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "unit_label": {
+          "type": "string",
+          "description": "What one unit is for this material: page, slide, section, record."
+        },
+        "extraction_ref": {
+          "type": "string"
+        }
+      }
+    },
+    "reading_pass": {
+      "type": "object",
+      "required": [
+        "reading_mode",
+        "blocks_read",
+        "blocks_total",
+        "chars_read",
+        "chars_total",
+        "structure_derivation"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "reading_mode": {
+          "enum": [
+            "FULL_TEXT_READ"
+          ]
+        },
+        "blocks_read": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blocks_total": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "chars_read": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "chars_total": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "structure_derivation": {
+          "enum": [
+            "LLM_SEMANTIC_SYNTHESIS"
+          ]
+        },
+        "executed_for_run": {
+          "type": "string",
+          "minLength": 1,
+          "description": "REG-READ-018: the run this reading was performed for. A reading is evidence about a run, not a property of a document. The gate requires this to equal the run under validation when a run id is supplied; without it the reading's freshness is NOT_CHECKED, never PASS."
+        },
+        "read_from_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{64}$",
+          "description": "REG-READ-018: the source bytes this reading was actually taken from. Must equal source.sha256; a reading whose declared source differs from the material in hand was read from something else and is rejected regardless of content."
+        },
+        "reused_from": {
+          "type": "null",
+          "description": "REG-READ-018: always null/absent. Present and non-null means this run reused an earlier reading, a frozen authored answer file, a cache keyed by source hash, or a replayed endpoint response. A prior reading may be named as a comparison baseline outside this artifact; it may not be substituted for this run's reading."
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "blocks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "block_id",
+          "unit",
+          "chars",
+          "role",
+          "relation",
+          "relation_status",
+          "signals",
+          "difficulty",
+          "coverage",
+          "structure_node_ids"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "block_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "unit": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Page / slide / section number this block came from."
+          },
+          "chars": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "text_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{64}$"
+          },
+          "role": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,31}$",
+            "description": "Core role or a role declared in profile.role_vocabulary.extensions."
+          },
+          "relation": {
+            "enum": [
+              "causal",
+              "progressive",
+              "contrast",
+              "example",
+              "exception",
+              "whole_part",
+              "parallel",
+              "unmarked"
+            ]
+          },
+          "relation_status": {
+            "enum": [
+              "EXPLICIT",
+              "INFERRED"
+            ]
+          },
+          "relation_evidence": {
+            "type": "string"
+          },
+          "signals": {
+            "type": "object",
+            "required": [
+              "emphasis_terms",
+              "facts"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "emphasis_terms": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "facts": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "difficulty": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "undefined_term",
+                "multi_step",
+                "contrastive_pair",
+                "fact_dense",
+                "negation_or_exception",
+                "long_chain",
+                "cross_reference"
+              ]
+            }
+          },
+          "difficulty_notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "coverage": {
+            "enum": [
+              "in_deck",
+              "evidence_only"
+            ]
+          },
+          "structure_node_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "orphan_reason": {
+            "type": "string"
+          },
+          "evidence_only_reason": {
+            "type": "string"
+          },
+          "page_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Pages this block was allocated to. REG-READ-013: allocation is recorded, not asserted."
+          }
+        }
+      }
+    },
+    "structure": {
+      "type": "object",
+      "required": [
+        "thread",
+        "nodes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "thread": {
+          "type": "string",
+          "minLength": 20
+        },
+        "opening_motivation": {
+          "type": "string"
+        },
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "node_id",
+              "label",
+              "why_here",
+              "source_block_ids"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "node_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1
+              },
+              "why_here": {
+                "type": "string",
+                "minLength": 12
+              },
+              "source_block_ids": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "parent_node_id": {
+                "type": "string"
+              },
+              "emphasis_basis": {
+                "enum": [
+                  "MATERIAL_SIGNAL",
+                  "EXTERNAL_AUTHORITY",
+                  "BOTH",
+                  "NONE"
+                ]
+              },
+              "emphasis_authority": {
+                "type": "string",
+                "description": "Required when emphasis_basis includes EXTERNAL_AUTHORITY: name the syllabus, brief, standard or client that supplies it."
+              },
+              "difficulty_basis": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "narrative": {
+      "type": "object",
+      "description": "W06 input produced by the same reading. The narrative is the ordered set of claims the deck will make; it may not be the material's own table of contents.",
+      "required": [
+        "narrative_order",
+        "differs_from_source_order",
+        "difference_reason"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "narrative_order": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          },
+          "description": "node_ids in presentation order."
+        },
+        "differs_from_source_order": {
+          "type": "boolean"
+        },
+        "difference_reason": {
+          "type": "string",
+          "minLength": 12,
+          "description": "Required to explain what the presentation order does that source order does not, e.g. which question each step answers."
+        },
+        "audience_question": {
+          "type": "string"
+        },
+        "throughline_per_page": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "page_plan": {
+      "type": "array",
+      "description": "W06-NP / W07 input produced by the same reading: per-page allocation of blocks and the reason each page exists.",
+      "items": {
+        "type": "object",
+        "required": [
+          "page_id",
+          "why_this_page",
+          "figure_intent"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "action_title": {
+            "type": "string",
+            "minLength": 6,
+            "description": "A sentence stating the page's takeaway. REQUIRED for content pages (those with source_block_ids). Structure pages carry `section_label` instead, because a cover or a section divider has no takeaway to state."
+          },
+          "source_block_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Blocks this page carries. May be empty only when `synthesised_reason` is present: cover, section divider, agenda, closing and other navigation pages carry no source content, and must be declared rather than left silently empty."
+          },
+          "why_this_page": {
+            "type": "string",
+            "minLength": 12
+          },
+          "figure_intent": {
+            "enum": [
+              "NONE",
+              "CAUSAL",
+              "PROGRESSION",
+              "COMPARISON",
+              "TAXONOMY",
+              "PROCESS",
+              "SCALE",
+              "DATA",
+              "QUOTATION"
+            ],
+            "description": "Material-agnostic intent. The concrete figure is chosen later; what the reader must see is decided here."
+          },
+          "difficulty_served": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "synthesised_reason": {
+            "type": "string",
+            "minLength": 12,
+            "description": "Why this page has no source block. A page with neither blocks nor this field is invalid."
+          },
+          "on_slide_text": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Every string that will be visible on the slide surface: title, on-slide prose, figure labels and captions, footer. Must contain presentation language only. Audit metadata and the author's reasoning belong in speaker_notes."
+          },
+          "speaker_notes": {
+            "type": "string",
+            "description": "The working layer for this page: why it exists, source block ids, quoted原文, difficulty notes. Not shown to the audience."
+          },
+          "renders_structure": {
+            "enum": [
+              "NONE",
+              "ROADMAP",
+              "SECTION_QUESTION",
+              "PART_RECAP",
+              "CONSOLIDATION"
+            ],
+            "description": "Which part of the derived structure this page exposes to the audience. A structure that is only declared in the artifact and never rendered does not exist for the reader: REG-READ-017."
+          },
+          "narrative_node_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Structure nodes this page makes visible."
+          },
+          "section_label": {
+            "type": "string",
+            "minLength": 2,
+            "description": "Section or column name for a structure page (cover, divider, roadmap, recap)."
+          }
+        }
+      }
+    },
+    "checks": {
+      "type": "object",
+      "required": [
+        "thread",
+        "emphasis",
+        "difficulty",
+        "summary",
+        "logic",
+        "narrative",
+        "allocation",
+        "surface",
+        "structure_rendered"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "thread": {
+          "$ref": "#/$defs/check"
+        },
+        "emphasis": {
+          "$ref": "#/$defs/check"
+        },
+        "difficulty": {
+          "$ref": "#/$defs/check"
+        },
+        "summary": {
+          "$ref": "#/$defs/check"
+        },
+        "logic": {
+          "$ref": "#/$defs/check"
+        },
+        "narrative": {
+          "$ref": "#/$defs/check",
+          "description": "Is the narrative order different from source order, and does each step answer the previous step's question?"
+        },
+        "allocation": {
+          "$ref": "#/$defs/check",
+          "description": "Does every page have blocks, a reason, and a figure intent; and does every high-difficulty block get served?"
+        },
+        "surface": {
+          "$ref": "#/$defs/check",
+          "description": "Is the on-slide surface free of working-layer marks: citation markers, block or line references, editorial labels, elided quotations, and the author's commentary about the deck's own structure?"
+        },
+        "structure_rendered": {
+          "$ref": "#/$defs/check",
+          "description": "Is the derived structure actually on the slides: a roadmap that states the thread and the parts, a section question at each part boundary, every narrative node exposed by some page, and a consolidation page near the end?"
+        }
+      }
+    },
+    "coverage_declaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "basis": {
+          "enum": [
+            "EXTERNAL_AUTHORITY_SPLIT",
+            "AUDIENCE_PRIORITY",
+            "TIME_BUDGET",
+            "SCOPE_LIMIT",
+            "OTHER"
+          ]
+        },
+        "authority": {
+          "type": "string"
+        },
+        "rationale": {
+          "type": "string"
+        },
+        "excluded_content_retained": {
+          "type": "boolean"
+        },
+        "evidence_store_ref": {
+          "type": "string"
+        }
+      }
+    },
+    "disposition": {
+      "enum": [
+        "READING_STRUCTURE_ACCEPTED",
+        "READING_STRUCTURE_ACCEPTED_WITH_DECLARED_GAPS",
+        "READING_STRUCTURE_REJECTED"
+      ]
+    }
+  },
+  "$defs": {
+    "check": {
+      "type": "object",
+      "required": [
+        "status",
+        "method",
+        "failures"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "NOT_CHECKED"
+          ]
+        },
+        "method": {
+          "type": "string",
+          "minLength": 10
+        },
+        "failures": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "failure_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,68 @@
+[
+  {
+    "id": "negation-reversal",
+    "source": "该观察记录未显示方案甲改善目标结局。",
+    "assertion": "该观察记录显示方案甲改善目标结局。",
+    "expected": "BLOCK"
+  },
+  {
+    "id": "comparison-direction",
+    "source": "本期成本较上期下降。",
+    "assertion": "本期成本较上期上升。",
+    "expected": "BLOCK"
+  },
+  {
+    "id": "scope-expansion",
+    "source": "仅试点地区的客户满意率提升。",
+    "assertion": "所有地区的客户满意率提升。",
+    "expected": "BLOCK"
+  },
+  {
+    "id": "condition-removed",
+    "source": "如果通过验收，项目可进入下一阶段。",
+    "assertion": "项目可进入下一阶段。",
+    "expected": "NEEDS_REVIEW"
+  },
+  {
+    "id": "strength-upgrade",
+    "source": "初步数据提示新流程可能缩短处理时间。",
+    "assertion": "数据证明新流程一定缩短处理时间。",
+    "expected": "BLOCK"
+  },
+  {
+    "id": "population-removed",
+    "source": "在已完成问卷的客户中，满意率为80%。",
+    "assertion": "客户满意率为80%。",
+    "expected": "NEEDS_REVIEW"
+  },
+  {
+    "id": "time-window-changed",
+    "source": "2024年销售额为100万元。",
+    "assertion": "2025年销售额为100万元。",
+    "expected": "BLOCK"
+  },
+  {
+    "id": "numeric-change",
+    "source": "第三季度营收为100万元。",
+    "assertion": "第三季度营收为120万元。",
+    "expected": "BLOCK"
+  },
+  {
+    "id": "unit-change",
+    "source": "第三季度营收为100万元。",
+    "assertion": "第三季度营收为100元。",
+    "expected": "BLOCK"
+  },
+  {
+    "id": "verbatim-supported",
+    "source": "第三季度营收为100万元。",
+    "assertion": "第三季度营收为100万元。",
+    "expected": "SUPPORTED"
+  },
+  {
+    "id": "qualified-statement-preserved",
+    "source": "在已完成问卷的客户中，满意率为80%。",
+    "assertion": "在已完成问卷的客户中，满意率为80%。",
+    "expected": "SUPPORTED"
+  }
+]

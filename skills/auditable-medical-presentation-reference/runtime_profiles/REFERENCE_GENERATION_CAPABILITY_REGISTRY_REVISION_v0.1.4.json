@@ -1,0 +1,70 @@
+{
+  "registry_revision_id": "REFERENCE_GENERATION_CAPABILITY_REGISTRY_REVISION_v0.1.4",
+  "date": "2026-09-04",
+  "base_registry": "REFERENCE_GENERATION_CAPABILITY_REGISTRY_v0.1.json",
+  "prior_revision": "REFERENCE_GENERATION_CAPABILITY_REGISTRY_REVISION_v0.1.3.json",
+  "status": "APPLIED_FOR_REFERENCE_RUNTIME_EFFECTIVE_VIEW",
+  "trigger_runs": [
+    "REFERENCE_RUNTIME_QUALIFICATION_RUN_005_POSITIONED_EXACT_OVERLAY_v0.1",
+    "REFERENCE_RUNTIME_QUALIFICATION_RUN_006_PROTECTED_LAYER_ASSEMBLER_v0.1"
+  ],
+  "record_updates": [
+    {
+      "capability_record_id": "GEN-POSITIONED-EXACT-OVERLAY-CURRENT-v0.1",
+      "engine_id": "reference_positioned_exact_overlay",
+      "engine_version": "v0.1+scriptsha-0451d9acf94a",
+      "implementation_class": "POSITIONED_EXACT_CONTENT_OVERLAY",
+      "qualification_status": "REFERENCE_QUALIFIED",
+      "qualification_evidence_ids": ["REFERENCE_RUNTIME_QUALIFICATION_RUN_005_POSITIONED_EXACT_OVERLAY_v0.1"],
+      "qualified_scope": {
+        "case_id": "REFERENCE_PIPELINE_TEST_001_CMVD",
+        "page_ids": ["P01", "P02", "P03", "P04", "P05", "P06", "P07", "P08"],
+        "exact_string_count": 117,
+        "semantic_object_id_binding": "QUALIFIED",
+        "contract_bound_x_y_width_height": "QUALIFIED",
+        "exact_wrapping_inside_object_box": "QUALIFIED",
+        "original_exact_string_manifest": "QUALIFIED",
+        "rendered_line_offsets_and_bounds": "QUALIFIED",
+        "hard_overflow_rejection": "QUALIFIED",
+        "repeatability": "PASS",
+        "tested_box_width_range_px": [240, 900],
+        "tested_font_sizes_px": [22, 24, 26],
+        "additional_stress_font_range_px": [22, 28]
+      },
+      "limitations": [
+        "W13 must provide explicit boxes. If a proposed box overflows, the route fails; approved text may not be shortened as a renderer workaround.",
+        "Unseen character classes or material font/render changes require incremental requalification.",
+        "This record grants no topology or layer-assembly authority."
+      ]
+    },
+    {
+      "capability_record_id": "GEN-PROTECTED-LAYER-ASSEMBLER-CURRENT-v0.1",
+      "engine_id": "reference_protected_layer_assembler",
+      "engine_version": "v0.1+scriptsha-18d43cdf3cb0",
+      "implementation_class": "PROTECTED_LAYER_ASSEMBLER",
+      "qualification_status": "REFERENCE_QUALIFIED",
+      "qualification_evidence_ids": ["REFERENCE_RUNTIME_QUALIFICATION_RUN_006_PROTECTED_LAYER_ASSEMBLER_v0.1"],
+      "qualified_scope": {
+        "deterministic_layer_order": "QUALIFIED",
+        "layer_id_and_hash_manifest": "QUALIFIED",
+        "translation_only": "QUALIFIED",
+        "scale": "LOCKED_1_0",
+        "rotation": "LOCKED_0",
+        "protected_overlap_default": "DENY",
+        "explicit_overlap_allowlist": "QUALIFIED",
+        "protected_layer_no_repaint": "QUALIFIED_BY_NO_TRANSFORM_POLICY",
+        "final_flatten_output_hash": "QUALIFIED",
+        "repeatability": "PASS"
+      },
+      "limitations": [
+        "Assembler does not resize/rotate/repaint protected content.",
+        "Medical asset scaling/cropping must occur in the separately qualified verified-asset renderer before assembly.",
+        "Semantic and exact coordinates must be resolved before assembly."
+      ]
+    }
+  ],
+  "supersession_note": "The UNQUALIFIED placeholder records for positioned exact overlay and protected layer assembler in revision v0.1.3 remain historical evidence. Revision v0.1.4 supersedes their effective status for the CMVD reference scope.",
+  "effective_registry_status": "REFERENCE_QUALIFIED_FOR_CMVD_W12B_COMPLETE_DETERMINISTIC_ROUTE",
+  "routing_consequence": "The two runtime integration blockers from W12-B v1.0 are closed for the current CMVD reference scope. W12-B may now issue complete deterministic effective page routes, subject to W13 staying within the qualified text-placement and translation-only layer-assembly contracts.",
+  "upstream_semantics_invalidated": false
+}
