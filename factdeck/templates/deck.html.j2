@@ -1,0 +1,190 @@
+{# Every visible string is one of: a fact (data-fact), model-authored text that passed
+   the lint (data-authored), or generated chrome (data-chrome). Text containers that
+   become PowerPoint text boxes carry data-t. Anything else is reported as untracked. #}
+{%- macro fact(ref, cls="") -%}
+{%- set f = facts[ref.fact] -%}
+<span class="f {{ cls }}{% if f.conflict %} conflict{% endif %}" data-fact="{{ f.id }}">{{ f.text }}</span>
+{%- if f.pending %}<span class="mark" data-mark="pending" title="待人工确认">●</span>{% endif -%}
+{%- endmacro -%}
+{%- macro node(ref) -%}{% if ref.fact is defined %}{{ fact(ref) }}{% else %}<span data-authored>{{ ref.text }}</span>{% endif %}{%- endmacro -%}
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>{{ deck.title }}</title>
+<style>
+:root{
+  --ink:#0E1B2C; --navy:#0B2447; --navy-2:#19376D; --teal:#0F8B8D; --teal-2:#12A5A7; --teal-soft:#E4F3F2;
+  --sky:#F1F5F9; --line:#D8E0E8; --muted:#5A6B7E; --amber:#D08A00; --red:#C0392B; --paper:#FFFFFF;
+  --font:"Noto Sans CJK SC","Noto Sans SC","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
+.slide{position:relative;width:1280px;height:720px;overflow:hidden;background:var(--paper);margin:0 auto 24px;
+  -webkit-font-smoothing:antialiased}
+@media print{html,body{background:none}.slide{margin:0;page-break-after:always}}
+@page{size:1280px 720px;margin:0}
+/* chrome */
+.head{position:absolute;left:64px;top:44px;right:64px}
+.section{font-size:14px;font-weight:700;letter-spacing:.12em;color:var(--teal);height:20px;line-height:20px}
+.title{margin-top:8px;font-size:34px;font-weight:700;line-height:46px;color:var(--navy);height:46px;white-space:nowrap}
+.lead{margin-top:10px;font-size:17px;line-height:27px;color:var(--muted);height:54px}
+.accent{position:absolute;left:0;top:64px;width:8px;height:52px;background:var(--teal)}
+.foot{position:absolute;left:64px;right:64px;bottom:22px;height:34px;border-top:1px solid var(--line)}
+.foot .src{position:absolute;left:0;top:8px;right:120px;font-size:10.5px;line-height:15px;color:var(--muted);height:30px;overflow:hidden}
+.foot .pg{position:absolute;right:0;top:8px;width:100px;text-align:right;font-size:12px;line-height:16px;color:var(--muted);font-weight:700}
+.legend{color:var(--amber);font-weight:700}
+.mark{color:#E0A526;font-size:.5em;margin-left:3px;vertical-align:.6em;opacity:.85}
+.f.conflict{color:var(--red)}
+.tag-conflict{display:inline-block;margin-left:6px;padding:0 6px;border-radius:4px;background:#FBE9E7;color:var(--red);font-size:11px;line-height:18px;font-weight:700}
+/* cover */
+.cover{background:var(--navy)}
+.cover .art{position:absolute;right:0;top:0;width:640px;height:720px}
+.cover .k{position:absolute;left:88px;top:196px;width:560px;height:24px;font-size:16px;line-height:24px;letter-spacing:.2em;color:#7FD6D0;font-weight:700}
+.cover .t{position:absolute;left:88px;top:236px;width:600px;height:160px;font-size:58px;line-height:78px;font-weight:900;color:#fff}
+.cover .s{position:absolute;left:88px;top:418px;width:600px;height:34px;font-size:22px;line-height:34px;color:#C9D6E8}
+.cover .bar{position:absolute;left:88px;top:404px;width:72px;height:4px;background:var(--teal-2)}
+.cover .meta{position:absolute;left:88px;bottom:56px;width:600px;height:20px;font-size:13px;line-height:20px;color:#8FA3BF}
+/* table */
+.tbl{position:absolute;left:64px;right:64px;top:196px;border-collapse:collapse;width:1152px;table-layout:fixed}
+.tbl th{background:var(--navy);color:#fff;font-size:15px;line-height:21px;font-weight:700;text-align:left;padding:12px 16px;height:48px}
+.tbl td{font-size:16px;line-height:24px;padding:13px 16px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink)}
+.tbl tr:nth-child(even) td{background:var(--sky)}
+.tbl td:first-child{font-weight:700;color:var(--navy)}
+.tbl .cellline{display:block}
+/* criteria */
+.cards{position:absolute;left:64px;right:64px;top:210px;height:176px;display:flex;gap:20px}
+.card{flex:1;background:var(--paper);border:1px solid var(--line);border-top:5px solid var(--teal);border-radius:10px;padding:20px 22px;position:relative}
+.card .lb{font-size:15px;line-height:22px;color:var(--muted);height:44px}
+.card .vl{margin-top:14px;font-size:44px;line-height:56px;font-weight:800;color:var(--navy);height:60px;white-space:nowrap}
+.card .vl.word{font-size:32px}
+.basis{position:absolute;left:64px;top:414px;width:500px;height:150px;background:var(--teal-soft);border-radius:10px;padding:22px 26px}
+.basis .h{font-size:13px;line-height:18px;font-weight:700;color:var(--teal);letter-spacing:.1em;height:18px}
+.basis .b{margin-top:10px;font-size:16px;line-height:26px;color:var(--ink);height:80px}
+.notes{position:absolute;left:588px;right:64px;top:414px;height:196px}
+.notes .h{font-size:16px;line-height:22px;font-weight:700;color:var(--navy);height:22px}
+.notes ul{list-style:none;margin-top:10px}
+.notes li{position:relative;padding-left:18px;font-size:15px;line-height:23px;color:var(--ink);margin-bottom:10px}
+.notes li:before{content:"";position:absolute;left:0;top:9px;width:7px;height:7px;border-radius:50%;background:var(--teal)}
+/* mechanism */
+.canvas{position:absolute;left:64px;top:210px;width:790px;height:410px}
+.node{position:absolute;width:120px;height:46px;border-radius:9px;background:var(--paper);border:1.5px solid var(--navy-2);
+  display:flex;align-items:center;justify-content:center;text-align:center;font-size:15px;line-height:19px;font-weight:700;color:var(--navy)}
+.node.soft{background:var(--sky);border-color:var(--line);color:var(--ink);font-weight:500}
+.node.core{background:var(--navy);color:#fff;border-color:var(--navy)}
+.lane{position:absolute;font-size:13px;line-height:18px;font-weight:700;color:var(--teal);letter-spacing:.06em;height:18px;white-space:nowrap}
+.drug{position:absolute;padding:0 10px;height:26px;border-radius:13px;background:var(--teal);color:#fff;font-size:12.5px;line-height:26px;font-weight:700;white-space:nowrap}
+.edges{position:absolute;left:0;top:0;width:790px;height:410px;overflow:visible}
+.side{position:absolute;left:884px;right:64px;top:210px;height:410px}
+.side .p{font-size:14.5px;line-height:23px;color:var(--ink);padding:14px 16px;border-left:4px solid var(--teal);background:var(--sky);border-radius:0 8px 8px 0;margin-bottom:14px}
+.side .c{font-size:12px;line-height:18px;color:var(--muted);margin-top:4px}
+/* compare */
+.panels{position:absolute;left:64px;right:64px;top:210px;height:300px;display:flex;gap:28px}
+.panel{flex:1;border:1px solid var(--line);border-radius:12px;padding:22px 26px;position:relative}
+.panel .st{font-size:18px;line-height:26px;font-weight:700;color:var(--navy);height:26px;white-space:nowrap}
+.panel .pp{font-size:13px;line-height:19px;color:var(--muted);height:38px;margin-top:4px}
+.panel .big{position:absolute;left:26px;top:108px;width:264px;height:72px;font-size:48px;line-height:72px;font-weight:900;color:var(--teal);white-space:nowrap}
+.panel .bl{position:absolute;left:26px;top:180px;width:250px;height:22px;font-size:14px;line-height:22px;color:var(--muted)}
+.panel .crit{position:absolute;left:300px;right:22px;top:100px}
+.panel .crit .h{font-size:12px;line-height:18px;font-weight:700;color:var(--teal);letter-spacing:.1em;height:18px;margin-bottom:6px}
+.panel .crit div.ci{font-size:14.5px;line-height:21px;color:var(--ink);padding:7px 0 7px 22px;border-bottom:1px dashed var(--line);position:relative}
+.panel .crit div.ci:before{content:"";position:absolute;left:2px;top:13px;width:9px;height:9px;border-radius:2px;background:var(--teal)}
+.band{position:absolute;left:64px;right:64px;top:532px;height:84px;background:var(--navy);border-radius:10px;padding:16px 26px;color:#fff}
+.band .b1{font-size:17px;line-height:26px;font-weight:700;height:26px}
+.band .b2{font-size:14px;line-height:22px;color:#BFD0E6;margin-top:6px;height:22px}
+</style>
+</head>
+<body>
+{% for p in pages %}
+<section class="slide {{ p.layout }}" id="{{ p.id }}" data-slide="{{ loop.index }}">
+{% if p.layout == "cover" %}
+  <svg class="art" data-raster="cover-art" viewBox="0 0 640 720" aria-hidden="true">
+    <defs>
+      <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#12A5A7" stop-opacity=".95"/><stop offset="1" stop-color="#19376D" stop-opacity=".2"/></linearGradient>
+      <radialGradient id="g2" cx=".7" cy=".45" r=".7"><stop offset="0" stop-color="#1E5A8C" stop-opacity=".9"/><stop offset="1" stop-color="#0B2447" stop-opacity="0"/></radialGradient>
+    </defs>
+    <rect width="640" height="720" fill="url(#g2)"/>
+    <g fill="none" stroke="url(#g1)" stroke-linecap="round">
+      {% for b in cover_branches %}<path d="{{ b.d }}" stroke-width="{{ b.w }}" opacity="{{ b.o }}"/>{% endfor %}
+    </g>
+    <g fill="#7FD6D0">{% for d in cover_dots %}<circle cx="{{ d.x }}" cy="{{ d.y }}" r="{{ d.r }}" opacity="{{ d.o }}"/>{% endfor %}</g>
+  </svg>
+  <div class="k" data-t data-authored>{{ p.kicker.text }}</div>
+  <div class="t" data-t data-authored>{{ p.title.text }}</div>
+  <div class="bar" data-shape></div>
+  <div class="s" data-t data-authored>{{ p.subtitle.text }}</div>
+  <div class="meta" data-t data-chrome>{{ p.chrome_meta }}</div>
+{% else %}
+  <div class="accent" data-shape></div>
+  <div class="head">
+    <div class="section" data-t>{{ node(p.section) }}</div>
+    <div class="title" data-t>{{ node(p.title) }}</div>
+    <div class="lead" data-t>{{ node(p.lead) }}</div>
+  </div>
+  {% if p.layout == "table" %}
+  <table class="tbl" data-table>
+    <colgroup>{% for w in p.widths %}<col style="width:{{ w }}%">{% endfor %}</colgroup>
+    <tr>{% for c in p.columns %}<th data-authored>{{ c }}</th>{% endfor %}</tr>
+    {% for row in p.rows %}<tr>{% for cell in row %}<td>{% for ref in cell %}<span class="cellline">{{ fact(ref) }}{% if facts[ref.fact].conflict and loop.last %}<span class="tag-conflict" data-chrome>来源不一致</span>{% endif %}</span>{% endfor %}</td>{% endfor %}</tr>{% endfor %}
+  </table>
+  {% elif p.layout == "criteria" %}
+  <div class="cards">
+    {% for c in p.cards %}<div class="card" data-shape>
+      <div class="lb" data-t>{{ node(c.label) }}</div>
+      <div class="vl{% if not facts[c.value.fact].numeric %} word{% endif %}" data-t>{{ fact(c.value) }}</div>
+    </div>{% endfor %}
+  </div>
+  <div class="basis" data-shape>
+    <div class="h" data-t data-authored>判断依据出处</div>
+    <div class="b" data-t>{{ fact(p.basis) }}</div>
+  </div>
+  <div class="notes">
+    <div class="h" data-t>{{ node(p.notes_title) }}</div>
+    <ul>{% for n in p.notes %}<li data-t>{{ fact(n) }}</li>{% endfor %}</ul>
+  </div>
+  {% elif p.layout == "mechanism" %}
+  <div class="canvas">
+    <svg class="edges" data-edges viewBox="0 0 790 410">
+      <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#19376D"/></marker></defs>
+      {% for e in p.edge_paths %}<polyline data-edge="{{ e.support }}" points="{{ e.points }}" fill="none" stroke="#19376D" stroke-width="2" marker-end="url(#arr)"/>{% endfor %}
+    </svg>
+    <div class="lane" style="left:{{ p.geo.lane_a.x }}px;top:{{ p.geo.lane_a.y }}px" data-t>{{ fact(p.nodes.lane_a) }}</div>
+    <div class="lane" style="left:{{ p.geo.lane_b.x }}px;top:{{ p.geo.lane_b.y }}px" data-t>{{ fact(p.nodes.lane_b) }}</div>
+    {% for key, g in p.geo.nodes.items() %}
+    <div class="node {{ g.cls }}" style="left:{{ g.x }}px;top:{{ g.y }}px;width:{{ g.w }}px" data-shape data-t>{{ fact(p.nodes[key]) }}</div>
+    {% endfor %}
+    {% for key, g in p.geo.drugs.items() %}
+    <div class="drug" style="left:{{ g.x }}px;top:{{ g.y }}px" data-shape data-t>{{ fact(p.drugs[key]) }}</div>
+    {% endfor %}
+  </div>
+  <div class="side">
+    {% for x in p.paths %}<div class="p" data-shape data-t>{{ fact(x) }}</div>{% endfor %}
+    <div class="c" data-t>{{ fact(p.caveat) }}</div>
+  </div>
+  {% elif p.layout == "compare" %}
+  <div class="panels">
+    {% for pn in p.panels %}<div class="panel" data-shape>
+      <div class="st" data-t>{{ fact(pn.study) }}</div>
+      <div class="pp" data-t>{{ fact(pn.population) }}</div>
+      <div class="big" data-t>{{ fact(pn.value) }}</div>
+      <div class="bl" data-t>{{ fact(pn.label) }}</div>
+      <div class="crit">
+        <div class="h" data-t data-authored>定义组成</div>
+        {% for c in pn.criteria %}<div class="ci" data-t>{{ fact(c) }}</div>{% endfor %}
+      </div>
+    </div>{% endfor %}
+  </div>
+  <div class="band" data-shape>
+    <div class="b1" data-t>{{ fact(p.band[0]) }}</div>
+    <div class="b2" data-t>{{ fact(p.band[1]) }}</div>
+  </div>
+  {% endif %}
+  <div class="foot">
+    <div class="src" data-t data-chrome>{% if p.pending_count %}<span class="legend">● 待人工确认 {{ p.pending_count }} 项</span>　{% endif %}来源：{{ p.sources_line }}</div>
+    <div class="pg" data-t data-chrome>{{ "%02d"|format(loop.index) }}</div>
+  </div>
+{% endif %}
+</section>
+{% endfor %}
+</body>
+</html>

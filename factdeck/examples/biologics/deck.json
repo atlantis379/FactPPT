@@ -1,0 +1,698 @@
+{
+ "title": "哮喘与慢阻肺生物制剂治疗应用（新方案样例）",
+ "terms": [
+  {
+   "text": "2型炎症",
+   "fact": "t2.lead"
+  },
+  {
+   "text": "2型",
+   "fact": "t2.lead"
+  }
+ ],
+ "pages": [
+  {
+   "id": "cover",
+   "layout": "cover",
+   "kicker": {
+    "text": "呼吸科科内授课"
+   },
+   "title": {
+    "text": "哮喘与慢阻肺生物制剂治疗应用"
+   },
+   "subtitle": {
+    "text": "从表型判断、药物选择到疗效评估"
+   },
+   "art": "cover-airway"
+  },
+  {
+   "id": "overview",
+   "layout": "table",
+   "section": {
+    "text": "生物制剂总论"
+   },
+   "title": {
+    "text": "已上市哮喘生物制剂一览"
+   },
+   "lead": {
+    "text": "靶点、获批时间、用法与医保状态逐项对照；药名按原表的企业与靶点对应"
+   },
+   "columns": [
+    "药物",
+    "靶点",
+    "中国获批（成人及青少年重度哮喘）",
+    "用法用量",
+    "哮喘医保"
+   ],
+   "widths": [
+    16,
+    10,
+    17,
+    40,
+    11
+   ],
+   "rows": [
+    [
+     [
+      {
+       "fact": "img.c7.name"
+      }
+     ],
+     [
+      {
+       "fact": "tbl.c5.target"
+      }
+     ],
+     [
+      {
+       "fact": "tbl.c5.approval"
+      }
+     ],
+     [
+      {
+       "fact": "tbl.c5.dose"
+      }
+     ],
+     [
+      {
+       "fact": "tbl.c5.nrdl"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "fact": "img.c3.name"
+      }
+     ],
+     [
+      {
+       "fact": "tbl.c6.target"
+      }
+     ],
+     [
+      {
+       "fact": "tbl.c6.approval"
+      }
+     ],
+     [
+      {
+       "fact": "tbl.c6.dose"
+      }
+     ],
+     [
+      {
+       "fact": "tbl.c6.nrdl"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "fact": "img.c4.name"
+      }
+     ],
+     [
+      {
+       "fact": "tbl.c7.target"
+      }
+     ],
+     [
+      {
+       "fact": "tbl.c7.approval"
+      }
+     ],
+     [
+      {
+       "fact": "tbl.c7.dose"
+      }
+     ],
+     [
+      {
+       "fact": "tbl.c7.nrdl"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "fact": "img.c2.name"
+      }
+     ],
+     [
+      {
+       "fact": "tbl.c3.target"
+      }
+     ],
+     [
+      {
+       "fact": "tbl.c3.approval"
+      }
+     ],
+     [
+      {
+       "fact": "tbl.c3.dose"
+      }
+     ],
+     [
+      {
+       "fact": "tbl.c3.nrdl"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "fact": "img.c5.name"
+      }
+     ],
+     [
+      {
+       "fact": "tbl.c4.target"
+      }
+     ],
+     [
+      {
+       "fact": "tbl.c4.approval"
+      }
+     ],
+     [
+      {
+       "fact": "tbl.c4.dose"
+      },
+      {
+       "fact": "img.c5.dose"
+      }
+     ],
+     [
+      {
+       "fact": "tbl.c4.nrdl"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "fact": "img.c1.name"
+      }
+     ],
+     [
+      {
+       "fact": "tbl.c2.target"
+      }
+     ],
+     [
+      {
+       "fact": "tbl.c2.approval"
+      }
+     ],
+     [
+      {
+       "fact": "tbl.c2.dose"
+      }
+     ],
+     [
+      {
+       "fact": "tbl.c2.nrdl"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "id": "t2",
+   "layout": "criteria",
+   "section": {
+    "text": "生物制剂在哮喘中的应用"
+   },
+   "title": {
+    "text": "2型炎症：满足任一指标即可判断"
+   },
+   "lead": {
+    "fact": "t2.lead"
+   },
+   "cards": [
+    {
+     "label": {
+      "fact": "t2.eos.label"
+     },
+     "value": {
+      "fact": "t2.eos"
+     }
+    },
+    {
+     "label": {
+      "fact": "t2.sputum.label"
+     },
+     "value": {
+      "fact": "t2.sputum"
+     }
+    },
+    {
+     "label": {
+      "fact": "t2.feno.label"
+     },
+     "value": {
+      "fact": "t2.feno"
+     }
+    },
+    {
+     "label": {
+      "text": "临床特征"
+     },
+     "value": {
+      "fact": "t2.allergen"
+     }
+    }
+   ],
+   "basis": {
+    "fact": "t2.guideline"
+   },
+   "notes_title": {
+    "text": "血嗜酸性粒细胞检测提示"
+   },
+   "notes": [
+    {
+     "fact": "eos.every3m"
+    },
+    {
+     "fact": "eos.timing"
+    },
+    {
+     "fact": "eos.infection"
+    }
+   ]
+  },
+  {
+   "id": "mechanism",
+   "layout": "mechanism",
+   "section": {
+    "text": "生物制剂总论"
+   },
+   "title": {
+    "text": "2型炎症通路与生物制剂作用靶点"
+   },
+   "lead": {
+    "fact": "mech.overview"
+   },
+   "nodes": {
+    "trigger": {
+     "fact": "mech.n0"
+    },
+    "epi": {
+     "fact": "mech.n1"
+    },
+    "alarmin": {
+     "fact": "mech.n2"
+    },
+    "tslp": {
+     "fact": "mech.n3"
+    },
+    "th2": {
+     "fact": "mech.n4"
+    },
+    "il4": {
+     "fact": "mech.n6"
+    },
+    "bige": {
+     "fact": "mech.n8"
+    },
+    "mast": {
+     "fact": "mech.n9"
+    },
+    "baso": {
+     "fact": "mech.n10"
+    },
+    "ilc2": {
+     "fact": "mech.n5"
+    },
+    "il5": {
+     "fact": "mech.n7"
+    },
+    "eos": {
+     "fact": "mech.n11"
+    },
+    "lane_a": {
+     "fact": "mech.n13"
+    },
+    "lane_b": {
+     "fact": "mech.n14"
+    }
+   },
+   "drugs": {
+    "tslp": {
+     "fact": "mech.drug.tezepelumab"
+    },
+    "il4": {
+     "fact": "mech.drug.dupilumab"
+    },
+    "bige": {
+     "fact": "mech.drug.omalizumab"
+    },
+    "il5": {
+     "fact": "mech.drug.il5"
+    },
+    "eos": {
+     "fact": "mech.drug.benralizumab"
+    }
+   },
+   "edges": [
+    [
+     "trigger",
+     "epi",
+     "mech.overview"
+    ],
+    [
+     "epi",
+     "alarmin",
+     "mech.overview"
+    ],
+    [
+     "alarmin",
+     "th2",
+     "mech.overview"
+    ],
+    [
+     "alarmin",
+     "ilc2",
+     "mech.overview"
+    ],
+    [
+     "th2",
+     "il4",
+     "mech.path.allergic"
+    ],
+    [
+     "il4",
+     "bige",
+     "mech.path.allergic"
+    ],
+    [
+     "bige",
+     "mast",
+     "mech.path.allergic"
+    ],
+    [
+     "ilc2",
+     "il5",
+     "mech.path.eos"
+    ],
+    [
+     "il5",
+     "eos",
+     "mech.path.eos"
+    ]
+   ],
+   "paths": [
+    {
+     "fact": "mech.path.allergic"
+    },
+    {
+     "fact": "mech.path.eos"
+    }
+   ],
+   "caveat": {
+    "fact": "mech.caveat"
+   }
+  },
+  {
+   "id": "remission",
+   "layout": "compare",
+   "section": {
+    "text": "生物制剂在哮喘中的应用"
+   },
+   "title": {
+    "text": "临床治愈：先看定义，再比较数字"
+   },
+   "lead": {
+    "text": "各研究的“临床治愈”组成与阈值不同，结果不能直接横向比较"
+   },
+   "panels": [
+    {
+     "study": {
+      "fact": "rem.mepo.study"
+     },
+     "population": {
+      "fact": "rem.mepo.n"
+     },
+     "value": {
+      "fact": "rem.mepo.value"
+     },
+     "label": {
+      "fact": "rem.mepo.label"
+     },
+     "criteria": [
+      {
+       "fact": "rem.mepo.c1"
+      },
+      {
+       "fact": "rem.mepo.c2"
+      },
+      {
+       "fact": "rem.mepo.c3"
+      },
+      {
+       "fact": "rem.mepo.c4"
+      }
+     ]
+    },
+    {
+     "study": {
+      "fact": "rem.benra.study"
+     },
+     "population": {
+      "fact": "rem.benra.n"
+     },
+     "value": {
+      "fact": "rem.benra.value"
+     },
+     "label": {
+      "fact": "rem.benra.label"
+     },
+     "criteria": [
+      {
+       "fact": "rem.benra.c1"
+      },
+      {
+       "fact": "rem.benra.c2"
+      },
+      {
+       "fact": "rem.benra.c3"
+      },
+      {
+       "fact": "rem.benra.c4"
+      }
+     ]
+    }
+   ],
+   "band": [
+    {
+     "fact": "rem.meta"
+    },
+    {
+     "fact": "rem.definition_sensitive"
+    }
+   ]
+  },
+  {
+   "id": "price",
+   "layout": "table",
+   "section": {
+    "text": "价格、医保与用法"
+   },
+   "title": {
+    "text": "单价与年治疗费用（参考）"
+   },
+   "lead": {
+    "text": "以当地最新医保目录与院内价格为准；来源不一致处在确认前并列显示"
+   },
+   "columns": [
+    "药物",
+    "规格",
+    "单价（元/支）",
+    "年治疗费用（元）",
+    "医保状态"
+   ],
+   "widths": [
+    15,
+    19,
+    17,
+    15,
+    34
+   ],
+   "rows": [
+    [
+     [
+      {
+       "fact": "img.c7.name"
+      }
+     ],
+     [
+      {
+       "fact": "img.c7.spec"
+      }
+     ],
+     [
+      {
+       "fact": "img.c7.price"
+      },
+      {
+       "fact": "tbl.c5.price"
+      }
+     ],
+     [
+      {
+       "fact": "img.c7.annual"
+      }
+     ],
+     [
+      {
+       "fact": "img.c7.nrdl"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "fact": "img.c3.name"
+      }
+     ],
+     [
+      {
+       "fact": "img.c3.spec"
+      }
+     ],
+     [
+      {
+       "fact": "img.c3.price"
+      }
+     ],
+     [
+      {
+       "fact": "img.c3.annual"
+      }
+     ],
+     [
+      {
+       "fact": "img.c3.nrdl"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "fact": "img.c4.name"
+      }
+     ],
+     [
+      {
+       "fact": "img.c4.spec"
+      }
+     ],
+     [
+      {
+       "fact": "img.c4.price"
+      }
+     ],
+     [
+      {
+       "fact": "img.c4.annual"
+      }
+     ],
+     [
+      {
+       "fact": "img.c4.nrdl"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "fact": "img.c2.name"
+      }
+     ],
+     [
+      {
+       "fact": "img.c2.spec"
+      }
+     ],
+     [
+      {
+       "fact": "img.c2.price"
+      }
+     ],
+     [
+      {
+       "fact": "img.c2.annual"
+      }
+     ],
+     [
+      {
+       "fact": "img.c2.nrdl"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "fact": "img.c5.name"
+      }
+     ],
+     [
+      {
+       "fact": "img.c5.spec"
+      }
+     ],
+     [
+      {
+       "fact": "img.c5.price300"
+      },
+      {
+       "fact": "img.c5.price200"
+      }
+     ],
+     [
+      {
+       "fact": "img.c5.annual"
+      }
+     ],
+     [
+      {
+       "fact": "img.c5.nrdl"
+      },
+      {
+       "fact": "img.c5.nrdl_asthma"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "fact": "img.c1.name"
+      }
+     ],
+     [
+      {
+       "fact": "img.c1.spec"
+      }
+     ],
+     [
+      {
+       "fact": "img.c1.price"
+      }
+     ],
+     [
+      {
+       "fact": "img.c1.annual"
+      }
+     ],
+     [
+      {
+       "fact": "img.c1.nrdl"
+      }
+     ]
+    ]
+   ]
+  }
+ ]
+}
