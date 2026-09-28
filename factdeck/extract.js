@@ -152,6 +152,11 @@
       if (ix > 1 && iy > 1) out.checks.overlap.push(['图 ' + el.dataset.figure, t.textContent.trim().slice(0, 24)]);
     });
   });
+  // ---- chart bars: drawn length, recomputed from the facts in Python
+  out.chart_bars = [...slide.querySelectorAll('[data-bar]')].map((el) => {
+    const r = el.getBoundingClientRect();
+    return { fact: el.dataset.bar, length: el.dataset.dir === 'h' ? r.width : r.height, plot: parseFloat(el.dataset.plot) };
+  });
   // tables in bounds
   // body content must stay above the footer
   const foot = slide.querySelector('.foot');

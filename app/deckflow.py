@@ -22,6 +22,7 @@ here, and nothing approves on a person's behalf.
 from __future__ import annotations
 
 import copy
+import io
 import json
 import shutil
 import time
@@ -34,6 +35,7 @@ from factdeck.deck import check as deck_check, LAYOUTS
 from factdeck.ingest import extract_all, to_dicts, transcription_units, IngestError
 from factdeck.lexicon import canon
 from factdeck.render import THEMES
+from factdeck.brand import from_template, BrandError
 
 TEMPLATE = "factdeck.v1"
 ENGINE_VERSION = "factdeck-render.1"
@@ -264,7 +266,9 @@ def render_input(w: dict, v: dict | None = None) -> str | None:
                              for k, f in v["facts"].items()},
                    "figures": {k: {"sha256": g["sha256"], "review": states[k]["review"], "licence": states[k]["licence"]}
                                for k, g in figures(w).items() if k in shown},
-                   "sources": [{k: s[k] for k in ("id", "filename")} for s in w["sources"]]})
+                   "sources": [{k: s[k] for k in ("id", "filename")} for s in w["sources"]],
+                   "brand": ({"tokens": w["brand"]["tokens"], "font": w["brand"].get("font"), "logo": (w["brand"].get("logo") or {}).get("sha256")}
+                             if w["theme"] == "brand" and w.get("brand") else None)})
 
 
 def render_current(w: dict, v: dict | None = None) -> bool:
@@ -340,7 +344,7 @@ class Store(_BaseStore):
         w = {"id": uid("deck"), "title": title.strip(), "revision": 1, "created_at": now(), "updated_at": now(), "template": TEMPLATE,
              "context": context or {"language": "zh-CN", "external_research_allowed": False},
              "requirements": self._requirements(requirements or {}), "outline": parse_outline(outline), "theme": self._theme(theme),
-             "sources": [], "next_source_no": 1, "summary": None, "content_approval": None, "facts": None,
+             "sources": [], "next_source_no": 1, "brand": None, "summary": None, "content_approval": None, "facts": None,
              "confirmations": {"derivations": {}, "resolutions": {}, "transcriptions": {}, "figures": {}, "figure_licenses": {}},
              "deck": None, "semantic_review": None, "render": None, "page_reviews": {}, "style_approval": None,
              "approvals": [], "tasks": [], "deliveries": []}
@@ -358,8 +362,11 @@ class Store(_BaseStore):
         return {k: r[k] for k in sorted(r) if r[k] not in (None, "")}
 
     @staticmethod
-    def _theme(theme: str) -> str:
-        require(theme in THEMES, "可选配色：" + "、".join(THEMES), 422)
+    def _theme(theme: str, w: dict | None = None) -> str:
+        if theme == "brand":
+            require(bool(w and w.get("brand")), "尚未导入客户模板，不能使用客户配色", 422)
+            return theme
+        require(theme in THEMES, "可选配色：" + "、".join(THEMES) + "（导入客户模板后可选 brand）", 422)
         return theme
 
     def get(self, workflow_id: str) -> dict:
@@ -393,7 +400,7 @@ class Store(_BaseStore):
             if "requirements" in changes:
                 w["requirements"] = self._requirements(changes["requirements"])
             if "theme" in changes:
-                w["theme"] = self._theme(changes["theme"])
+                w["theme"] = self._theme(changes["theme"], w)
             self.cancel_stale(w)
         return self.get(workflow_id)
 
@@ -423,6 +430,56 @@ class Store(_BaseStore):
             w["next_source_no"] += 1
             self.cancel_stale(w)
         return self.get(workflow_id)
+
+    # ---- client brand (appearance only)
+    def brand_template(self, workflow_id: str, filename: str, content: bytes):
+        """Colours and fonts from the customer's PowerPoint template; switches the project to the brand theme."""
+        require(0 < len(content) <= MAX_UPLOAD, "模板为空或超过40MB", 422)
+        name = Path(filename.replace("\\", "/")).name
+        require(Path(name).suffix.lower() in {".pptx", ".potx"}, "请导入 .pptx 或 .potx 模板", 422)
+        try:
+            b = from_template(content)
+        except BrandError as e:
+            raise WorkflowError(str(e), 422)
+        with self.transaction(workflow_id, "BRAND_TEMPLATE") as w:
+            old = w.get("brand") or {}
+            w["brand"] = {"filename": name, "sha256": sha(content), "path": self.immutable(workflow_id, "brand", content, Path(name).suffix.lower()),
+                          "at": now(), "logo": old.get("logo"), **b}
+            w["theme"] = "brand"
+        return self.get(workflow_id)
+
+    def brand_logo(self, workflow_id: str, filename: str, content: bytes):
+        from PIL import Image
+        require(0 < len(content) <= 5 * 1024 * 1024, "标志图片为空或超过5MB", 422)
+        suffix = Path(filename).suffix.lower()
+        require(suffix in {".png", ".jpg", ".jpeg"}, "标志请用 PNG 或 JPG", 422)
+        try:
+            with Image.open(io.BytesIO(content)) as im:
+                im.verify()
+        except Exception:
+            raise WorkflowError("无法读取标志图片", 422)
+        with self.transaction(workflow_id, "BRAND_LOGO") as w:
+            require(w.get("brand"), "请先导入客户模板", 409)
+            w["brand"]["logo"] = {"filename": Path(filename).name, "sha256": sha(content),
+                                  "path": self.immutable(workflow_id, "brand", content, suffix)}
+        return self.get(workflow_id)
+
+    def remove_brand(self, workflow_id: str):
+        with self.transaction(workflow_id, "BRAND_REMOVE") as w:
+            w["brand"] = None
+            if w["theme"] == "brand":
+                w["theme"] = "navy-teal"
+        return self.get(workflow_id)
+
+    def render_theme(self, w: dict):
+        """What the renderer gets: a built-in theme name, or the brand tokens, font and logo file."""
+        if w["theme"] != "brand":
+            return w["theme"]
+        b = w["brand"]
+        logo = b.get("logo")
+        if logo:
+            require(sha(self.path(logo["path"]).read_bytes()) == logo["sha256"], "标志文件已被修改，请重新上传")
+        return {"tokens": b["tokens"], "font": b.get("font"), "logo": str(self.path(logo["path"])) if logo else None}
 
     def remove_source(self, workflow_id: str, source_id: str):
         with self.transaction(workflow_id, "SOURCE_REMOVE") as w:
@@ -551,7 +608,7 @@ class Store(_BaseStore):
             problems = chk["deck_errors"] + [f"{p['id']}：{e}" for p in chk["pages"] for e in p["errors"]]
             raise WorkflowError("页面规格未通过：" + "；".join(problems[:12]) + ("…" if len(problems) > 12 else ""), 422)
         if deck.get("theme"):
-            w["theme"] = self._theme(deck["theme"])
+            w["theme"] = self._theme(deck["theme"], w)
         self.snapshot(w, "deck", result)
         w["deck"] = {"result": deck, "result_sha256": digest(deck), "input_sha256": deck_input(w), "author": author, "at": now(),
                      "warnings": chk["warnings"], "coverage": chk["coverage"]}
@@ -634,7 +691,7 @@ class Store(_BaseStore):
                          "derivation": "", "note": "", "section_ids": []}], "derivations": []}}
         if kind == "DECK":
             v = verified(w)
-            return {"kind": kind, **req, "summary": w["summary"], "theme": w["theme"], "themes": list(THEMES),
+            return {"kind": kind, **req, "summary": w["summary"], "theme": w["theme"], "themes": list(THEMES) + (["brand"] if w.get("brand") else []),
                     "facts": [{k: f[k] for k in ("id", "display", "quote", "location", "source_id", "section_ids", "needs_confirmation", "figure", "caption")}
                               for f in v["facts"].values() if f["status"] == "ACCEPTED"],
                     "layouts": {k: sorted(req_keys) for k, (req_keys, _) in LAYOUTS.items()},
@@ -643,7 +700,12 @@ class Store(_BaseStore):
                               "每页标注 outline_ids 与 section_ids；全部提纲条目都要有页面；未上页的总结章节写入 omissions 并给出原因。",
                               "流程/机制图用 flow：节点给网格位置 col 0–4、row 0–3，每条箭头 [起点, 终点, 支持事实]，支持事实须在本页引用。",
                               "表格每格是引用列表；列头是作者文字。glossary 中的词须出现在对应事实引文中，可用于作者文字。",
-                              "原件图用 figure 版式：figure 放图事实 {\"fact\": id}，side 放 0–3 条文字事实；图注由程序随图显示。图事实只能放在 figure 位置，图上不加任何标注。"],
+                              "原件图用 figure 版式：figure 放图事实 {\"fact\": id}，side 放 0–3 条文字事实；图注由程序随图显示。图事实只能放在 figure 位置，图上不加任何标注。",
+                              "hero：一个短数值（≤16字）做主视觉，label 与 support 为补充；timeline：2–6 步，每步 when + what；grid：2–6 格，每格 heading + 1–3 条 items。",
+                              "chart：柱状图，chart.bars 为 2–8 根柱，每根 {label, value: {\"fact\": id}}，orientation 可为 vertical/horizontal。"
+                              "柱长由程序从 value 事实的文字中读出数字计算：每条 value 事实须恰好含一个数字，不能有比较符号、区间或负号，各柱单位一致；从 0 起画，不画刻度数字。"
+                              "不同研究或人群的数值不应放进同一图表暗示可比；来自多份资料时程序会提示，由语义审查判断。",
+                              "强调：任一事实引用可写 {\"fact\": id, \"emph\": [片段]}，片段须按顺序逐字出现在该事实的显示文字中，最多 3 段，只改变字重和颜色。"],
                     "result_contract": {"facts_sha256": facts_sha(w), "title": w["title"], "theme": w["theme"], "glossary": [], "omissions": [],
                                         "pages": [{"id": "cover", "layout": "cover", "title": {"text": ""}, "outline_ids": [], "section_ids": []}]}}
         # SEMANTIC_REVIEW
@@ -658,7 +720,8 @@ class Store(_BaseStore):
                 "rules": ["逐页判断：页面整体表达的意思是否被所引原文支持。重点检查：节选是否丢掉了人群、条件、时间、否定或不确定性（见 dropped_from_quote）；",
                           "并列或对比是否暗示原文没有的比较或因果；箭头方向与原文是否一致；作者文字（标题、导语、标签）是否带出原文没有的判断；",
                           "对照总结，是否漏掉了需求或提纲要求讲到的重要内容。严重问题标 BLOCKER，一般建议标 NOTE。不得给出医学放行结论。",
-                          "有原件图的页面须打开图片（url）查看：页面文字是否说出了图外的结论，图与相邻文字放在一起是否暗示原文没有的比较或因果。"],
+                          "有原件图的页面须打开图片（url）查看：页面文字是否说出了图外的结论，图与相邻文字放在一起是否暗示原文没有的比较或因果。",
+                          "图表页：各柱数值是否来自可以直接比较的人群、终点和时间点；强调片段是否改变了原句的重点。"],
                 "result_contract": {"input_sha256": semantic_input(w), "pages": [{"page_id": p["id"], "verdict": "SUPPORTED", "issues": []}
                                                                                    for p in w["deck"]["result"]["pages"]],
                                     "coverage": [{"section_id": s["id"], "missing": False, "problem": ""} for s in w["summary"]["sections"]]}}
@@ -867,7 +930,7 @@ class Store(_BaseStore):
         figs = {k: {"path": str(self.path(g["path"])), "sha256": g["sha256"], "width": g["width"], "height": g["height"]}
                 for k, g in figures(w).items() if k in shown}
         try:
-            report = do_render(w["deck"]["result"], v["facts"], sources, folder, w["theme"], v["terms"], figures=figs)
+            report = do_render(w["deck"]["result"], v["facts"], sources, folder, self.render_theme(w), v["terms"], figures=figs)
         except ImportError as e:
             raise WorkflowError(f"渲染环境缺失：{e}；请安装 factdeck/requirements.txt 并执行 playwright install chromium", 503)
         rpages = [{"id": p["id"], "file": f"slide{i:02d}.png", "sha256": sha((folder / f"slide{i:02d}.png").read_bytes())}
@@ -876,7 +939,10 @@ class Store(_BaseStore):
                   "summary": report["summary"], "pages": rpages,
                   "files": {n: sha((folder / n).read_bytes()) for n in ("deck.pptx", "deck.pdf", "deck.html", "render_report.json")},
                   "figure_files": sorted(x.name for x in folder.glob("figure_*.png")),
-                  "warnings": {"figure_low_dpi": [x for sl in report["slides"] for x in sl.get("figure_low_dpi", [])]}}
+                  "logo_file": next((x.name for x in folder.glob("logo.*")), None), "font": report.get("font"),
+                  "warnings": {"figure_low_dpi": [x for sl in report["slides"] for x in sl.get("figure_low_dpi", [])],
+                               "render": report.get("warnings", []),
+                               "deck": checked(w, v)["warnings"]}}
         with self.transaction(workflow_id, "RENDER_DRAFT" if draft else "RENDER") as w2:
             require(render_input(w2) == key, "渲染期间内容已变更，请重新渲染")
             if draft:
@@ -936,6 +1002,9 @@ class Store(_BaseStore):
                       "semantic_review": w["semantic_review"], "render": {k: r[k] for k in ("input_sha256", "summary", "files", "at")},
                       "pages": [{"id": p["id"], "png_sha256": p["sha256"], "review": w["page_reviews"][p["id"]]} for p in r["pages"]],
                       "figures": figure_inventory(w, v),
+                      "appearance": {"theme": w["theme"], "font": r.get("font"),
+                                     "brand": {k: w["brand"][k] for k in ("filename", "sha256", "tokens", "template_colors", "contrast")}
+                                     if w["theme"] == "brand" else None},
                       "verification_limits": "页面上的实质内容均为来源逐字节选并经程序核对；节选语境由独立语义审查和人工逐页审核把关。"
                                              "审核与确认为本地记录，不是在线身份认证。"}
             (folder / "verification_report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")

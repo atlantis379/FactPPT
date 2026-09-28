@@ -15,12 +15,14 @@ import json
 import math
 import random
 import re
+import shutil
 from collections import OrderedDict
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
-from .deck import check as deck_check
+from .deck import check as deck_check, emph_spans
+from . import charts
 from .lexicon import lint_text, canon
 
 HERE = Path(__file__).parent
@@ -142,6 +144,22 @@ def figure_geometry(page: dict, fact: dict, figure: dict) -> dict:
             "dpi": round(figure["width"] / (w / SLIDE_DPI))}
 
 
+def chart_geometry_errors(page: dict, facts: dict, drawn: list[dict]) -> list[str]:
+    """Recompute every bar from its fact's text and compare with the drawn length (independent of the template)."""
+    if page.get("layout") != "chart":
+        return [f"非图表页出现柱：{b['fact']}" for b in drawn]
+    m = charts.model(page["chart"], facts)
+    want = {b["value"]["fact"]: r for b, r in zip(page["chart"]["bars"], m["ratios"])}
+    errors = []
+    if sorted(b["fact"] for b in drawn) != sorted(want):
+        errors.append("绘制的柱与页面规格不一致")
+    for b in drawn:
+        exp = want.get(b["fact"], -1) * b["plot"]
+        if abs(b["length"] - exp) > 1.0:
+            errors.append(f"{b['fact']}：柱长 {b['length']:.1f}px，按数值应为 {exp:.1f}px")
+    return errors
+
+
 def build_models(deck, facts, sources, check, figures=None):
     conflicted = {fid for fid, f in facts.items() if any("来源之间不一致" in p for p in f["problems"])}
     fview = {}
@@ -170,6 +188,11 @@ def build_models(deck, facts, sources, check, figures=None):
         if page["layout"] == "flow":
             body_h = 720 - (150 if not page.get("lead") else 196) - 72
             p["geo"] = flow_geometry(page, 1152 - (324 if page.get("side") else 0), body_h)
+        if page["layout"] == "chart":
+            body_h = 720 - (196 if page.get("lead") else 150) - 72
+            cm = charts.model(page["chart"], facts)
+            p["cg"] = charts.geometry(page["chart"], cm, 1152 - (324 if page.get("side") else 0), body_h - 8)
+            p["cg"].update(refs=page["chart"]["bars"], w=1152 - (324 if page.get("side") else 0), h=body_h - 8)
         if page["layout"] == "figure":
             f = facts[page["figure"]["fact"]]
             g = figures[f["figure"]]
@@ -198,25 +221,25 @@ def _alpha(shape_fill_elm, a):
         el.set("val", str(int(a * 100000)))
 
 
-def _set_font(run, size_px, bold, color):
+def _set_font(run, size_px, bold, color, font=PPT_FONT):
     from pptx.util import Pt
     from pptx.oxml.ns import qn
     f = run.font
     f.size = Pt(round(size_px * 0.75 * 2) / 2)
     f.bold = bold
-    f.name = PPT_FONT
+    f.name = font
     rPr = run._r.get_or_add_rPr()
     for tag in ("a:ea", "a:cs"):
         el = rPr.find(qn(tag))
         if el is None:
             el = rPr.makeelement(qn(tag), {})
             rPr.append(el)
-        el.set("typeface", PPT_FONT)
+        el.set("typeface", font)
     if color:
         f.color.rgb = _rgb(color)
 
 
-def _fill_paras(tf, paras, line_height_px, align="left"):
+def _fill_paras(tf, paras, line_height_px, align="left", font=PPT_FONT):
     from pptx.util import Pt
     from pptx.enum.text import PP_ALIGN
     al = {"left": PP_ALIGN.LEFT, "center": PP_ALIGN.CENTER, "right": PP_ALIGN.RIGHT}[align]
@@ -230,10 +253,11 @@ def _fill_paras(tf, paras, line_height_px, align="left"):
         for r in runs:
             run = para.add_run()
             run.text = r["text"]
-            _set_font(run, r["size"] * (0.62 if r.get("mark") and r["size"] > 14 else 1), r["bold"], r["color"])
+            _set_font(run, r["size"] * (0.62 if r.get("mark") and r["size"] > 14 else 1), r["bold"], r["color"], font)
 
 
-def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path, title: str = "", figure_png: dict | None = None):
+def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path, title: str = "", figure_png: dict | None = None,
+               font: str = PPT_FONT):
     from pptx import Presentation
     from pptx.util import Emu
     from pptx.enum.shapes import MSO_SHAPE, MSO_CONNECTOR
@@ -315,7 +339,7 @@ def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path
                     cell.vertical_anchor = MSO_ANCHOR.TOP if ri else MSO_ANCHOR.MIDDLE
                     tf = cell.text_frame
                     tf.word_wrap = True
-                    _fill_paras(tf, cd["paras"] or [[{"text": "", "size": 14, "bold": False, "color": None}]], cd["lineHeight"])
+                    _fill_paras(tf, cd["paras"] or [[{"text": "", "size": 14, "bold": False, "color": None}]], cd["lineHeight"], font=font)
                     tcPr = cell._tc.get_or_add_tcPr()
                     for side in ("a:lnL", "a:lnR", "a:lnT", "a:lnB"):
                         ln = tcPr.makeelement(qn(side), {"w": "9525" if side == "a:lnB" and cd["border"] else "0"})
@@ -336,7 +360,7 @@ def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path
             tf.margin_left = tf.margin_right = tf.margin_top = tf.margin_bottom = 0
             tf.vertical_anchor = MSO_ANCHOR.MIDDLE if t["anchor"] == "middle" else MSO_ANCHOR.TOP
             tf.auto_size = None
-            _fill_paras(tf, t["paras"], t["lineHeight"], t["align"])
+            _fill_paras(tf, t["paras"], t["lineHeight"], t["align"], font)
         s.notes_slide.notes_text_frame.text = note
     prs.save(str(out))
 
@@ -384,6 +408,23 @@ FIT_JS = """(id) => {
 }"""
 
 
+FONT_JS = """(face) => {
+  const c = document.createElement('canvas').getContext('2d'); const s = '测试字体宽度Ag123';
+  const w = (ff) => { c.font = '40px ' + ff; return c.measureText(s).width; };
+  return ['monospace', 'serif', 'sans-serif'].some((b) => w('"' + face + '",' + b) !== w(b));
+}"""
+
+
+def resolve_theme(theme) -> tuple[dict, str | None, str | None, str]:
+    """(tokens, brand font, logo path, name) for a built-in theme name or a brand dict {tokens, font, logo}."""
+    if isinstance(theme, dict):
+        missing = set(THEMES["navy-teal"]) - set(theme.get("tokens", {}))
+        if missing:
+            raise ValueError("品牌配色缺少：" + "、".join(sorted(missing)))
+        return dict(theme["tokens"]), theme.get("font"), theme.get("logo"), "brand"
+    return THEMES.get(theme, THEMES["navy-teal"]), None, None, theme
+
+
 # ---------------------------------------------------------------- main
 def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Path,
            theme: str = "navy-teal", terms: list[str] | tuple[str, ...] = (), pages_only: list[str] | None = None,
@@ -407,9 +448,16 @@ def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Pa
         figview[fid] = {**g, "file": name, "path": out / name}
     pages, fview = build_models(deck, facts, sources, chk, figview)
     env = Environment(loader=FileSystemLoader(HERE / "templates"), autoescape=True)
-    html = env.get_template("deck.html.j2").render(deck=deck, pages=pages, facts=fview, theme=THEMES.get(theme, THEMES["navy-teal"]))
+    env.globals["emph_spans"] = emph_spans
+    tokens, font, logo, theme_name = resolve_theme(theme)
+    if logo:
+        logo_name = "logo" + Path(logo).suffix.lower()
+        shutil.copyfile(logo, out / logo_name)
+        logo = logo_name
     html_path = out / "deck.html"
-    html_path.write_text(html, encoding="utf-8")
+    write = lambda f: html_path.write_text(env.get_template("deck.html.j2").render(
+        deck=deck, pages=pages, facts=fview, theme=tokens, brand_font=f, logo=logo), encoding="utf-8")
+    write(font)
 
     js = (HERE / "extract.js").read_text(encoding="utf-8")
     expected = {k: v["text"] for k, v in fview.items()}
@@ -420,6 +468,13 @@ def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Pa
         page = browser.new_page(viewport={"width": 1280, "height": 720}, device_scale_factor=2)
         page.goto(html_path.resolve().as_uri())
         page.evaluate("document.fonts.ready")
+        font_warning = None
+        if font and not page.evaluate(FONT_JS, font):     # browser and PowerPoint must measure the same face
+            font_warning = f"品牌字体“{font}”未安装在渲染机上，已改用{PPT_FONT}；如需使用请先安装该字体"
+            font = None
+            write(None)
+            page.goto(html_path.resolve().as_uri())
+            page.evaluate("document.fonts.ready")
         for i, p in enumerate(pages, 1):
             for k in DENSITY:                          # tighten the page until nothing overflows
                 page.evaluate("([id, k]) => document.getElementById(id).style.setProperty('--k', k)", [p["id"], k])
@@ -435,6 +490,7 @@ def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Pa
                 raster_png[r["id"]] = png
             lint = [f"“{t}”：{'；'.join(lint_text(t, glossary, terms))}" for t in m.pop("authored") if lint_text(t, glossary, terms)]
             m["checks"]["authored_lint"] = lint
+            m["checks"]["chart_geometry"] = chart_geometry_errors(p, facts, m.pop("chart_bars"))
             m["checks"]["figure_low_dpi"] = []
             for g in m["figures"]:
                 src = figview[facts[g["id"]]["figure"]]
@@ -463,7 +519,7 @@ def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Pa
         notes.append("\n".join(lines) if res["facts"] else "")
     pptx_path = out / "deck.pptx"
     figure_png = {fid: figview[f["figure"]]["path"] for fid, f in facts.items() if f.get("figure") in figview}
-    build_pptx(models, raster_png, notes, pptx_path, deck.get("title", ""), figure_png)
+    build_pptx(models, raster_png, notes, pptx_path, deck.get("title", ""), figure_png, font or PPT_FONT)
     pages_figures = [[{"id": g["id"], **{k: figview[facts[g["id"]]["figure"]][k] for k in ("sha256", "width", "height")}}
                       for g in m["figures"]] for m in models]
     rb = readback(pptx_path, [r["facts"] for r in chk["pages"]], fview, pages_figures)
@@ -480,6 +536,7 @@ def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Pa
         "overlap": sum(len(s["overlap"]) for s in report["slides"]),
         "authored_lint": sum(len(s["authored_lint"]) for s in report["slides"]),
         "pptx_missing_facts": sum(len(r["missing"]) for r in rb),
+        "chart_geometry": sum(len(s["chart_geometry"]) for s in report["slides"]),
         "figures": sum(len(m["figures"]) for m in models),
         "figure_distortion": sum(len(s["figure_distortion"]) for s in report["slides"]),
         "figure_low_dpi": sum(len(s["figure_low_dpi"]) for s in report["slides"]),
@@ -487,8 +544,10 @@ def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Pa
     }
     s = report["summary"]
     report["hard_errors"] = s["untracked_text"] + s["fact_text_mismatch"] + s["overflow"] + s["out_of_bounds"] + s["overlap"] + s["authored_lint"] + s["pptx_missing_facts"] \
-        + s["figure_distortion"] + s["pptx_missing_figures"]
-    report["theme"] = theme
+        + s["figure_distortion"] + s["pptx_missing_figures"] + s["chart_geometry"]
+    report["theme"] = theme_name
+    report["font"] = font or PPT_FONT
+    report["warnings"] = [font_warning] if font_warning else []
     (out / "render_report.json").write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
     return report
 

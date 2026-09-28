@@ -131,11 +131,16 @@ def _pdf(b: _Builder, content: bytes):
     from pypdf.generic import ContentStream
     reader = PdfReader(io.BytesIO(content))
     if reader.is_encrypted:
-        raise IngestError("请先提供未加密的PDF")
+        try:                      # permission-restricted PDFs open with an empty user password
+            opened = reader.decrypt("")
+        except Exception:
+            opened = 0
+        if not opened:
+            raise IngestError("PDF需要密码才能打开，请提供未加密的版本")
     columns: list[str] = []
     try:                          # second reading: left half, then right half (two-column layouts)
         import pdfplumber
-        with pdfplumber.open(io.BytesIO(content)) as pdf:
+        with pdfplumber.open(io.BytesIO(content), password="") as pdf:
             for page in pdf.pages:
                 w, h = page.width, page.height
                 columns.append((page.crop((0, 0, w / 2, h)).extract_text() or "") + "\n" +
@@ -162,6 +167,34 @@ def _pdf(b: _Builder, content: bytes):
 
 
 # ------------------------------------------------------------------ PPTX
+_SUP = str.maketrans("0123456789+-=()abcdefghijklmnoprstuvwxyzABDEGHIJKLMNOPRTUVW",
+                     "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ᵃᵇᶜᵈᵉᶠᵍʰⁱʲᵏˡᵐⁿᵒᵖʳˢᵗᵘᵛʷˣʸᶻᴬᴮᴰᴱᴳᴴᴵᴶᴷᴸᴹᴺᴼᴾᴿᵀᵁⱽᵂ")
+_SUB = str.maketrans("0123456789+-=()aehijklmnoprstuvx", "₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎ₐₑₕᵢⱼₖₗₘₙₒₚᵣₛₜᵤᵥₓ")
+
+
+def _tf_text(text_frame) -> str:
+    """Text of a PowerPoint text frame as shown: superscript/subscript runs keep their position
+    (10⁹, FEV₁, citation marks¹⁻⁸) instead of collapsing into ordinary digits. Otherwise the same as
+    python-pptx's `text_frame.text` (paragraphs joined by newline, line breaks as vertical tab)."""
+    from pptx.oxml.ns import qn
+    paras = []
+    for p in text_frame._txBody.iter(qn("a:p")):
+        out = []
+        for el in p:
+            if el.tag == qn("a:br"):
+                out.append("\v")
+            elif el.tag in (qn("a:r"), qn("a:fld")):
+                t = el.findtext(qn("a:t")) or ""
+                rpr = el.find(qn("a:rPr"))
+                try:
+                    base = int(rpr.get("baseline", "0")) if rpr is not None else 0
+                except ValueError:
+                    base = 0
+                out.append(t.translate(_SUP) if base > 0 else t.translate(_SUB) if base < 0 else t)
+        paras.append("".join(out))
+    return "\n".join(paras)
+
+
 def _pptx(b: _Builder, content: bytes):
     from pptx import Presentation
     from pptx.enum.shapes import MSO_SHAPE_TYPE
@@ -189,7 +222,7 @@ def _pptx(b: _Builder, content: bytes):
             if getattr(shape, "has_table", False) and shape.has_table:
                 items.append(("table", shape.table))
             elif getattr(shape, "has_text_frame", False) and shape.text_frame.text.strip():
-                items.append(("text", shape.text_frame.text))
+                items.append(("text", _tf_text(shape.text_frame)))
             elif type(shape).__name__ == "GraphicFrame" and not getattr(shape, "has_table", False):
                 visual = True       # SmartArt and other diagrams
 
@@ -206,9 +239,9 @@ def _pptx(b: _Builder, content: bytes):
                 tab += 1
                 for r, row in enumerate(obj.rows, 1):
                     for c, cell in enumerate(row.cells, 1):
-                        b.unit(p, f"t{tab}r{r}c{c}", f"第{n}页 表格{tab} 第{r}行第{c}列", cell.text, "pptx_table_cell")
+                        b.unit(p, f"t{tab}r{r}c{c}", f"第{n}页 表格{tab} 第{r}行第{c}列", _tf_text(cell.text_frame), "pptx_table_cell")
         if slide.has_notes_slide:
-            b.unit(p, "notes", f"第{n}页 演讲者备注", slide.notes_slide.notes_text_frame.text, "pptx_notes")
+            b.unit(p, "notes", f"第{n}页 演讲者备注", _tf_text(slide.notes_slide.notes_text_frame), "pptx_notes")
         p.location = f"第{n}页" + ("（含图片/图表）" if visual else "")
         for blob in pictures:
             b.figure(p, blob)

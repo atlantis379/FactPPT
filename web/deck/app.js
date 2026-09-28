@@ -197,8 +197,9 @@ async function renderWorkflow(tab) {
 // ------------------------------------------------------------ tabs
 function tabOverview() {
   const w = current;
-  const themes = health.themes.map((t) => `<option ${t === w.theme ? "selected" : ""}>${esc(t)}</option>`).join("");
-  $("#tab").innerHTML = card("项目与需求", `<form id="settings" class="card-body">
+  const themes = health.themes.map((t) => `<option ${t === w.theme ? "selected" : ""}>${esc(t)}</option>`).join("")
+    + (w.brand ? `<option value="brand" ${w.theme === "brand" ? "selected" : ""}>客户模板（${esc(w.brand.filename)}）</option>` : "");
+  $("#tab").innerHTML = brandCard(w) + card("项目与需求", `<form id="settings" class="card-body">
       <div class="alert alert-warning">修改提纲或需求会使总结、事实库或页面规格失效，需要重新生成和确认。</div>
       <div class="mb-3"><label class="form-label">名称</label><input name="title" class="form-control" value="${esc(w.title)}"></div>
       <div class="mb-3"><label class="form-label">教学提纲（每行一条）</label>
@@ -211,6 +212,47 @@ function tabOverview() {
     const f = new FormData(ev.target);
     act(() => api("PATCH", `/workflows/${wid()}`, { title: f.get("title"), outline: f.get("outline"), theme: f.get("theme"), requirements: readRequirements(f) }), "已保存");
   };
+  bindBrand();
+}
+
+const TOKEN_LABEL = { primary: "主色", primary2: "主色2", accent: "强调", accent2: "强调2", "accent-on-dark": "深底强调",
+                      ink: "正文", muted: "次要文字", soft: "浅底", sky: "底色", line: "分隔线" };
+function swatch(color, label) {
+  return `<div class="text-center" style="width:5.5rem"><div style="height:2.2rem;border-radius:6px;border:1px solid var(--tblr-border-color);background:${esc(color)}"></div>
+    <div class="small">${esc(label)}</div><div class="mono">${esc(color)}</div></div>`;
+}
+function brandCard(w) {
+  const b = w.brand;
+  const upload = (id, accept, label) => `<form id="${id}" class="d-flex gap-2 flex-wrap mb-2"><input type="file" name="file" class="form-control" style="max-width:24rem" accept="${accept}" required>
+    <button class="btn">${label}</button></form>`;
+  if (!b) return card("客户模板", `<div class="card-body">${upload("brand-template", ".pptx,.potx", "导入模板")}
+    <div class="form-hint">从客户的 PowerPoint 模板读取配色和字体，只改变外观；文字、版式和核对规则不变。颜色会按对比度要求自动调整，原色一并记录。</div></div>`);
+  const orig = Object.entries(b.template_colors || {}).filter(([k]) => /accent|dk|lt/.test(k)).map(([k, v]) => swatch(v, k)).join("");
+  return card(`客户模板 <span class="text-secondary small">${esc(b.filename)}</span>${w.theme === "brand" ? " " + badge("使用中", "green") : ""}`,
+    `<div class="card-body">
+      <div class="mb-2 small text-secondary">实际使用的配色（已按对比度调整）：主色/白 ${b.contrast.primary_on_white}，强调/白 ${b.contrast.accent_on_white}，
+        深底强调 ${b.contrast.accent_on_dark}，正文/白 ${b.contrast.ink_on_white}</div>
+      <div class="d-flex flex-wrap gap-2 mb-3">${Object.entries(b.tokens).map(([k, v]) => swatch(v, TOKEN_LABEL[k] || k)).join("")}</div>
+      <details class="mb-3"><summary class="small">模板原色</summary><div class="d-flex flex-wrap gap-2 mt-2">${orig}</div></details>
+      <div class="mb-3 small">正文字体：<b>${esc(b.font || "（模板未指定，使用微软雅黑）")}</b>
+        <span class="text-secondary">渲染机未安装该字体时会改用微软雅黑，并在渲染结果中提示。</span></div>
+      <div class="row g-3"><div class="col-md-6"><div class="form-label">标志（可选，显示在内容页右上角）</div>
+        ${b.logo ? `<img src="${url("/brand/logo")}?v=${short(b.logo.sha256)}" alt="logo" style="max-height:48px;max-width:200px" class="mb-2 d-block">` : ""}
+        ${upload("brand-logo", ".png,.jpg,.jpeg", b.logo ? "更换标志" : "上传标志")}</div>
+      <div class="col-md-6"><div class="form-label">更换模板</div>${upload("brand-template", ".pptx,.potx", "重新导入")}
+        <button class="btn btn-ghost-danger btn-sm" id="brand-remove">移除客户模板</button></div></div>
+    </div>`);
+}
+function bindBrand() {
+  const up = (id, path, ok) => { const f = $("#" + id); if (!f) return; f.onsubmit = (ev) => {
+    ev.preventDefault();
+    const fd = new FormData(); fd.append("file", ev.target.file.files[0]);
+    act(() => api("POST", `/workflows/${wid()}${path}`, fd), ok);
+  }; };
+  up("brand-template", "/brand/template", "已导入客户模板，配色已切换为客户模板；需要重新渲染");
+  up("brand-logo", "/brand/logo", "标志已更新；需要重新渲染");
+  const rm = $("#brand-remove");
+  if (rm) rm.onclick = () => { if (confirm("移除客户模板？配色将恢复为默认。")) act(() => api("DELETE", `/workflows/${wid()}/brand`), "已移除"); };
 }
 
 function tabSources() {
@@ -495,7 +537,9 @@ function tabRender() {
   const w = current, r = w.render, d = w.draft_render;
   const lowDpi = (x) => x && x.warnings && x.warnings.figure_low_dpi.length ? `<div class="small text-warning">清晰度提示（不拦截，请在逐页审核时判断）：
       ${x.warnings.figure_low_dpi.map((d) => `${esc(d.fact)} 约 ${d.dpi} dpi`).join("；")}，低于 150 dpi</div>` : "";
-  const summary = (x) => x ? lowDpi(x) + `<div class="small text-secondary">${time(x.at)} · 硬错误 ${x.hard_errors} ·
+  const other = (x) => x && x.warnings ? [...(x.warnings.render || []), ...(x.warnings.deck || [])].map((m) =>
+      `<div class="small text-warning">${esc(m)}</div>`).join("") : "";
+  const summary = (x) => x ? lowDpi(x) + other(x) + `<div class="small text-secondary">${time(x.at)} · 硬错误 ${x.hard_errors} ·
       ${Object.entries(x.summary).map(([k, v]) => `${esc(k)} ${v}`).join(" · ")}</div>` : "";
   const files = (x, kind) => x ? ["deck.pptx", "deck.pdf", "deck.html", "render_report.json"].map((n) =>
       `<a class="btn btn-sm" href="${url(`/render/${kind}/${n}`)}" target="_blank">${n}</a>`).join(" ") : "";

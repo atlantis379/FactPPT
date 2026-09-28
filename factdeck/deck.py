@@ -7,6 +7,8 @@ in a diagram must name the fact that supports it. The deck must cover every
 outline item, and every summary section must be shown on a page or listed as an
 omission with a reason the customer can see. A source figure is shown only in a
 `figure` slot and only as a figure fact; its caption facts are shown with it.
+A fact reference may emphasise up to three verbatim fragments of its own text
+(`{"fact": id, "emph": ["38%"]}`); emphasis changes weight and colour, never text.
 """
 from __future__ import annotations
 
@@ -15,6 +17,7 @@ import re
 from pathlib import Path
 
 from .lexicon import lint_text, canon
+from . import charts
 
 LAYOUTS = {
     # layout: (required keys, limits)
@@ -28,15 +31,22 @@ LAYOUTS = {
     "statement": ({"title", "statement"}, {"support": (0, 3)}),
     "closing": ({"title"}, {"items": (0, 6)}),
     "figure": ({"title", "figure"}, {"side": (0, 3)}),
+    "hero": ({"title", "value"}, {"support": (0, 3)}),
+    "timeline": ({"title", "steps"}, {"steps": (2, 6)}),
+    "grid": ({"title", "tiles"}, {"tiles": (2, 6)}),
+    "chart": ({"title", "chart"}, {"side": (0, 3)}),
 }
-SKIP = {"id", "layout", "widths", "edges", "outline_ids", "section_ids", "col", "row", "emphasis", "kind"}
+HERO_MAX_CHARS = 16          # a hero value is a short number or phrase; longer text belongs in `statement`
+SKIP = {"id", "layout", "widths", "edges", "outline_ids", "section_ids", "col", "row", "emphasis", "kind", "orientation"}
 
 
 def walk(node, path=""):
     """Yield (path, kind, value) for every fact reference and authored text in a page."""
     if isinstance(node, dict):
-        if "fact" in node and len(node) == 1:
+        if "fact" in node and set(node) <= {"fact", "emph"}:
             yield path, "fact", node["fact"]
+            if "emph" in node:
+                yield path, "emph", (node["fact"], node["emph"])
             return
         if "text" in node and len(node) == 1:
             yield path, "text", node["text"]
@@ -54,6 +64,43 @@ def walk(node, path=""):
             yield from walk(v, f"{path}[{i}]")
     elif isinstance(node, str):
         yield path, "bad", node
+
+
+MAX_EMPH = 3
+
+
+def emph_spans(text: str, emph: list[str]) -> list[tuple[str, bool]]:
+    """Split `text` into (piece, emphasised) runs; fragments are matched left to right."""
+    out, pos = [], 0
+    for frag in emph:
+        i = text.find(frag, pos)
+        if i < 0:
+            raise ValueError(frag)
+        if i > pos:
+            out.append((text[pos:i], False))
+        out.append((frag, True))
+        pos = i + len(frag)
+    if pos < len(text):
+        out.append((text[pos:], False))
+    return out
+
+
+def emph_errors(path: str, fid, emph, facts: dict) -> list[str]:
+    f = facts.get(fid)
+    if not f:
+        return []                                   # reported by the fact reference itself
+    if f.get("figure"):
+        return [f"{path} 图事实不能设置强调"]
+    if not (isinstance(emph, list) and 1 <= len(emph) <= MAX_EMPH and all(isinstance(e, str) and e.strip() for e in emph)):
+        return [f"{path} emph 需为 1–{MAX_EMPH} 个非空片段"]
+    text = f["display"] or f["quote"]
+    try:
+        spans = emph_spans(text, emph)
+    except ValueError as e:
+        return [f"{path} 强调片段“{e}”须按顺序逐字出现在事实 {fid} 的显示文字中"]
+    if sum(len(p) for p, on in spans if on) > 0.6 * len(text):
+        return [f"{path} 强调片段过多（超过显示文字的六成），强调失去意义"]
+    return []
 
 
 def _structure(page: dict) -> list[str]:
@@ -75,6 +122,17 @@ def _structure(page: dict) -> list[str]:
                 errors.append(f"表格第{i + 1}行的单元格需为引用列表")
         if page.get("widths") and len(page["widths"]) != ncol:
             errors.append("widths 数量与列数不一致")
+    if layout == "chart" and page.get("chart"):
+        errors += charts.structure_errors(page["chart"])
+    if layout == "timeline":
+        for i, st in enumerate(page.get("steps") or []):
+            if not (isinstance(st, dict) and st.get("when") and st.get("what")):
+                errors.append(f"时间线第{i + 1}步需有 when 和 what")
+    if layout == "grid":
+        for i, t in enumerate(page.get("tiles") or []):
+            n = len(t.get("items") or []) if isinstance(t, dict) else 0
+            if not (isinstance(t, dict) and t.get("heading") and 1 <= n <= 3):
+                errors.append(f"第{i + 1}格需有 heading 和 1–3 条 items")
     if layout == "flow" and page.get("nodes"):
         ids = [n.get("id") for n in page["nodes"]]
         if len(set(ids)) != len(ids) or not all(ids):
@@ -114,6 +172,9 @@ def check(deck: dict, facts: dict[str, dict], terms: list[str] | tuple[str, ...]
     for page in pages:
         errors, pending, used = _structure(page), [], []
         for path, kind, value in walk({k: v for k, v in page.items()}):
+            if kind == "emph":
+                errors += emph_errors(path, *value, facts)
+                continue
             if kind == "bad":
                 errors.append(f"{path} 需写成 {{\"fact\": 编号}} 或 {{\"text\": 作者文字}}")
             elif kind == "text":
@@ -135,6 +196,18 @@ def check(deck: dict, facts: dict[str, dict], terms: list[str] | tuple[str, ...]
         for e in page.get("edges") or []:
             if isinstance(e, list) and len(e) == 3 and e[2] not in used:
                 errors.append(f"箭头 {e[0]}→{e[1]} 的支持事实 {e[2]} 未在本页引用或未通过")
+        if page.get("layout") == "chart" and not errors:
+            try:
+                cm = charts.model(page["chart"], facts)
+                if len(cm["sources"]) > 1:
+                    result["warnings"].append(f"{page.get('id')}：图表数值来自 {len(cm['sources'])} 份资料，并排展示暗示可比，须经语义审查确认")
+            except charts.ChartError as e:
+                errors.append(f"图表：{e}")
+        hero = page.get("value") if page.get("layout") == "hero" else None
+        if isinstance(hero, dict) and hero.get("fact") in facts:
+            f = facts[hero["fact"]]
+            if len(f["display"] or f["quote"]) > HERO_MAX_CHARS:
+                errors.append(f"主数字页的 value 需不超过 {HERO_MAX_CHARS} 字（可用 display 节选），长句请用 statement 版式")
         if page.get("layout") not in {"cover", "divider", "closing"} and not used:
             errors.append("内容页至少要引用一条事实")
         result["pages"].append({"id": page.get("id"), "facts": sorted(set(used)), "pending": sorted(set(pending)), "errors": errors})

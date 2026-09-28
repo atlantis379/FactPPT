@@ -5,7 +5,9 @@
    page without changing its structure. #}
 {%- macro fact(ref, cls="") -%}
 {%- set f = facts[ref.fact] -%}
-<span class="f {{ cls }}{% if f.conflict %} conflict{% endif %}" data-fact="{{ f.id }}">{{ f.text }}</span>
+<span class="f {{ cls }}{% if f.conflict %} conflict{% endif %}" data-fact="{{ f.id }}">
+{%- if ref.emph %}{% for piece, on in emph_spans(f.text, ref.emph) %}{% if on %}<b class="em">{{ piece }}</b>{% else %}{{ piece }}{% endif %}{% endfor %}{% else %}{{ f.text }}{% endif -%}
+</span>
 {%- if f.pending %}<span class="mark" data-mark="pending" title="待人工确认">●</span>{% endif -%}
 {%- endmacro -%}
 {%- macro node(ref) -%}{% if ref is mapping and ref.fact is defined %}{{ fact(ref) }}{% elif ref is mapping %}<span data-authored>{{ ref.text }}</span>{% endif %}{%- endmacro -%}
@@ -19,7 +21,7 @@
 {%- for k, v in theme.items() %}  --{{ k }}:{{ v }};
 {% endfor -%}
   --paper:#FFFFFF; --red:#C0392B; --amber:#D08A00;
-  --font:"Microsoft YaHei","微软雅黑","Noto Sans CJK SC","Noto Sans SC","PingFang SC",sans-serif;
+  --font:{% if brand_font %}"{{ brand_font }}",{% endif %}"Microsoft YaHei","微软雅黑","Noto Sans CJK SC","Noto Sans SC","PingFang SC",sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
@@ -31,6 +33,8 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
 .section{font-size:14px;font-weight:700;letter-spacing:.12em;color:var(--accent);height:20px;line-height:20px;white-space:nowrap;overflow:hidden}
 .title{margin-top:8px;font-size:calc(var(--k)*34px);font-weight:700;line-height:46px;color:var(--primary);height:46px;white-space:nowrap}
 .lead{margin-top:8px;font-size:calc(var(--k)*17px);line-height:calc(var(--k)*26px);color:var(--muted);height:54px}
+.logo{position:absolute;right:48px;top:34px;max-width:170px;max-height:40px;object-fit:contain}
+.has-logo .head{right:240px}
 .accent-bar{position:absolute;left:0;top:60px;width:8px;height:52px;background:var(--accent)}
 .foot{position:absolute;left:64px;right:64px;bottom:20px;height:36px;border-top:1px solid var(--line)}
 .foot .src{position:absolute;left:0;top:7px;right:110px;font-size:10.5px;line-height:15px;color:var(--muted);height:30px;overflow:hidden}
@@ -38,6 +42,8 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
 .legend{color:var(--amber);font-weight:700}
 .mark{color:#E0A526;font-size:.5em;margin-left:3px;vertical-align:.6em;opacity:.85}
 .f.conflict{color:var(--red)}
+.em{font-weight:800;color:var(--accent)}
+.band .em,.node.core .em{color:var(--accent-on-dark)}   /* dark surfaces; PPTX export keeps weight and colour only */
 .tag-conflict{display:inline-block;margin-left:6px;padding:0 6px;border-radius:4px;background:#FBE9E7;color:var(--red);font-size:11px;line-height:18px;font-weight:700}
 .body{position:absolute;left:64px;right:64px;top:{{ 196 }}px;bottom:72px}
 /* cover / divider / closing */
@@ -104,6 +110,40 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
   border-left:6px solid var(--accent);padding-left:36px}
 .support{position:absolute;left:40px;right:40px;top:250px}
 .support li{list-style:none;position:relative;padding-left:22px;font-size:calc(var(--k)*17px);line-height:calc(var(--k)*27px);color:var(--ink);margin-bottom:12px}
+/* hero: one key number */
+.herowrap{position:absolute;left:0;right:0;top:0;bottom:24px;display:flex;align-items:center;gap:48px}
+.hero{width:520px;flex:none;background:var(--primary);border-radius:16px;padding:48px 52px;overflow:hidden}
+.hero .hv{font-size:calc(var(--k)*80px);line-height:calc(var(--k)*108px);font-weight:900;color:var(--accent-on-dark);max-height:calc(var(--k)*216px);overflow:hidden}
+.hero .hl{margin-top:18px;font-size:calc(var(--k)*22px);line-height:calc(var(--k)*32px);color:#D5DFEC;max-height:calc(var(--k)*64px);overflow:hidden}
+.herosup{flex:1;list-style:none}
+.herosup li{position:relative;padding:calc(var(--k)*18px) 0 calc(var(--k)*18px) 26px;font-size:calc(var(--k)*21px);line-height:calc(var(--k)*32px);color:var(--ink);border-bottom:1px solid var(--line)}
+.herosup li:first-child{border-top:1px solid var(--line)}
+.herosup li:before{content:"";position:absolute;left:2px;top:calc(var(--k)*30px);width:10px;height:10px;border-radius:2px;background:var(--accent)}
+/* timeline */
+.tlwrap{position:absolute;left:0;right:0;top:0;bottom:24px;display:flex;align-items:center}
+.tl{position:relative;display:flex;gap:24px;width:100%}
+.tlline{position:absolute;left:0;right:0;top:calc(var(--k)*72px);height:4px;background:var(--line)}
+.tls{flex:1;position:relative}
+.tls .when{height:calc(var(--k)*60px);font-size:calc(var(--k)*22px);line-height:calc(var(--k)*30px);font-weight:800;color:var(--primary);overflow:hidden;display:flex;align-items:flex-end}
+.tls .dot{width:24px;height:24px;border-radius:50%;background:var(--accent);border:5px solid var(--soft);margin-top:calc(var(--k)*2px)}
+.tls .what{margin-top:18px;font-size:calc(var(--k)*19px);line-height:calc(var(--k)*29px);color:var(--ink);background:var(--sky);border-radius:10px;padding:18px 20px;
+  border-top:4px solid var(--accent)}
+/* grid of tiles */
+.gridwrap{position:absolute;left:0;right:0;top:0;bottom:16px;display:flex;align-items:center}
+.grid{display:grid;gap:20px;width:100%}
+.tile{background:var(--paper);border:1px solid var(--line);border-top:5px solid var(--accent);border-radius:12px;padding:20px 24px;overflow:hidden}
+.tile .th{font-size:calc(var(--k)*21px);line-height:calc(var(--k)*30px);font-weight:800;color:var(--primary);margin-bottom:10px}
+.tile .ti{position:relative;padding-left:18px;font-size:calc(var(--k)*18px);line-height:calc(var(--k)*27px);color:var(--ink);margin-bottom:8px}
+.tile .ti:before{content:"";position:absolute;left:0;top:calc(var(--k)*10px);width:8px;height:8px;border-radius:50%;background:var(--accent)}
+/* chart: bars drawn from fact values, zero baseline, no tick numbers */
+.chart{position:absolute;left:0;top:4px}
+.cbar{position:absolute;background:var(--accent);border-radius:3px 3px 0 0}
+.chart.h .cbar{border-radius:0 3px 3px 0}
+.cbase{position:absolute;background:var(--muted)}
+.cval{position:absolute;font-size:calc(var(--k)*20px);font-weight:800;color:var(--primary);white-space:nowrap;overflow:hidden;text-align:center}
+.chart.h .cval{text-align:left}
+.clab{position:absolute;font-size:calc(var(--k)*15px);line-height:calc(var(--k)*21px);color:var(--ink);text-align:center;overflow:hidden}
+.chart.h .clab{display:flex;align-items:center;justify-content:flex-end;text-align:right}
 /* figure: a source picture, whole and unaltered, with its caption and source */
 .figwrap{position:absolute;left:0;top:0}
 .figbox{display:flex;align-items:center;justify-content:center}
@@ -115,7 +155,7 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
 </head>
 <body>
 {% for p in pages %}
-<section class="slide L-{{ p.layout }}" id="{{ p.id }}" data-slide="{{ loop.index }}">
+<section class="slide L-{{ p.layout }}{% if logo and p.layout not in ('cover', 'divider') %} has-logo{% endif %}" id="{{ p.id }}" data-slide="{{ loop.index }}">
 {% if p.layout in ("cover", "divider") %}
   <svg class="art" data-raster="art-{{ p.id }}" viewBox="0 0 640 720" aria-hidden="true">
     <defs>
@@ -142,6 +182,7 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
   {% endif %}
 {% else %}
   <div class="accent-bar" data-shape></div>
+  {% if logo %}<img class="logo" src="{{ logo }}" alt="" data-raster="logo-{{ p.id }}">{% endif %}
   <div class="head">
     {% if p.section %}<div class="section" data-t>{{ node(p.section) }}</div>{% else %}<div class="section"></div>{% endif %}
     <div class="title" data-t>{{ node(p.title) }}</div>
@@ -191,6 +232,40 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
     <div class="node {{ n.cls }}" style="left:{{ n.x }}px;top:{{ n.y }}px;width:{{ n.w }}px;height:{{ n.h }}px" data-shape data-t>{{ node(n.ref) }}</div>
     {% if n.tag %}<div class="tag" style="left:{{ n.x + n.w / 2 }}px;top:{{ n.tag_y }}px;min-width:{{ n.w }}px;max-width:{{ n.w + p.geo.gap_x - 8 }}px" data-shape data-t>{{ node(n.tag) }}</div>{% endif %}
     {% endfor %}
+  </div>
+  {% if p.side %}<div class="side">{% for x in p.side %}<div class="p" data-shape data-t>{{ node(x) }}</div>{% endfor %}</div>{% endif %}
+  {% elif p.layout == "hero" %}
+  <div class="herowrap"><div class="hero" data-shape>
+    <div class="hv" data-t>{{ node(p.value) }}</div>
+    {% if p.label %}<div class="hl" data-t>{{ node(p.label) }}</div>{% endif %}
+  </div>
+  {% if p.support %}<ul class="herosup">{% for x in p.support %}<li data-t>{{ node(x) }}</li>{% endfor %}</ul>{% endif %}</div>
+  {% elif p.layout == "timeline" %}
+  <div class="tlwrap"><div class="tl"><div class="tlline" data-shape></div>
+    {% for st in p.steps %}<div class="tls">
+      <div class="when" data-t>{{ node(st.when) }}</div>
+      <div class="dot" data-shape></div>
+      <div class="what" data-shape data-t>{{ node(st.what) }}</div>
+    </div>{% endfor %}
+  </div></div>
+  {% elif p.layout == "grid" %}
+  {% set n = p.tiles|length %}{% set cols = 2 if n in (2, 4) else 3 %}
+  <div class="gridwrap"><div class="grid" style="grid-template-columns:repeat({{ cols }},1fr)">
+    {% for t in p.tiles %}<div class="tile" data-shape>
+      <div class="th" data-t>{{ node(t.heading) }}</div>
+      {% for x in t['items'] %}<div class="ti" data-t>{{ node(x) }}</div>{% endfor %}
+    </div>{% endfor %}
+  </div></div>
+  {% elif p.layout == "chart" %}
+  {% set g = p.cg %}
+  <div class="chart{% if g.horizontal %} h{% endif %}" style="width:{{ g.w }}px;height:{{ g.h }}px">
+    {% for b in g.bars %}{% set ref = g.refs[loop.index0] %}
+    <div class="cbar" data-shape data-bar="{{ ref.value.fact }}" data-plot="{{ g.plot }}" data-dir="{{ 'h' if g.horizontal else 'v' }}"
+      style="left:{{ b.bar[0] }}px;top:{{ b.bar[1] }}px;width:{{ b.bar[2] }}px;height:{{ b.bar[3] }}px"></div>
+    <div class="cval" data-t style="left:{{ b.value[0] }}px;top:{{ b.value[1] }}px;width:{{ b.value[2] }}px;height:{{ b.value[3] }}px;line-height:{{ b.value[3] }}px">{{ fact(ref.value) }}</div>
+    <div class="clab" data-t style="left:{{ b.label[0] }}px;top:{{ b.label[1] }}px;width:{{ b.label[2] }}px;height:{{ b.label[3] }}px">{{ node(ref.label) }}</div>
+    {% endfor %}
+    <div class="cbase" data-shape style="left:{{ g.baseline[0] }}px;top:{{ g.baseline[1] }}px;width:{{ g.baseline[2] }}px;height:{{ g.baseline[3] }}px"></div>
   </div>
   {% if p.side %}<div class="side">{% for x in p.side %}<div class="p" data-shape data-t>{{ node(x) }}</div>{% endfor %}</div>{% endif %}
   {% elif p.layout == "figure" %}

@@ -188,6 +188,31 @@ def source_file(workflow_id: str, source_id: str):
     return FileResponse(store.path(s["path"]), filename=s["filename"])
 
 
+@router.post("/workflows/{workflow_id}/brand/template")
+async def brand_template(workflow_id: str, file: UploadFile = File(...)):
+    content = await file.read(MAX_UPLOAD + 1)
+    return call(store.brand_template, workflow_id, file.filename or "template.pptx", content)
+
+
+@router.post("/workflows/{workflow_id}/brand/logo")
+async def brand_logo(workflow_id: str, file: UploadFile = File(...)):
+    content = await file.read(5 * 1024 * 1024 + 1)
+    return call(store.brand_logo, workflow_id, file.filename or "logo.png", content)
+
+
+@router.delete("/workflows/{workflow_id}/brand")
+def remove_brand(workflow_id: str):
+    return call(store.remove_brand, workflow_id)
+
+
+@router.get("/workflows/{workflow_id}/brand/logo")
+def brand_logo_file(workflow_id: str):
+    b = call(store.get, workflow_id).get("brand") or {}
+    if not b.get("logo"):
+        raise HTTPException(404, "没有标志")
+    return FileResponse(store.path(b["logo"]["path"]))
+
+
 @router.get("/workflows/{workflow_id}/figures/{figure_id}/file")
 def figure_file(workflow_id: str, figure_id: str):
     from app.deckflow import figures
@@ -317,7 +342,7 @@ def render_file(workflow_id: str, kind: Literal["final", "draft"], filename: str
     w = call(store.get, workflow_id)
     r = w.get("render") if kind == "final" else w.get("draft_render")
     allowed = {p["file"] for p in (r or {}).get("pages", [])} | set((r or {}).get("figure_files", [])) \
-        | {"deck.pptx", "deck.pdf", "deck.html", "render_report.json"}
+        | {(r or {}).get("logo_file"), "deck.pptx", "deck.pdf", "deck.html", "render_report.json"}
     if not r or filename not in allowed:
         raise HTTPException(404, "文件不存在")
     return FileResponse(store.path(r["path"] + "/" + filename), headers={"Cache-Control": "no-cache"})

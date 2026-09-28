@@ -1,4 +1,4 @@
-param([int]$Port = 8001)
+﻿param([int]$Port = 8001)
 $ErrorActionPreference = 'Stop'
 $FactRoot = $PSScriptRoot
 Set-Location -LiteralPath $FactRoot
