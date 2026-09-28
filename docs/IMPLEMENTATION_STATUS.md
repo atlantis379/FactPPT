@@ -40,6 +40,9 @@
 
 ### 尚未完成
 
+- 总结章节的关键依据（2026-09-28 用户确认加入）：目前章节只引用到资料页，客户确认时难以核对某句归纳依据哪段原文。
+  改为每章另列若干条 `key_points`（一句归纳 + 支撑它的文字单元编号），程序检查单元存在且属于本章引用的页，
+  内容确认稿逐条附上原文。归纳本身仍由人确认，程序只保证“依据可查”。
 - 原件图片引用第二期：PDF 区域截取（矢量图表）与 `compare` 面板放图（`docs/FIGURE_REFERENCE.md`）。
 - 15 个旧测试因迁移时缺少样例文件/模块而失败（`app/validation/...`、`assets/editorial/...`、
   `tests/fixtures/source_intake/`、`app.validation.semantic_act_qualification`），与主线无关，待补齐。
