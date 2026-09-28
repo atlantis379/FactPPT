@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>FactDeck</title>
+  <!-- UI template: Tabler (MIT). See /web/vendor/tabler/VERSIONS.txt and LICENSE files. -->
+  <link rel="stylesheet" href="/web/vendor/tabler/tabler.min.css">
+  <link rel="stylesheet" href="/web/vendor/tabler/icons/tabler-icons.min.css">
+  <link rel="stylesheet" href="/web/deck/deck.css">
+</head>
+<body>
+  <div class="page">
+    <header class="navbar navbar-expand-md d-print-none">
+      <div class="container-xl">
+        <a class="navbar-brand" href="#/"><i class="ti ti-presentation me-2"></i>FactDeck</a>
+        <div class="navbar-nav flex-row order-md-last align-items-center gap-2">
+          <span class="text-secondary small d-none d-md-inline">当前操作人</span>
+          <input id="me" class="form-control form-control-sm" style="width:10rem" placeholder="姓名（记录用）">
+        </div>
+      </div>
+    </header>
+    <div class="page-wrapper">
+      <div class="container-xl py-3">
+        <div id="flash"></div>
+        <div id="view"><div class="text-secondary">加载中…</div></div>
+      </div>
+      <footer class="footer footer-transparent d-print-none">
+        <div class="container-xl text-secondary small">
+          资料 → 总结 → 事实库 → 页面规格 → 代码渲染的原生 PPTX。确认与审核记录为本地登记，未做身份认证。
+        </div>
+      </footer>
+    </div>
+  </div>
+  <script src="/web/vendor/tabler/tabler.min.js"></script>
+  <script src="/web/deck/app.js"></script>
+</body>
+</html>

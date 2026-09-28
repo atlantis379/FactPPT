@@ -1,0 +1,7 @@
+/* Small additions on top of Tabler; keep the template's look. */
+.quote { white-space: pre-wrap; font-size: .85rem; }
+.mono { font-family: var(--tblr-font-monospace); font-size: .8rem; word-break: break-all; }
+.slide-thumb { width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: var(--tblr-bg-surface-secondary); border-bottom: 1px solid var(--tblr-border-color); }
+.table-fixed td { vertical-align: top; }
+.stage-steps .step-item { font-size: .75rem; }
+pre.log { max-height: 24rem; overflow: auto; font-size: .78rem; }

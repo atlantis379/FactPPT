@@ -1,9 +1,13 @@
 """Render a checked deck to HTML → PNG/PDF and a native, editable PPTX, then verify.
 
-Pipeline: facts_verified.json + deck.json → HTML (Jinja) → Chromium
+Pipeline: verified facts + deck spec → HTML (Jinja) → Chromium
+  → per page: fit density (shrink body type in small steps until nothing overflows)
   → per-slide PNG, a PDF, DOM checks, and an export model
   → python-pptx builds native text boxes, tables, shapes and connectors
   → the PPTX is read back and every fact on every slide must be found in it.
+
+Nothing here knows about a particular subject: layouts are generic, diagram
+geometry is computed from a node grid, and colours come from a named theme.
 """
 from __future__ import annotations
 
@@ -16,20 +20,32 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
-from .deck import check as deck_check, lint_text
-from .facts import critical_tokens
-from .sources import normalize
+from .deck import check as deck_check
+from .lexicon import lint_text, canon
 
 HERE = Path(__file__).parent
 PX = 9525                       # EMU per CSS px at 96 dpi
-PPT_FONT = "Microsoft YaHei"    # font used in the PPTX (Windows); the HTML renders with Noto Sans CJK
+PPT_FONT = "Microsoft YaHei"
+DENSITY = (1, .92, .85, .78, .72)
+
+THEMES = {
+    "navy-teal": {"ink": "#0E1B2C", "primary": "#0B2447", "primary2": "#19376D", "accent": "#0F8B8D", "accent2": "#12A5A7",
+                  "accent-on-dark": "#7FD6D0", "soft": "#E4F3F2", "sky": "#F1F5F9", "line": "#D8E0E8", "muted": "#5A6B7E"},
+    "clinical-blue": {"ink": "#10202F", "primary": "#0A3D62", "primary2": "#1E5AA8", "accent": "#1F74C9", "accent2": "#54A0FF",
+                      "accent-on-dark": "#9CC8FF", "soft": "#E8F1FC", "sky": "#F2F6FB", "line": "#D6E0EC", "muted": "#566779"},
+    "graphite-amber": {"ink": "#1D2126", "primary": "#22272E", "primary2": "#3A424D", "accent": "#A8690A", "accent2": "#E0A526",
+                       "accent-on-dark": "#F2C66B", "soft": "#FBF3E4", "sky": "#F5F5F4", "line": "#E1DED8", "muted": "#61666D"},
+    "forest": {"ink": "#14231C", "primary": "#1B3A2F", "primary2": "#2D5A47", "accent": "#2F7D4F", "accent2": "#56B37A",
+               "accent-on-dark": "#9FDAB5", "soft": "#E7F4EC", "sky": "#F3F7F4", "line": "#D7E3DB", "muted": "#58695F"},
+    "plum": {"ink": "#221526", "primary": "#3B1F4A", "primary2": "#5B3470", "accent": "#A13D73", "accent2": "#D0679E",
+             "accent-on-dark": "#EDB1D1", "soft": "#F7E9F1", "sky": "#F7F4F8", "line": "#E3D9E6", "muted": "#675A6C"},
+}
 
 
 # ---------------------------------------------------------------- page models
 def short_title(title: str) -> str:
-    t = re.sub(r"^\d+\.", "", title)
-    t = re.sub(r"[-_ ]*(已修复|V\d.*|\d{6,8}|20\d{2}\d{4})$", "", t).strip(" -")
-    t = re.sub(r"\(CN-\d+）?_?.*$", "", t)
+    t = re.sub(r"\.(pptx|pdf|docx|xlsx|txt|md|png|jpe?g|webp)$", "", title, flags=re.I)
+    t = re.sub(r"^\d+[.、]\s*", "", t).strip(" -_")
     return t if len(t) <= 22 else t[:21] + "…"
 
 
@@ -37,22 +53,22 @@ def sources_line(fids, facts, sources):
     by_src: "OrderedDict[str, list[str]]" = OrderedDict()
     for fid in fids:
         f = facts[fid]
-        m = re.match(r"(第\d+页)", f["location"])
-        loc = m.group(1) if m else ("图片表格" if f["location"].startswith("表格") else f["location"])
+        m = re.match(r"(第\d+页|第\d+部分|工作表「[^」]+」|整幅图片|页眉页脚)", f["location"])
+        loc = m.group(1) if m else f["location"].split(" ")[0]
         by_src.setdefault(f["source_id"], [])
         if loc not in by_src[f["source_id"]]:
             by_src[f["source_id"]].append(loc)
     parts = []
     for sid, locs in by_src.items():
-        pages = [l for l in locs if l.startswith("第")]
-        other = [l for l in locs if not l.startswith("第")]
-        nums = sorted({int(re.search(r"\d+", p).group()) for p in pages})
-        loc = ("第" + "、".join(map(str, nums)) + "页") if nums else "、".join(other)
-        parts.append(f"{short_title(sources[sid]['title'])} {loc}".strip())
+        pages = sorted({int(re.search(r"\d+", l).group()) for l in locs if re.fullmatch(r"第\d+页", l)})
+        other = [l for l in locs if not re.fullmatch(r"第\d+页", l)]
+        loc = "、".join((["第" + "、".join(map(str, pages)) + "页"] if pages else []) + other)
+        src = sources.get(sid, {})
+        parts.append(f"{short_title(src.get('title') or src.get('filename') or sid)} {loc}".strip())
     return "；".join(parts)
 
 
-def cover_art(seed=7):
+def cover_art(seed: int):
     rnd = random.Random(seed)
     branches, dots = [], []
 
@@ -68,65 +84,74 @@ def cover_art(seed=7):
         grow(x2, y2, ang - spread, length * rnd.uniform(.68, .8), width * .72, depth - 1)
 
     grow(330, 760, math.pi / 2, 170, 26, 8)
-    return branches, dots
+    return {"branches": branches, "dots": dots}
 
 
-MECH_GEO = {
-    "nodes": {
-        "trigger": {"x": 0, "y": 30, "w": 120, "cls": "soft"},
-        "epi": {"x": 0, "y": 124, "w": 120, "cls": ""},
-        "alarmin": {"x": 0, "y": 218, "w": 120, "cls": ""},
-        "tslp": {"x": 0, "y": 264, "w": 120, "cls": "core"},
-        "th2": {"x": 190, "y": 60, "w": 110, "cls": "core"},
-        "il4": {"x": 350, "y": 60, "w": 120, "cls": ""},
-        "bige": {"x": 520, "y": 60, "w": 128, "cls": ""},
-        "mast": {"x": 690, "y": 20, "w": 100, "cls": "soft"},
-        "baso": {"x": 690, "y": 100, "w": 100, "cls": "soft"},
-        "ilc2": {"x": 190, "y": 262, "w": 110, "cls": "core"},
-        "il5": {"x": 350, "y": 262, "w": 120, "cls": ""},
-        "eos": {"x": 520, "y": 262, "w": 128, "cls": ""},
-    },
-    "drugs": {"tslp": {"x": 0, "y": 330}, "il4": {"x": 326, "y": 118}, "bige": {"x": 526, "y": 160},
-              "il5": {"x": 300, "y": 320}, "eos": {"x": 512, "y": 360}},
-    "lane_a": {"x": 190, "y": 30}, "lane_b": {"x": 190, "y": 232},
-}
-NODE_H = 46
-
-
-def edge_points(a, b, geo):
-    A, B = geo["nodes"][a], geo["nodes"][b]
-    if abs(A["x"] - B["x"]) < 5:                            # vertical
-        x = A["x"] + A["w"] / 2
-        return [(x, A["y"] + NODE_H), (x, B["y"] - 2)]
-    x1, y1 = A["x"] + A["w"], A["y"] + NODE_H / 2
-    if a == "alarmin":                                      # leave from the alarmin/TSLP pair
-        y1 = A["y"] + NODE_H
-    x2, y2 = B["x"] - 2, B["y"] + NODE_H / 2
-    if abs(y1 - y2) < 2:
-        return [(x1, y1), (x2, y2)]
-    xm = x1 + (x2 - x1) / 2
-    return [(x1, y1), (xm, y1), (xm, y2), (x2, y2)]
+def flow_geometry(page: dict, width: float, height: float) -> dict:
+    """Place nodes on a col/row grid and route orthogonal arrows between them."""
+    nodes = page["nodes"]
+    ncol = max(n["col"] for n in nodes) + 1
+    nrow = max(n["row"] for n in nodes) + 1
+    tagged = any(n.get("tag") for n in nodes)
+    gap_x, gap_y = 56, (40 if tagged else 34)
+    w = min(220, (width - gap_x * (ncol - 1)) / ncol)
+    h = min(84, max(46, (height - gap_y * (nrow - 1) - (30 if tagged else 0)) / nrow))
+    total_w = ncol * w + (ncol - 1) * gap_x
+    total_h = nrow * h + (nrow - 1) * gap_y
+    ox, oy = (width - total_w) / 2, max(0, (height - total_h) / 2)
+    geo = {}
+    placed = []
+    for n in nodes:
+        x, y = ox + n["col"] * (w + gap_x), oy + n["row"] * (h + gap_y)
+        geo[n["id"]] = (x, y)
+        placed.append({"x": round(x, 1), "y": round(y, 1), "w": round(w, 1), "h": round(h, 1), "ref": n["ref"],
+                       "cls": {"core": "core", "soft": "soft"}.get(n.get("emphasis", ""), ""),
+                       "tag": n.get("tag"), "tag_y": round(y + h + 4, 1)})
+    edges = []
+    for a, b, support in page["edges"]:
+        (ax, ay), (bx, by) = geo[a], geo[b]
+        if abs(ay - by) < 1:                                   # same row: side to side
+            pts = [(ax + w, ay + h / 2), (bx - 2, by + h / 2)] if bx > ax else [(ax, ay + h / 2), (bx + w + 2, by + h / 2)]
+        elif abs(ax - bx) < 1:                                 # same column: top/bottom
+            pts = [(ax + w / 2, ay + h), (bx + w / 2, by - 2)] if by > ay else [(ax + w / 2, ay), (bx + w / 2, by + h + 2)]
+        else:                                                  # elbow through the gap between columns
+            if bx > ax:
+                x1, x2 = ax + w, bx - 2
+            else:
+                x1, x2 = ax, bx + w + 2
+            xm = x1 + (x2 - x1) / 2
+            pts = [(x1, ay + h / 2), (xm, ay + h / 2), (xm, by + h / 2), (x2, by + h / 2)]
+        edges.append({"support": support, "points": " ".join(f"{x:.1f},{y:.1f}" for x, y in pts)})
+    return {"w": round(width, 1), "h": round(height, 1), "gap_x": gap_x, "nodes": placed, "edges": edges}
 
 
 def build_models(deck, facts, sources, check):
-    conflicted = {fid for f in facts.values() for fid in [f["id"]] if any("来源之间不一致" in p for p in f["problems"])}
+    conflicted = {fid for fid, f in facts.items() if any("来源之间不一致" in p for p in f["problems"])}
     fview = {}
     for fid, f in facts.items():
         text = f["display"] or f["quote"]
-        fview[fid] = {"id": fid, "text": text, "pending": f["needs_confirmation"], "conflict": fid in conflicted,
-                      "numeric": bool(re.search(r"\d", text))}
-    pages = []
-    for page, res in zip(deck["pages"], check["pages"]):
+        fview[fid] = {"id": fid, "text": text, "pending": f["needs_confirmation"], "conflict": fid in conflicted}
+    pages, divider_no = [], 0
+    for i, (page, res) in enumerate(zip(deck["pages"], check["pages"])):
         p = dict(page)
         p["pending_count"] = len(res["pending"])
         p["sources_line"] = sources_line(res["facts"], facts, sources)
+        if page["layout"] in ("cover", "divider"):
+            p["art"] = cover_art(7 + i)
         if page["layout"] == "cover":
-            p["chrome_meta"] = f"原始资料 {len(sources)} 份 · 页面中每一条医学内容均可追溯到原文位置"
-        if page["layout"] == "mechanism":
-            p["geo"] = MECH_GEO
-            edges = list(page["edges"]) + [["bige", "baso", "mech.path.allergic"]]
-            p["edge_paths"] = [{"support": s, "points": " ".join(f"{x:.1f},{y:.1f}" for x, y in edge_points(a, b, MECH_GEO))}
-                               for a, b, s in edges]
+            p["chrome_meta"] = f"原始资料 {len(sources)} 份 · 页面中每一条内容均可追溯到原文位置"
+        if page["layout"] == "divider":
+            divider_no += 1
+            p["divider_no"] = divider_no
+        if page["layout"] == "table":
+            ws = page.get("widths") or [1] * len(page["columns"])
+            p["col_widths"] = [round(100 * x / sum(ws), 2) for x in ws]
+        if page["layout"] == "cards":
+            p["cards"] = [{**c, "numeric": "fact" in c["value"] and bool(re.search(r"\d", fview[c["value"]["fact"]]["text"]))
+                           and len(fview[c["value"]["fact"]]["text"]) <= 14} for c in page["cards"]]
+        if page["layout"] == "flow":
+            body_h = 720 - (150 if not page.get("lead") else 196) - 72
+            p["geo"] = flow_geometry(page, 1152 - (324 if page.get("side") else 0), body_h)
         pages.append(p)
     return pages, fview
 
@@ -183,7 +208,7 @@ def _fill_paras(tf, paras, line_height_px, align="left"):
             _set_font(run, r["size"] * (0.62 if r.get("mark") and r["size"] > 14 else 1), r["bold"], r["color"])
 
 
-def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path):
+def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path, title: str = ""):
     from pptx import Presentation
     from pptx.util import Emu
     from pptx.enum.shapes import MSO_SHAPE, MSO_CONNECTOR
@@ -191,6 +216,7 @@ def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path
     from pptx.oxml.ns import qn
 
     prs = Presentation()
+    prs.core_properties.title = title
     prs.slide_width, prs.slide_height = Emu(1280 * PX), Emu(720 * PX)
     blank = prs.slide_layouts[6]
     E = lambda v: Emu(int(round(v * PX)))
@@ -235,8 +261,7 @@ def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path
                 c.line.width = E(ln["w"])
                 if ln["arrow"] and i == len(pts) - 2:
                     lnx = c.line._get_or_add_ln()
-                    tail = lnx.makeelement(qn("a:tailEnd"), {"type": "triangle", "w": "med", "len": "med"})
-                    lnx.append(tail)
+                    lnx.append(lnx.makeelement(qn("a:tailEnd"), {"type": "triangle", "w": "med", "len": "med"}))
         for t in m["tables"]:
             nrows, ncols = len(t["rows"]), len(t["rows"][0]["cells"])
             gf = s.shapes.add_table(nrows, ncols, E(t["x"]), E(t["y"]), E(t["w"]), E(t["h"]))
@@ -246,7 +271,7 @@ def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path
                 tblPr.set(attr, "0")
             style = tblPr.find(qn("a:tableStyleId"))
             if style is not None:
-                style.text = "{5940675A-B579-460E-94D1-54222C63F5DA}"   # "No Style, Table Grid" → we paint cells ourselves
+                style.text = "{5940675A-B579-460E-94D1-54222C63F5DA}"   # "No Style, Table Grid" → cells painted explicitly
             for ci, cell in enumerate(t["rows"][0]["cells"]):
                 tbl.columns[ci].width = E(cell["w"])
             for ri, row in enumerate(t["rows"]):
@@ -264,14 +289,12 @@ def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path
                     tf = cell.text_frame
                     tf.word_wrap = True
                     _fill_paras(tf, cd["paras"] or [[{"text": "", "size": 14, "bold": False, "color": None}]], cd["lineHeight"])
-                    # borders: thin bottom rule only
                     tcPr = cell._tc.get_or_add_tcPr()
                     for side in ("a:lnL", "a:lnR", "a:lnT", "a:lnB"):
                         ln = tcPr.makeelement(qn(side), {"w": "9525" if side == "a:lnB" and cd["border"] else "0"})
                         if side == "a:lnB" and cd["border"]:
                             sf = ln.makeelement(qn("a:solidFill"), {})
-                            clr = sf.makeelement(qn("a:srgbClr"), {"val": cd["border"]["hex"].upper()})
-                            sf.append(clr)
+                            sf.append(sf.makeelement(qn("a:srgbClr"), {"val": cd["border"]["hex"].upper()}))
                             ln.append(sf)
                         else:
                             ln.append(ln.makeelement(qn("a:noFill"), {}))
@@ -279,7 +302,7 @@ def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path
         for t in m["texts"]:
             if not t["paras"]:
                 continue
-            w = t["w"] * 1.03 + 2        # small allowance: PowerPoint CJK metrics differ from the browser's
+            w = t["w"] * 1.03 + 2        # PowerPoint CJK metrics differ slightly from the browser's
             tb = s.shapes.add_textbox(E(t["x"]), E(t["y"]), E(w), E(max(t["h"], t["lineHeight"])))
             tf = tb.text_frame
             tf.word_wrap = not t["nowrap"]
@@ -303,44 +326,58 @@ def readback(pptx_path: Path, pages_facts: list[list[str]], fview: dict) -> list
                 texts.append(sh.text_frame.text)
             if getattr(sh, "has_table", False) and sh.has_table:
                 texts += [c.text for row in sh.table.rows for c in row.cells]
-        blob = normalize("\n".join(texts))
-        missing = [fid for fid in fids if normalize(fview[fid]["text"]) not in blob]
+        blob = canon("\n".join(texts))
+        missing = [fid for fid in fids if canon(fview[fid]["text"]) not in blob]
         notes = slide.notes_slide.notes_text_frame.text if slide.has_notes_slide else ""
         results.append({"facts": len(fids), "missing": missing, "notes_chars": len(notes)})
     return results
 
 
+FIT_JS = """(id) => {
+  const s = document.getElementById(id); const S = s.getBoundingClientRect();
+  const foot = s.querySelector('.foot'); const limit = foot ? foot.getBoundingClientRect().top : S.bottom;
+  let bad = 0;
+  s.querySelectorAll('[data-t], td, th').forEach((el) => {
+    if (el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1) bad++;
+  });
+  s.querySelectorAll('.body [data-t], .body table, .body [data-shape]').forEach((el) => {
+    const r = el.getBoundingClientRect(); if (r.height > 0 && r.bottom > limit + 0.5) bad++;
+  });
+  return bad;
+}"""
+
+
 # ---------------------------------------------------------------- main
-def run(project: Path, out: Path):
+def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Path,
+           theme: str = "navy-teal", terms: list[str] | tuple[str, ...] = (), pages_only: list[str] | None = None) -> dict:
+    """Render `deck` into `out`. `facts` are verified facts by id; `sources` by id ({title|filename})."""
     from playwright.sync_api import sync_playwright
 
     out.mkdir(parents=True, exist_ok=True)
-    deck = json.loads((project / "deck.json").read_text(encoding="utf-8"))
-    fv = json.loads((project / "facts_verified.json").read_text(encoding="utf-8"))
-    facts = {f["id"]: f for f in fv["facts"]}
-    src = json.loads((project / "sources.json").read_text(encoding="utf-8"))
-    sources = {s["id"]: s for s in src["sources"]}
-    chk = deck_check(deck, facts)
+    chk = deck_check(deck, facts, terms)
     if chk["errors"]:
-        raise SystemExit(f"页面规格检查未通过：{chk['errors']} 处错误，见 deck_check.json")
-
+        raise ValueError(f"页面规格检查未通过：{chk['errors']} 处错误")
     pages, fview = build_models(deck, facts, sources, chk)
-    branches, dots = cover_art()
     env = Environment(loader=FileSystemLoader(HERE / "templates"), autoescape=True)
-    html = env.get_template("deck.html.j2").render(deck=deck, pages=pages, facts=fview,
-                                                    cover_branches=branches, cover_dots=dots)
+    html = env.get_template("deck.html.j2").render(deck=deck, pages=pages, facts=fview, theme=THEMES.get(theme, THEMES["navy-teal"]))
     html_path = out / "deck.html"
     html_path.write_text(html, encoding="utf-8")
 
     js = (HERE / "extract.js").read_text(encoding="utf-8")
     expected = {k: v["text"] for k, v in fview.items()}
-    models, raster_png, report = [], {}, {"slides": []}
+    glossary = [x["text"] for x in deck.get("glossary", deck.get("terms", []))]
+    models, raster_png, report, density = [], {}, {"slides": []}, {}
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
         page = browser.new_page(viewport={"width": 1280, "height": 720}, device_scale_factor=2)
         page.goto(html_path.resolve().as_uri())
         page.evaluate("document.fonts.ready")
         for i, p in enumerate(pages, 1):
+            for k in DENSITY:                          # tighten the page until nothing overflows
+                page.evaluate("([id, k]) => document.getElementById(id).style.setProperty('--k', k)", [p["id"], k])
+                if page.evaluate(FIT_JS, p["id"]) == 0:
+                    break
+            density[p["id"]] = k
             el = page.locator(f"#{p['id']}")
             el.screenshot(path=str(out / f"slide{i:02d}.png"))
             m = page.evaluate(js, {"slideId": p["id"], "expected": expected})
@@ -348,15 +385,13 @@ def run(project: Path, out: Path):
                 png = out / f"raster_{r['id']}.png"
                 page.locator(f"#{p['id']} [data-raster='{r['id']}']").screenshot(path=str(png), omit_background=True)
                 raster_png[r["id"]] = png
-            lint = [f"“{t}”：{'；'.join(lint_text(t, [x['text'] for x in deck.get('terms', [])]))}"
-                    for t in m.pop("authored") if lint_text(t, [x["text"] for x in deck.get("terms", [])])]
+            lint = [f"“{t}”：{'；'.join(lint_text(t, glossary, terms))}" for t in m.pop("authored") if lint_text(t, glossary, terms)]
             m["checks"]["authored_lint"] = lint
-            report["slides"].append({"id": p["id"], **m["checks"]})
+            report["slides"].append({"id": p["id"], "density": k, **m["checks"]})
             models.append(m)
-        pdf_page = browser.new_page()
-        pdf_page.goto(html_path.resolve().as_uri())
-        pdf_page.evaluate("document.fonts.ready")
-        pdf_page.pdf(path=str(out / "deck.pdf"), width="1280px", height="720px", print_background=True)
+        html_path.write_text(page.content(), encoding="utf-8")      # keep the fitted densities
+        page.emulate_media(media="print")
+        page.pdf(path=str(out / "deck.pdf"), width="1280px", height="720px", print_background=True)
         browser.close()
 
     notes = []
@@ -365,10 +400,11 @@ def run(project: Path, out: Path):
         for fid in res["facts"]:
             f = facts[fid]
             flag = "（待人工确认）" if f["needs_confirmation"] else ""
-            lines.append(f"· {fview[fid]['text']} ← {sources[f['source_id']]['title']} {f['location']}{flag}")
+            src = sources.get(f["source_id"], {})
+            lines.append(f"· {fview[fid]['text']} ← {src.get('filename') or src.get('title', '')} {f['location']}{flag}")
         notes.append("\n".join(lines) if res["facts"] else "")
     pptx_path = out / "deck.pptx"
-    build_pptx(models, raster_png, notes, pptx_path)
+    build_pptx(models, raster_png, notes, pptx_path, deck.get("title", ""))
     rb = readback(pptx_path, [r["facts"] for r in chk["pages"]], fview)
     for s, r in zip(report["slides"], rb):
         s["pptx_readback"] = r
@@ -384,15 +420,23 @@ def run(project: Path, out: Path):
         "authored_lint": sum(len(s["authored_lint"]) for s in report["slides"]),
         "pptx_missing_facts": sum(len(r["missing"]) for r in rb),
     }
+    s = report["summary"]
+    report["hard_errors"] = s["untracked_text"] + s["fact_text_mismatch"] + s["overflow"] + s["out_of_bounds"] + s["overlap"] + s["authored_lint"] + s["pptx_missing_facts"]
+    report["theme"] = theme
     (out / "render_report.json").write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
     return report
+
+
+def run(project: Path, out: Path):
+    """CLI: a project folder with deck.json, facts_verified.json and sources.json."""
+    deck = json.loads((project / "deck.json").read_text(encoding="utf-8"))
+    fv = json.loads((project / "facts_verified.json").read_text(encoding="utf-8"))
+    src = json.loads((project / "sources.json").read_text(encoding="utf-8"))
+    return render(deck, {f["id"]: f for f in fv["facts"]}, {s["id"]: s for s in src["sources"]}, out,
+                  deck.get("theme", "navy-teal"), fv.get("terms", []))
 
 
 if __name__ == "__main__":
     import sys
     rep = run(Path(sys.argv[1]), Path(sys.argv[2]))
     print(json.dumps(rep["summary"], ensure_ascii=False, indent=1))
-    for s in rep["slides"]:
-        issues = {k: v for k, v in s.items() if k not in ("id", "pptx_readback") and v}
-        if issues or s["pptx_readback"]["missing"]:
-            print(s["id"], json.dumps(issues, ensure_ascii=False)[:600], s["pptx_readback"]["missing"])

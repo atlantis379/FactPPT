@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 $FactNodeExpected = (Get-Content -LiteralPath '.nvmrc' -Raw).Trim()
 $FactNodeActual = (& node --version).TrimStart('v')
@@ -9,6 +9,8 @@ if (-not (Test-Path -LiteralPath '.venv\Scripts\python.exe')) { & python -m venv
 if ($LASTEXITCODE -ne 0) { throw '创建虚拟环境失败' }
 & .\.venv\Scripts\python.exe -m pip install -r app\requirements.lock
 if ($LASTEXITCODE -ne 0) { throw 'Python依赖安装失败' }
+& .\.venv\Scripts\python.exe -m playwright install chromium
+if ($LASTEXITCODE -ne 0) { throw 'Chromium（FactDeck渲染器）安装失败' }
 & npm.cmd ci --no-audit --no-fund
 if ($LASTEXITCODE -ne 0) { throw 'Node依赖安装失败' }
 Write-Host '安装完成。运行 .\start.ps1 启动。'

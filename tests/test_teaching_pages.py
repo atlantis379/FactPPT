@@ -38,6 +38,7 @@ def test_deckkit_import_keeps_browser_rendering_optional(monkeypatch, tmp_path):
     import sys
 
     monkeypatch.setitem(sys.modules, "playwright", None)
+    monkeypatch.setitem(sys.modules, "playwright.sync_api", None)   # also when an earlier test imported it
     with pytest.raises(RuntimeError, match="optional deckkit HTML renderer"):
         import deckkit
         deckkit.render("unused.html", tmp_path / "rendered")

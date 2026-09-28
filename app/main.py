@@ -2970,15 +2970,18 @@ def medical_review_sheet(project: Project) -> dict:
 
 
 app = FastAPI(title="FactPPTv2", version="2.0.0")
+from app.deckflow_api import router as deckflow_router
 from app.fact57098_api import router as fact57098_router
-app.include_router(fact57098_router)
+app.include_router(deckflow_router)      # mainline: fact store + HTML rendering
+app.include_router(fact57098_router)     # earlier full-slide image workflow, kept for existing projects
 app.mount("/web", StaticFiles(directory=ROOT / "web"), name="web")
 
 
 @app.get("/")
 def home():
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse("/docs")
+    """FactDeck mainline UI (Tabler, MIT; see web/vendor/tabler/VERSIONS.txt)."""
+    from fastapi.responses import FileResponse
+    return FileResponse(ROOT / "web" / "deck" / "index.html", headers={"Cache-Control": "no-cache"})
 
 
 @app.post("/api/v2/content/verify", response_model=ContentReport)
@@ -4718,4 +4721,4 @@ def review_sheet(project_id: str):
 @app.get("/legacy")
 def legacy_home():
     from fastapi.responses import RedirectResponse
-    return RedirectResponse("/docs")
+    return RedirectResponse("/web/index.html")

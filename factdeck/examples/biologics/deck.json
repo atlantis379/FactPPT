@@ -1,15 +1,5 @@
 {
  "title": "哮喘与慢阻肺生物制剂治疗应用（新方案样例）",
- "terms": [
-  {
-   "text": "2型炎症",
-   "fact": "t2.lead"
-  },
-  {
-   "text": "2型",
-   "fact": "t2.lead"
-  }
- ],
  "pages": [
   {
    "id": "cover",
@@ -22,8 +12,7 @@
    },
    "subtitle": {
     "text": "从表型判断、药物选择到疗效评估"
-   },
-   "art": "cover-airway"
+   }
   },
   {
    "id": "overview",
@@ -221,7 +210,7 @@
   },
   {
    "id": "t2",
-   "layout": "criteria",
+   "layout": "cards",
    "section": {
     "text": "生物制剂在哮喘中的应用"
    },
@@ -265,13 +254,13 @@
      }
     }
    ],
-   "basis": {
-    "fact": "t2.guideline"
-   },
    "notes_title": {
     "text": "血嗜酸性粒细胞检测提示"
    },
    "notes": [
+    {
+     "fact": "t2.guideline"
+    },
     {
      "fact": "eos.every3m"
     },
@@ -285,7 +274,7 @@
   },
   {
    "id": "mechanism",
-   "layout": "mechanism",
+   "layout": "flow",
    "section": {
     "text": "生物制剂总论"
    },
@@ -294,67 +283,6 @@
    },
    "lead": {
     "fact": "mech.overview"
-   },
-   "nodes": {
-    "trigger": {
-     "fact": "mech.n0"
-    },
-    "epi": {
-     "fact": "mech.n1"
-    },
-    "alarmin": {
-     "fact": "mech.n2"
-    },
-    "tslp": {
-     "fact": "mech.n3"
-    },
-    "th2": {
-     "fact": "mech.n4"
-    },
-    "il4": {
-     "fact": "mech.n6"
-    },
-    "bige": {
-     "fact": "mech.n8"
-    },
-    "mast": {
-     "fact": "mech.n9"
-    },
-    "baso": {
-     "fact": "mech.n10"
-    },
-    "ilc2": {
-     "fact": "mech.n5"
-    },
-    "il5": {
-     "fact": "mech.n7"
-    },
-    "eos": {
-     "fact": "mech.n11"
-    },
-    "lane_a": {
-     "fact": "mech.n13"
-    },
-    "lane_b": {
-     "fact": "mech.n14"
-    }
-   },
-   "drugs": {
-    "tslp": {
-     "fact": "mech.drug.tezepelumab"
-    },
-    "il4": {
-     "fact": "mech.drug.dupilumab"
-    },
-    "bige": {
-     "fact": "mech.drug.omalizumab"
-    },
-    "il5": {
-     "fact": "mech.drug.il5"
-    },
-    "eos": {
-     "fact": "mech.drug.benralizumab"
-    }
    },
    "edges": [
     [
@@ -401,19 +329,143 @@
      "il5",
      "eos",
      "mech.path.eos"
+    ],
+    [
+     "bige",
+     "baso",
+     "mech.path.allergic"
     ]
    ],
-   "paths": [
+   "nodes": [
+    {
+     "id": "trigger",
+     "ref": {
+      "fact": "mech.n0"
+     },
+     "col": 0,
+     "row": 0,
+     "emphasis": "soft"
+    },
+    {
+     "id": "epi",
+     "ref": {
+      "fact": "mech.n1"
+     },
+     "col": 0,
+     "row": 1
+    },
+    {
+     "id": "alarmin",
+     "ref": {
+      "fact": "mech.n2"
+     },
+     "col": 0,
+     "row": 2
+    },
+    {
+     "id": "tslp",
+     "ref": {
+      "fact": "mech.n3"
+     },
+     "col": 0,
+     "row": 3,
+     "emphasis": "core",
+     "tag": {
+      "fact": "mech.drug.tezepelumab"
+     }
+    },
+    {
+     "id": "th2",
+     "ref": {
+      "fact": "mech.n4"
+     },
+     "col": 1,
+     "row": 0,
+     "emphasis": "core"
+    },
+    {
+     "id": "il4",
+     "ref": {
+      "fact": "mech.n6"
+     },
+     "col": 2,
+     "row": 0,
+     "tag": {
+      "fact": "mech.drug.dupilumab"
+     }
+    },
+    {
+     "id": "bige",
+     "ref": {
+      "fact": "mech.n8"
+     },
+     "col": 3,
+     "row": 0,
+     "tag": {
+      "fact": "mech.drug.omalizumab"
+     }
+    },
+    {
+     "id": "mast",
+     "ref": {
+      "fact": "mech.n9"
+     },
+     "col": 4,
+     "row": 0,
+     "emphasis": "soft"
+    },
+    {
+     "id": "baso",
+     "ref": {
+      "fact": "mech.n10"
+     },
+     "col": 4,
+     "row": 1,
+     "emphasis": "soft"
+    },
+    {
+     "id": "ilc2",
+     "ref": {
+      "fact": "mech.n5"
+     },
+     "col": 1,
+     "row": 2,
+     "emphasis": "core"
+    },
+    {
+     "id": "il5",
+     "ref": {
+      "fact": "mech.n7"
+     },
+     "col": 2,
+     "row": 2,
+     "tag": {
+      "fact": "mech.drug.il5"
+     }
+    },
+    {
+     "id": "eos",
+     "ref": {
+      "fact": "mech.n11"
+     },
+     "col": 3,
+     "row": 2,
+     "tag": {
+      "fact": "mech.drug.benralizumab"
+     }
+    }
+   ],
+   "side": [
     {
      "fact": "mech.path.allergic"
     },
     {
      "fact": "mech.path.eos"
+    },
+    {
+     "fact": "mech.caveat"
     }
-   ],
-   "caveat": {
-    "fact": "mech.caveat"
-   }
+   ]
   },
   {
    "id": "remission",
@@ -429,19 +481,19 @@
    },
    "panels": [
     {
-     "study": {
+     "heading": {
       "fact": "rem.mepo.study"
-     },
-     "population": {
-      "fact": "rem.mepo.n"
      },
      "value": {
       "fact": "rem.mepo.value"
      },
-     "label": {
+     "value_label": {
       "fact": "rem.mepo.label"
      },
-     "criteria": [
+     "items": [
+      {
+       "fact": "rem.mepo.n"
+      },
       {
        "fact": "rem.mepo.c1"
       },
@@ -457,19 +509,19 @@
      ]
     },
     {
-     "study": {
+     "heading": {
       "fact": "rem.benra.study"
-     },
-     "population": {
-      "fact": "rem.benra.n"
      },
      "value": {
       "fact": "rem.benra.value"
      },
-     "label": {
+     "value_label": {
       "fact": "rem.benra.label"
      },
-     "criteria": [
+     "items": [
+      {
+       "fact": "rem.benra.n"
+      },
       {
        "fact": "rem.benra.c1"
       },
@@ -694,5 +746,16 @@
     ]
    ]
   }
- ]
+ ],
+ "glossary": [
+  {
+   "text": "2型炎症",
+   "fact": "t2.lead"
+  },
+  {
+   "text": "2型",
+   "fact": "t2.lead"
+  }
+ ],
+ "theme": "navy-teal"
 }

@@ -1,0 +1,9 @@
+{
+ "_comment": "Domain-neutral defaults for factdeck. Project terms (entities declared with the fact store and verified against the sources) are added per project; nothing here is specific to one disease or one deck.",
+ "units": ["%", "‰", "mg/kg", "mg/dL", "mg/L", "mmol/L", "μmol/L", "g/L", "mmHg", "kg/m2", "kg/m²", "cells/μL", "/μL", "/mL", "/L",
+           "mg", "μg", "ng", "g", "kg", "mL", "L", "IU", "U", "ppb", "bpm", "h", "min", "s",
+           "个月", "小时", "分钟", "周", "天", "日", "月", "年", "岁", "倍", "元", "例", "人", "次", "支", "针", "片", "粒", "剂", "项", "种", "级", "分", "点", "条", "组"],
+ "dropped_text_blockers": ["不", "未", "无", "非", "禁", "慎", "否", "勿", "除外", "排除", "仅", "只", "至少", "至多", "以上", "以下", "以内", "超过", "低于", "高于", "可能", "或", "尚", "暂", "避免", "除"],
+ "authored_forbidden_suffixes": ["单抗", "单克隆抗体", "替尼", "普利", "沙坦", "他汀", "霉素", "西林", "沙星", "头孢", "地平", "洛尔", "格列", "肝素", "胰岛素"],
+ "authored_forbidden_words": ["显著", "明显", "优于", "劣于", "最佳", "最好", "最优", "首选", "唯一", "降低", "升高", "减少", "增加", "改善", "安全性更", "风险更"]
+}

@@ -92,7 +92,8 @@
     const o = rel(svg.getBoundingClientRect());
     svg.querySelectorAll('polyline').forEach((pl) => {
       const pts = pl.getAttribute('points').trim().split(/\s+/).map((p) => p.split(',').map(Number)).map(([x, y]) => [x + o.x, y + o.y]);
-      out.lines.push({ points: pts, color: '19376d', w: 2, arrow: true, support: pl.dataset.edge });
+      const stroke = color(getComputedStyle(pl).stroke);
+      out.lines.push({ points: pts, color: stroke ? stroke.hex : '19376d', w: 2, arrow: true, support: pl.dataset.edge });
     });
   });
   // ---- text boxes (not inside tables)
@@ -138,9 +139,14 @@
     if (ix > 2 && iy > 2) out.checks.overlap.push([a.textContent.trim().slice(0, 24), b.textContent.trim().slice(0, 24)]);
   }
   // tables in bounds
-  slide.querySelectorAll('table').forEach((t) => {
-    const r = rel(t.getBoundingClientRect());
-    if (r.y + r.h > 720 - 60) out.checks.bounds.push('表格超出正文区域（与页脚重叠）');
-  });
+  // body content must stay above the footer
+  const foot = slide.querySelector('.foot');
+  if (foot) {
+    const limit = rel(foot.getBoundingClientRect()).y;
+    slide.querySelectorAll('.body [data-t], .body table, .body [data-shape]').forEach((el) => {
+      const r = rel(el.getBoundingClientRect());
+      if (r.h > 0 && r.y + r.h > limit + 0.5) out.checks.bounds.push('正文超出版心（与页脚重叠）：' + el.textContent.trim().slice(0, 30));
+    });
+  }
   return out;
 }

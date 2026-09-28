@@ -1,0 +1,13 @@
+UI template selected for FactPPTv2: Tabler (MIT), chosen by Claude on the user's behalf on 2026-09-27.
+Vendored so the local product works offline; only MIT files are included (no dist/libs: ApexCharts there is not MIT).
+
+@tabler/core 1.5.1           https://tabler.io          -> tabler.min.css, tabler.min.js (LICENSE)
+@tabler/icons-webfont 3.48.0 https://tabler.io/icons    -> icons/tabler-icons.min.css, icons/fonts/* (icons/LICENSE)
+
+sha256:
+6aa5677e9cfc2620405bf97a98074ba43ff06a411cb35c5337acfb56d124c273 *tabler.min.css
+d4c4c2768f166c308391e0cea44db593056f12b84a4eeef46d55e35ca46d6e60 *tabler.min.js
+e5d3dd86f713f548e8603de831d2d4de0cbf0de2d4479778abf51cccb5e84373 *icons/tabler-icons.min.css
+6da114071f3a2ddb219fec26fb9901511a5cb5791797ea2ef5cc8b9093ca407c *icons/fonts/tabler-icons.ttf
+a871a943b7fdfb86bfe240c872f4c34a3e854a9d13f16f8d4071431787f203c2 *icons/fonts/tabler-icons.woff
+dafbdda4cb0cdcb2cc0696a10314360dfee7fbc59d4195ec7a81c95d41e65f07 *icons/fonts/tabler-icons.woff2
