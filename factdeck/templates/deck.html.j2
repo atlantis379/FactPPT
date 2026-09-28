@@ -104,6 +104,12 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
   border-left:6px solid var(--accent);padding-left:36px}
 .support{position:absolute;left:40px;right:40px;top:250px}
 .support li{list-style:none;position:relative;padding-left:22px;font-size:calc(var(--k)*17px);line-height:calc(var(--k)*27px);color:var(--ink);margin-bottom:12px}
+/* figure: a source picture, whole and unaltered, with its caption and source */
+.figwrap{position:absolute;left:0;top:0}
+.figbox{display:flex;align-items:center;justify-content:center}
+.figbox img{display:block;object-fit:contain}
+.figcap{margin-top:8px;height:44px;font-size:calc(var(--k)*14.5px);line-height:calc(var(--k)*22px);color:var(--ink);text-align:center;overflow:hidden}
+.figsrc{height:20px;margin-top:6px;font-size:12px;line-height:20px;color:var(--muted);text-align:center;white-space:nowrap;overflow:hidden}
 .support li:before{content:"";position:absolute;left:2px;top:calc(var(--k)*10px);width:8px;height:8px;border-radius:50%;background:var(--accent)}
 </style>
 </head>
@@ -185,6 +191,14 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
     <div class="node {{ n.cls }}" style="left:{{ n.x }}px;top:{{ n.y }}px;width:{{ n.w }}px;height:{{ n.h }}px" data-shape data-t>{{ node(n.ref) }}</div>
     {% if n.tag %}<div class="tag" style="left:{{ n.x + n.w / 2 }}px;top:{{ n.tag_y }}px;min-width:{{ n.w }}px;max-width:{{ n.w + p.geo.gap_x - 8 }}px" data-shape data-t>{{ node(n.tag) }}</div>{% endif %}
     {% endfor %}
+  </div>
+  {% if p.side %}<div class="side">{% for x in p.side %}<div class="p" data-shape data-t>{{ node(x) }}</div>{% endfor %}</div>{% endif %}
+  {% elif p.layout == "figure" %}
+  <div class="figwrap" style="width:{{ p.fig.box_w }}px;top:{{ p.fig.top }}px">
+    <div class="figbox" style="height:{{ p.fig.h }}px"><img data-figure="{{ p.fig.fact }}" src="{{ p.fig.file }}" alt=""
+      style="width:{{ p.fig.w }}px;height:{{ p.fig.h }}px"></div>
+    {% if p.fig.caption %}<div class="figcap" data-t>{% for c in p.fig.caption %}{{ fact({"fact": c}) }}{% if not loop.last %} {% endif %}{% endfor %}</div>{% endif %}
+    <div class="figsrc" data-t data-chrome>图源：{{ p.fig.source }}（原件图片，未作修改）{% if p.fig.pending %}<span class="legend"> ● 待确认</span>{% endif %}</div>
   </div>
   {% if p.side %}<div class="side">{% for x in p.side %}<div class="p" data-shape data-t>{{ node(x) }}</div>{% endfor %}</div>{% endif %}
   {% elif p.layout == "statement" %}

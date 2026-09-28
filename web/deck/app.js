@@ -91,6 +91,28 @@ function empty(text) { return `<div class="card-body text-secondary">${esc(text)
 function wid() { return current.id; }
 function url(path) { return `${API}/workflows/${encodeURIComponent(wid())}${path}`; }
 
+// ------------------------------------------------------------ source figures
+const DEID_LABEL = { NO_PATIENT_CONTENT: "无患者内容", DEIDENTIFIED: "已去标识", IDENTIFIABLE: "含可识别信息" };
+function figUrl(fid) { return url(`/figures/${encodeURIComponent(fid)}/file`); }
+function figureInfo(w, fid) {
+  const g = w.sources.flatMap((s) => s.figures || []).find((x) => x.id === fid);
+  if (!g) return null;
+  const page = w.sources.flatMap((s) => s.pages).find((p) => p.id === g.page_id);
+  const rev = (w.confirmations.figures || {})[fid], lic = (w.confirmations.figure_licenses || {})[fid];
+  return { g, reading: page && page.reading && page.reading.figures ? page.reading.figures[fid] : null,
+           review: rev && rev.figure_sha256 === g.sha256 ? rev : null, licence: lic && lic.figure_sha256 === g.sha256 ? lic : null };
+}
+function figureBadges(info) {
+  const r = info.review, l = info.licence;
+  return [r ? badge(DEID_LABEL[r.deidentified], r.deidentified === "IDENTIFIABLE" ? "red" : "green") : badge("待截取/去标识确认", "orange"),
+          l ? badge(l.permitted ? "已许可" : "未许可", l.permitted ? "green" : "red") : badge("待登记许可", "orange"),
+          info.reading && info.reading.may_contain_patient_info ? badge("可能含患者信息", "red") : ""].join(" ");
+}
+function figureThumb(fid, height = 120) {
+  return `<a href="${figUrl(fid)}" target="_blank"><img src="${figUrl(fid)}" alt="${esc(fid)}" loading="lazy"
+    style="max-width:100%;height:${height}px;object-fit:contain;background:var(--tblr-bg-surface-secondary)"></a>`;
+}
+
 // ------------------------------------------------------------ routing
 window.addEventListener("hashchange", route);
 async function route() {
@@ -215,6 +237,16 @@ function tabSources() {
     ${w.sources.length ? `<div class="table-responsive"><table class="table card-table table-vcenter">
       <thead><tr><th>ID</th><th>文件</th><th>类型</th><th>已阅读页</th><th>可引用单元</th><th>图表转录</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
       : empty("尚未导入资料。")}`)
+    + (w.sources.some((s) => (s.figures || []).length) ? card("原件图片", `<div class="card-body"><div class="row row-cards">
+      ${w.sources.flatMap((s) => (s.figures || []).map((g) => {
+        const info = figureInfo(w, g.id);
+        return `<div class="col-sm-6 col-lg-3"><div class="card card-sm"><div class="text-center p-2">${figureThumb(g.id)}</div>
+          <div class="card-body"><div class="mono small">${esc(g.id)}</div><div class="small">${esc(s.filename)} · ${esc(g.location)}</div>
+          <div class="small text-secondary">${g.width}×${g.height}px · 原件内嵌</div>
+          ${info.reading ? `<div class="small mt-1">${esc(info.reading.note)}</div>` : `<div class="small text-secondary mt-1">尚未阅读</div>`}
+          <div class="mt-1">${figureBadges(info)}</div></div></div></div>`;
+      })).join("")}</div>
+      <div class="form-hint mt-2">原件中的图由程序取出，像素未作修改。只有页面用到的图需要确认，确认在“人工确认”中进行。</div></div>`) : "")
     + (pagesList ? card("阅读页", `<div class="table-responsive" style="max-height:28rem"><table class="table card-table table-sm">
       <thead><tr><th>页</th><th>位置</th><th></th><th>状态</th></tr></thead><tbody>${pagesList}</tbody></table></div>`) : "");
   $("#upload").onsubmit = (ev) => {
@@ -301,7 +333,8 @@ async function tabFacts() {
   const rows = data.facts.map((f) => `<tr class="${f.status === "REJECTED" ? "table-danger" : ""}">
       <td class="mono">${esc(f.id)}</td>
       <td>${f.status === "ACCEPTED" ? badge("通过", "green") : badge("拒绝", "red")}${f.needs_confirmation ? " " + badge("待确认", "orange") : ""}</td>
-      <td><div>${esc(f.display || f.quote)}</div>${f.display && f.display !== f.quote ? `<div class="text-secondary small quote">原文：${esc(f.quote)}</div>` : ""}
+      <td>${f.figure ? `<div>${figureThumb(f.figure, 90)}</div><div class="small text-secondary">原件图 ${esc(f.figure)}${f.caption.length ? ` · 图注：${esc(f.caption.join(", "))}` : ""}</div>`
+        : `<div>${esc(f.display || f.quote)}</div>${f.display && f.display !== f.quote ? `<div class="text-secondary small quote">原文：${esc(f.quote)}</div>` : ""}`}
         ${f.problems.length ? `<div class="text-danger small">${f.problems.map(esc).join("；")}</div>` : ""}</td>
       <td class="small">${esc(f.location)}</td><td class="small">${esc(f.derivation)}</td></tr>`).join("");
   const ders = data.derivations.map((d) => `<tr><td class="mono">${esc(d.id)}</td><td>${esc(d.claim)}</td><td class="small">${esc(d.rule)}</td>
@@ -358,6 +391,28 @@ async function tabConfirm() {
           · 用于 ${esc(it.facts.join(", "))}</div><div><b>${esc(it.claim)}</b></div><div class="small text-secondary">规则：${esc(it.rule)} · 依据：${esc(it.evidence.join(", "))}</div>
         <form data-der="${esc(it.id)}" class="d-flex gap-2 mt-2 flex-wrap"><input name="note" class="form-control form-control-sm" style="max-width:24rem" placeholder="备注">
           <button class="btn btn-sm btn-success" name="d" value="CONFIRM">确认成立</button><button class="btn btn-sm btn-danger" name="d" value="REJECT">否定</button></form></div>`;
+      if (it.kind === "figure_review") return `<div class="card-body border-bottom"><div class="mb-1">${badge("截取与去标识", "azure")}
+          <span class="mono">${esc(it.id)}</span> · ${esc(it.location)} · ${it.width}×${it.height}px
+          ${it.reading && it.reading.may_contain_patient_info ? badge("阅读时提示：可能含患者信息", "red") : ""}</div>
+        <div class="row g-3"><div class="col-md-5">${figureThumb(it.id, 220)}</div><div class="col-md-7">
+          ${it.reading ? `<div class="small text-secondary mb-2">阅读说明：${esc(it.reading.note)}</div>` : ""}
+          <div class="small mb-2">请打开 <a href="${url(`/sources/${encodeURIComponent(it.source_id)}/file`)}" target="_blank">原件</a> 对照：图例、坐标轴、脚注、显著性标记是否都在；图中有无姓名、编号、日期、面部等可识别信息。</div>
+          <form data-figreview="${esc(it.id)}">
+            <label class="form-check"><input class="form-check-input" type="checkbox" name="crop" required><span class="form-check-label">已对照原件，图完整无缺</span></label>
+            <select name="deid" class="form-select form-select-sm mb-2" required><option value="">去标识结论…</option>
+              ${Object.entries(DEID_LABEL).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select>
+            <input name="note" class="form-control form-control-sm mb-2" placeholder="备注">
+            <button class="btn btn-sm btn-primary">登记</button></form></div></div></div>`;
+      if (it.kind === "figure_licence") return `<div class="card-body border-bottom"><div class="mb-1">${badge("使用许可", "teal")}
+          <span class="mono">${esc(it.id)}</span> · ${esc(it.location)}</div>
+        <div class="d-flex gap-3 align-items-start">${figureThumb(it.id, 90)}
+        <form data-figlicence="${esc(it.id)}" class="flex-fill"><div class="row g-2">
+          <div class="col-md-4"><input name="customer" class="form-control form-control-sm" placeholder="客户" required></div>
+          <div class="col-md-4"><input name="method" class="form-control form-control-sm" placeholder="确认方式" required></div>
+          <div class="col-md-4"><input name="scope" class="form-control form-control-sm" placeholder="使用范围"></div></div>
+          <div class="d-flex gap-2 mt-2 flex-wrap"><button class="btn btn-sm btn-success" name="p" value="yes">客户许可使用</button>
+            <button class="btn btn-sm btn-danger" name="p" value="no">客户不许可</button>
+            <button class="btn btn-sm" name="p" value="all">许可本资料全部待许可的图</button></div></form></div></div>`;
       if (it.kind === "conflict") return `<div class="card-body border-bottom"><div class="mb-1">${badge("冲突", "red")} ${esc(it.entity)} · ${esc(it.attribute)}</div>
         <form data-conflict="${n}" class="mt-1">${Object.entries(it.values).map(([val, ids]) => ids.map((fid) =>
           `<label class="form-check"><input class="form-check-input" type="radio" name="fact_id" value="${esc(fid)}" required>
@@ -406,6 +461,23 @@ async function tabConfirm() {
     act(() => api("POST", `/workflows/${wid()}/confirmations/transcriptions/${encodeURIComponent(f.dataset.unit)}`,
       { reviewer: me(), text: f.text.value, original_checked: f.checked.checked }), "转录已确认");
   });
+  document.querySelectorAll("form[data-figreview]").forEach((f) => f.onsubmit = (ev) => {
+    ev.preventDefault();
+    act(() => api("POST", `/workflows/${wid()}/confirmations/figures/${encodeURIComponent(f.dataset.figreview)}/review`,
+      { reviewer: me(), crop_complete: f.crop.checked, deidentified: f.deid.value, note: f.note.value }), "已登记");
+  });
+  document.querySelectorAll("form[data-figlicence]").forEach((f) => f.onsubmit = (ev) => {
+    ev.preventDefault();
+    const choice = ev.submitter.value, it = data.pending.find((x) => x.kind === "figure_licence" && x.id === f.dataset.figlicence);
+    const ids = choice === "all" ? data.pending.filter((x) => x.kind === "figure_licence" && x.source_id === it.source_id).map((x) => x.id) : [it.id];
+    const body = { customer: f.customer.value, operator: "", method: f.method.value, scope: f.scope.value, permitted: choice !== "no" };
+    act(async () => {
+      body.operator = me();
+      let last;
+      for (const id of ids) last = await api("POST", `/workflows/${wid()}/confirmations/figures/${encodeURIComponent(id)}/licence`, body);
+      return last;
+    }, `已逐张登记 ${ids.length} 张图的许可`);
+  });
   document.querySelectorAll("form[data-dismiss]").forEach((f) => f.onsubmit = (ev) => {
     ev.preventDefault();
     act(() => api("POST", `/workflows/${wid()}/semantic-review/issues/${encodeURIComponent(f.dataset.dismiss)}/dismiss`,
@@ -421,7 +493,9 @@ function reviewState(w, p) {
 
 function tabRender() {
   const w = current, r = w.render, d = w.draft_render;
-  const summary = (x) => x ? `<div class="small text-secondary">${time(x.at)} · 硬错误 ${x.hard_errors} ·
+  const lowDpi = (x) => x && x.warnings && x.warnings.figure_low_dpi.length ? `<div class="small text-warning">清晰度提示（不拦截，请在逐页审核时判断）：
+      ${x.warnings.figure_low_dpi.map((d) => `${esc(d.fact)} 约 ${d.dpi} dpi`).join("；")}，低于 150 dpi</div>` : "";
+  const summary = (x) => x ? lowDpi(x) + `<div class="small text-secondary">${time(x.at)} · 硬错误 ${x.hard_errors} ·
       ${Object.entries(x.summary).map(([k, v]) => `${esc(k)} ${v}`).join(" · ")}</div>` : "";
   const files = (x, kind) => x ? ["deck.pptx", "deck.pdf", "deck.html", "render_report.json"].map((n) =>
       `<a class="btn btn-sm" href="${url(`/render/${kind}/${n}`)}" target="_blank">${n}</a>`).join(" ") : "";

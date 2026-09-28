@@ -1,6 +1,6 @@
-# 原件图片引用（设计，尚未实现）
+# 原件图片引用
 
-状态：设计稿，2026-09-28；许可粒度、清晰度阈值、去标识确认已由用户确定。取代“插画生成”，后者不计划做（见 `IMPLEMENTATION_STATUS.md`）。
+状态：第一期（原件内嵌图片）已实现，2026-09-28；第二期（PDF 区域截取）未开始。设计中许可粒度、清晰度阈值、去标识确认已由用户确定。取代“插画生成”，后者不计划做（见 `IMPLEMENTATION_STATUS.md`）。
 
 ## 目标
 
@@ -133,12 +133,22 @@
 
 ## 分期
 
-1. **第一期**：`embedded` 图（PDF、PPTX、DOCX、图片文件）；图事实与核对；`figure` 版式；渲染、PPTX 插图与回读；
+1. **第一期（已实现）**：`embedded` 图（PDF、PPTX、DOCX、图片文件）；图事实与核对；`figure` 版式；渲染、PPTX 插图与回读；
    截取与去标识确认（对 `embedded` 截取即确认“图就是原件那张、完整无缺”）与逐张使用许可；界面。
 2. **第二期**：PDF `page_crop`（pypdfium2 渲染 + 执行端 bbox + 第二次独立 bbox）；`compare` 面板放图。
    pypdfium2 目前只是 pdfplumber 的间接依赖，届时需在 `requirements.txt` 中显式列出。
 3. **不做 / 替代方案**：PPTX 原生图表与 SmartArt 无法直接取出图片，也不引入 LibreOffice 渲染；请客户提供该 PPTX 导出的 PDF，
    作为同一资料的另一份原件导入后按 `page_crop` 截取。
+
+## 第一期实现说明
+
+- 代码：`factdeck/ingest.py`（取图）、`factdeck/facts.py`（图事实核对）、`factdeck/deck.py`（`figure` 版式与图位检查）、
+  `factdeck/render.py` + `extract.js` + 模板（排版、PPTX 插入原图、回读）、`app/deckflow.py` / `deckflow_api.py`（阅读、确认、许可、渲染绑定、交付清单）、
+  `web/deck/app.js`（资料页图片、事实库缩略图、人工确认表单）。测试：`tests/test_figures.py`。
+- 接口：`GET …/figures/{图编号}/file`；`POST …/confirmations/figures/{图编号}/review`（审核人、`crop_complete`、`deidentified`）；
+  `POST …/confirmations/figures/{图编号}/licence`（客户、操作人、方式、`permitted`、范围）。
+- 与设计的差异：`compare` 面板放图属于第二期；PPTX 中的原生图表/SmartArt 仍只能靠客户提供导出的 PDF。
+- 只在测试中用生成的线框图验证过，尚未用真实资料里的图跑过。
 
 ## 已定（2026-09-28，用户确定）
 

@@ -101,6 +101,21 @@ class TranscriptionCheck(Strict):
     original_checked: bool
 
 
+class FigureReview(Strict):
+    reviewer: str = Field(min_length=1, max_length=200)
+    crop_complete: bool
+    deidentified: Literal["NO_PATIENT_CONTENT", "DEIDENTIFIED", "IDENTIFIABLE"]
+    note: str = Field(default="", max_length=4000)
+
+
+class FigureLicence(Strict):
+    customer: str = Field(min_length=1, max_length=200)
+    operator: str = Field(min_length=1, max_length=200)
+    method: str = Field(min_length=1, max_length=200)
+    permitted: bool
+    scope: str = Field(default="", max_length=1000)
+
+
 class Dismissal(Strict):
     reviewer: str = Field(min_length=1, max_length=200)
     reason: str = Field(min_length=1, max_length=4000)
@@ -171,6 +186,15 @@ def source_file(workflow_id: str, source_id: str):
     if not s:
         raise HTTPException(404, "资料不存在")
     return FileResponse(store.path(s["path"]), filename=s["filename"])
+
+
+@router.get("/workflows/{workflow_id}/figures/{figure_id}/file")
+def figure_file(workflow_id: str, figure_id: str):
+    from app.deckflow import figures
+    g = figures(call(store.get, workflow_id)).get(figure_id)
+    if not g:
+        raise HTTPException(404, "图不存在")
+    return FileResponse(store.path(g["path"]), media_type="image/png")
 
 
 @router.post("/workflows/{workflow_id}/tasks")
@@ -268,6 +292,16 @@ def confirm_transcription(workflow_id: str, unit_id: str, body: TranscriptionChe
     return call(store.confirm_transcription, workflow_id, unit_id, body.model_dump())
 
 
+@router.post("/workflows/{workflow_id}/confirmations/figures/{figure_id}/review")
+def confirm_figure(workflow_id: str, figure_id: str, body: FigureReview):
+    return call(store.confirm_figure, workflow_id, figure_id, body.model_dump())
+
+
+@router.post("/workflows/{workflow_id}/confirmations/figures/{figure_id}/licence")
+def license_figure(workflow_id: str, figure_id: str, body: FigureLicence):
+    return call(store.license_figure, workflow_id, figure_id, body.model_dump())
+
+
 @router.post("/workflows/{workflow_id}/semantic-review/issues/{issue_id}/dismiss")
 def dismiss(workflow_id: str, issue_id: str, body: Dismissal):
     return call(store.dismiss_issue, workflow_id, issue_id, body.model_dump())
@@ -282,7 +316,8 @@ def render(workflow_id: str, draft: bool = False):
 def render_file(workflow_id: str, kind: Literal["final", "draft"], filename: str):
     w = call(store.get, workflow_id)
     r = w.get("render") if kind == "final" else w.get("draft_render")
-    allowed = {p["file"] for p in (r or {}).get("pages", [])} | {"deck.pptx", "deck.pdf", "deck.html", "render_report.json"}
+    allowed = {p["file"] for p in (r or {}).get("pages", [])} | set((r or {}).get("figure_files", [])) \
+        | {"deck.pptx", "deck.pdf", "deck.html", "render_report.json"}
     if not r or filename not in allowed:
         raise HTTPException(404, "文件不存在")
     return FileResponse(store.path(r["path"] + "/" + filename), headers={"Cache-Control": "no-cache"})

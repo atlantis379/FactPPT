@@ -5,7 +5,8 @@ column headers) is allowed only if it carries no substantive content of its own
 (see lexicon.lint_text); glossary terms backed by a fact are exempt. Every arrow
 in a diagram must name the fact that supports it. The deck must cover every
 outline item, and every summary section must be shown on a page or listed as an
-omission with a reason the customer can see.
+omission with a reason the customer can see. A source figure is shown only in a
+`figure` slot and only as a figure fact; its caption facts are shown with it.
 """
 from __future__ import annotations
 
@@ -26,6 +27,7 @@ LAYOUTS = {
     "flow": ({"title", "nodes", "edges"}, {"nodes": (2, 16), "side": (0, 4)}),
     "statement": ({"title", "statement"}, {"support": (0, 3)}),
     "closing": ({"title"}, {"items": (0, 6)}),
+    "figure": ({"title", "figure"}, {"side": (0, 3)}),
 }
 SKIP = {"id", "layout", "widths", "edges", "outline_ids", "section_ids", "col", "row", "emphasis", "kind"}
 
@@ -119,14 +121,17 @@ def check(deck: dict, facts: dict[str, dict], terms: list[str] | tuple[str, ...]
                     errors.append(f"{path} “{value}”：{p}")
             else:
                 f = facts.get(value)
+                slot = path.endswith(".figure")
                 if not f:
                     errors.append(f"{path} 引用了不存在的事实 {value}")
+                elif slot != bool(f.get("figure")):
+                    errors.append(f"{path} 图位置只能放图事实，图事实只能放在图位置：{value}")
                 elif f["status"] != "ACCEPTED":
                     errors.append(f"{path} 引用了被拒绝的事实 {value}：{'；'.join(f['problems'])}")
                 else:
-                    used.append(value)
-                    if f["needs_confirmation"]:
-                        pending.append(value)
+                    shown = [value] + (list(f.get("caption") or []) if slot else [])
+                    used += shown
+                    pending += [x for x in shown if facts[x]["needs_confirmation"]]
         for e in page.get("edges") or []:
             if isinstance(e, list) and len(e) == 3 and e[2] not in used:
                 errors.append(f"箭头 {e[0]}→{e[1]} 的支持事实 {e[2]} 未在本页引用或未通过")

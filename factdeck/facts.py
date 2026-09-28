@@ -14,6 +14,11 @@ Code — not the model — decides whether it is accepted:
 * uncertainty in the unit itself (image transcription without an agreeing second
   read) is carried forward as `needs_confirmation`.
 
+A *figure fact* shows a picture taken from an original (`figure` = figure id)
+instead of a quote. Its state (checksum, crop/de-identification review, licence,
+transcription of text inside the picture) is decided by the caller and passed in
+as `figures`; `caption` lists ordinary facts shown under the picture.
+
 Confirmation state (derivations, conflict resolutions) is passed in by the caller;
 a `confirmed` flag written by the proposer is ignored.
 """
@@ -29,8 +34,8 @@ from .lexicon import canon, critical_tokens, extractive, dropped_blockers
 @dataclass
 class Fact:
     id: str
-    unit: str
-    quote: str
+    unit: str = ""
+    quote: str = ""
     display: str = ""
     entity: str = ""          # e.g. drug or study name, used for conflict detection
     attribute: str = ""       # e.g. "单价(元/支)"
@@ -38,6 +43,8 @@ class Fact:
     derivation: str = ""      # comma-separated ids of derivations that justify display beyond the quote
     note: str = ""
     section_ids: list[str] = field(default_factory=list)   # summary sections this fact belongs to
+    figure: str = ""          # figure id: this fact shows a source picture instead of a quote
+    caption: list[str] = field(default_factory=list)       # facts shown under the picture
     # filled by verification
     status: str = "PENDING"   # ACCEPTED | REJECTED
     needs_confirmation: bool = False
@@ -47,7 +54,7 @@ class Fact:
     source_id: str = ""
 
     def text(self) -> str:
-        return self.display or self.quote
+        return self.display or self.quote or (f"〔图〕{self.location or self.figure}" if self.figure else "")
 
 
 @dataclass
@@ -95,8 +102,27 @@ def load(path: Path) -> tuple[list[Fact], list[Derivation], dict]:
     return facts, ders, raw.get("resolutions", {})
 
 
+def _verify_figure(f: Fact, figures: dict):
+    """figures[id] = {source_id, location, pending: [reasons], rejected: [reasons]} (decided by the caller)."""
+    if f.unit or f.quote or f.display or f.derivation:
+        f.status, f.problems = "REJECTED", ["图事实只引用图，不能同时带引文、显示文字或推导"]
+        return
+    g = figures.get(f.figure)
+    if not g:
+        f.status, f.problems = "REJECTED", [f"图不存在：{f.figure}"]
+        return
+    f.location, f.source_id = g["location"], g["source_id"]
+    if g.get("rejected"):
+        f.status, f.problems = "REJECTED", list(g["rejected"])
+        return
+    if g.get("pending"):
+        f.needs_confirmation = True
+        f.problems += list(g["pending"])
+    f.status = "ACCEPTED"
+
+
 def verify(facts: list[Fact], ders: list[Derivation], units: list[dict], resolutions: dict,
-           terms: list[str] | tuple[str, ...] = ()) -> list[Conflict]:
+           terms: list[str] | tuple[str, ...] = (), figures: dict | None = None) -> list[Conflict]:
     by_unit = {u["id"]: u for u in units}
     by_fact = {f.id: f for f in facts}
     by_der = {d.id: d for d in ders}
@@ -109,6 +135,12 @@ def verify(facts: list[Fact], ders: list[Derivation], units: list[dict], resolut
             f.status, f.problems = "REJECTED", ["事实编号为空或重复"]
             continue
         seen.add(f.id)
+        if f.figure:
+            _verify_figure(f, figures or {})
+            continue
+        if f.caption:
+            f.status, f.problems = "REJECTED", ["只有图事实可以带图注（caption）"]
+            continue
         u = by_unit.get(f.unit)
         if not u:
             f.status, f.problems = "REJECTED", [f"来源单元不存在：{f.unit}"]
@@ -162,7 +194,7 @@ def verify(facts: list[Fact], ders: list[Derivation], units: list[dict], resolut
     conflicts: list[Conflict] = []
     groups: dict[tuple[str, str], dict[str, list[str]]] = {}
     for f in facts:
-        if f.status == "ACCEPTED" and f.entity and f.attribute and f.value:
+        if f.status == "ACCEPTED" and not f.figure and f.entity and f.attribute and f.value:
             groups.setdefault((f.entity, f.attribute), {}).setdefault(canon(f.value).replace(",", ""), []).append(f.id)
     for (entity, attr), values in groups.items():
         if len(values) > 1:
@@ -180,6 +212,13 @@ def verify(facts: list[Fact], ders: list[Derivation], units: list[dict], resolut
                     elif fid not in next(v for v in values.values() if c.resolution in v):
                         fact.status = "REJECTED"
                         fact.problems.append(f"来源冲突已裁定采用 {c.resolution}，本条不再使用")
+    for f in facts:                       # captions: ordinary accepted facts, checked after conflicts are settled
+        if f.figure and f.status == "ACCEPTED":
+            bad = [c for c in f.caption if c not in by_fact or by_fact[c].figure or by_fact[c].status != "ACCEPTED"]
+            if bad:
+                f.status = "REJECTED"
+                f.problems.append("图注须为已通过的文字事实：" + "、".join(bad))
+
     return conflicts
 
 

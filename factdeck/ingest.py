@@ -10,6 +10,11 @@ Two granularities:
   paragraph / table cell, a worksheet row, a text paragraph. Units carry the text
   extracted by code, never text written by a model. Transcriptions of images and
   charts are added later as separate units that need confirmation.
+* a **figure** is a picture embedded in the original (PDF image, slide picture,
+  Word inline image, or a whole image file), taken out by code and normalised to
+  PNG without changing its pixels. Figures can be shown on slides as source
+  figures; nothing here judges what they show. Tiny images (icons, logos, rules)
+  are not registered.
 
 Supported: PDF, PPTX, DOCX, XLSX, TXT/MD, PNG/JPG/JPEG/WEBP.
 """
@@ -23,6 +28,8 @@ from pathlib import Path
 SUPPORTED = {".pdf", ".pptx", ".docx", ".xlsx", ".txt", ".md", ".png", ".jpg", ".jpeg", ".webp"}
 MAX_UNITS = 20000
 MAX_TEXT = 3_000_000
+MAX_FIGURES = 500
+MIN_FIGURE_SIDE = 120            # px; smaller pictures are icons, logos or rules
 
 
 class IngestError(ValueError):
@@ -52,11 +59,57 @@ class Page:
     unit_ids: list[str] = field(default_factory=list)
 
 
+@dataclass
+class Figure:
+    id: str
+    source_id: str
+    page_id: str
+    location: str
+    method: str                   # embedded (phase 1); page_crop is planned
+    width: int
+    height: int
+    original_format: str
+    png: bytes = field(repr=False, default=b"")
+
+
+def to_png(blob: bytes) -> tuple[bytes, int, int, str] | None:
+    """Decode an embedded picture and re-encode it losslessly as PNG. None if unreadable."""
+    from PIL import Image
+    try:
+        with Image.open(io.BytesIO(blob)) as im:
+            fmt = (im.format or "").lower()
+            im.load()
+            if im.mode == "CMYK":                   # PNG cannot hold CMYK; the only conversion made
+                im = im.convert("RGB")
+            elif im.mode not in {"1", "L", "LA", "P", "RGB", "RGBA", "I", "I;16"}:
+                im = im.convert("RGBA")
+            out = io.BytesIO()
+            im.save(out, "PNG", optimize=False)
+            return out.getvalue(), im.width, im.height, fmt
+    except Exception:
+        return None
+
+
 class _Builder:
     def __init__(self, source_id: str):
         self.sid = source_id
         self.pages: list[Page] = []
         self.units: list[Unit] = []
+        self.figures: list[Figure] = []
+        self._seen: set[tuple[str, bytes]] = set()
+
+    def figure(self, page: Page, blob: bytes, label: str = "图"):
+        """Register an embedded picture on `page` (same picture twice on one page counts once)."""
+        if (page.id, blob) in self._seen or len(self.figures) >= MAX_FIGURES:
+            return
+        self._seen.add((page.id, blob))
+        png = to_png(blob)
+        if not png or min(png[1], png[2]) < MIN_FIGURE_SIDE:
+            return
+        n = sum(1 for f in self.figures if f.page_id == page.id) + 1
+        page.requires_visual = True
+        self.figures.append(Figure(f"{page.id}:g{n}", self.sid, page.id, f"{re.sub(r'（[^）]*）', '', page.location)} {label}{n}", "embedded",
+                                   png[1], png[2], png[3], png[0]))
 
     def page(self, key: str, location: str, visual: bool) -> Page:
         p = Page(f"{self.sid}:{key}", self.sid, len(self.pages) + 1, location, "", visual)
@@ -100,6 +153,12 @@ def _pdf(b: _Builder, content: bytes):
         text = page.extract_text() or ""
         p = b.page(f"p{i}", f"第{i}页", visual or not text.strip())
         b.unit(p, "", f"第{i}页", text, "pdf_page", alt=columns[i - 1] if i <= len(columns) else "")
+        try:
+            images = list(page.images)
+        except Exception:
+            images = []
+        for img in images:
+            b.figure(p, img.data)
 
 
 # ------------------------------------------------------------------ PPTX
@@ -110,6 +169,7 @@ def _pptx(b: _Builder, content: bytes):
     for n, slide in enumerate(prs.slides, 1):
         visual = False
         items: list[tuple[str, object]] = []
+        pictures: list[bytes] = []
 
         def walk(shape):
             nonlocal visual
@@ -121,11 +181,16 @@ def _pptx(b: _Builder, content: bytes):
             if st in (MSO_SHAPE_TYPE.PICTURE, MSO_SHAPE_TYPE.CHART, MSO_SHAPE_TYPE.MEDIA, MSO_SHAPE_TYPE.EMBEDDED_OLE_OBJECT) \
                     or getattr(shape, "has_chart", False):
                 visual = True
+            if st == MSO_SHAPE_TYPE.PICTURE:
+                try:
+                    pictures.append(shape.image.blob)
+                except Exception:
+                    pass
             if getattr(shape, "has_table", False) and shape.has_table:
                 items.append(("table", shape.table))
             elif getattr(shape, "has_text_frame", False) and shape.text_frame.text.strip():
                 items.append(("text", shape.text_frame.text))
-            elif st == MSO_SHAPE_TYPE.GRAPHIC_FRAME and not getattr(shape, "has_table", False):
+            elif type(shape).__name__ == "GraphicFrame" and not getattr(shape, "has_table", False):
                 visual = True       # SmartArt and other diagrams
 
         for shape in slide.shapes:
@@ -145,6 +210,8 @@ def _pptx(b: _Builder, content: bytes):
         if slide.has_notes_slide:
             b.unit(p, "notes", f"第{n}页 演讲者备注", slide.notes_slide.notes_text_frame.text, "pptx_notes")
         p.location = f"第{n}页" + ("（含图片/图表）" if visual else "")
+        for blob in pictures:
+            b.figure(p, blob)
 
 
 # ------------------------------------------------------------------ DOCX
@@ -172,6 +239,11 @@ def _docx(b: _Builder, content: bytes):
                 new_section(text.strip() if heading else "")
             if el.findall(f".//{ns_w}drawing") or el.findall(".//{urn:schemas-microsoft-com:vml}imagedata"):
                 section.requires_visual = True
+                ns_r = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
+                for blip in el.iter("{http://schemas.openxmlformats.org/drawingml/2006/main}blip"):
+                    part = doc.part.related_parts.get(blip.get(ns_r + "embed"))
+                    if part is not None and hasattr(part, "blob"):
+                        b.figure(section, part.blob)
             if text.strip():
                 para_no += 1
                 count += 1
@@ -234,10 +306,16 @@ def _image(b: _Builder, content: bytes):
     from PIL import Image
     with Image.open(io.BytesIO(content)) as image:
         image.verify()
-    b.page("img", "整幅图片", True)
+    p = b.page("img", "整幅图片", True)
+    b.figure(p, content, "图片")
 
 
 def extract(filename: str, content: bytes, source_id: str) -> tuple[list[Page], list[Unit]]:
+    pages, units, _ = extract_all(filename, content, source_id)
+    return pages, units
+
+
+def extract_all(filename: str, content: bytes, source_id: str) -> tuple[list[Page], list[Unit], list[Figure]]:
     suffix = Path(filename).suffix.lower()
     if suffix not in SUPPORTED:
         raise IngestError("支持PDF、PPTX、DOCX、XLSX、TXT/MD和PNG/JPG/WEBP")
@@ -249,13 +327,13 @@ def extract(filename: str, content: bytes, source_id: str) -> tuple[list[Page], 
         raise IngestError("资料中没有可登记的页面")
     if len(b.units) > MAX_UNITS or sum(len(u.text) for u in b.units) > MAX_TEXT:
         raise IngestError("资料超出容量；请拆分导入，不能截断")
-    return b.pages, b.units
+    return b.pages, b.units, b.figures
 
 
-def transcription_units(page: dict, cells: list[dict], reader: str) -> list[dict]:
+def transcription_units(page: dict, cells: list[dict], reader: str, figure_ids=frozenset()) -> list[dict]:
     """Units for a reader's transcription of a picture/chart on `page`.
 
-    Each cell: {"id": "c1", "location": "图表 第2个柱 数值标签", "text": "..."}.
+    Each cell: {"id": "c1", "location": "图表 第2个柱 数值标签", "text": "...", "figure": optional figure id}.
     They need confirmation until a second, independent read agrees.
     """
     out, seen = [], set()
@@ -267,8 +345,11 @@ def transcription_units(page: dict, cells: list[dict], reader: str) -> list[dict
         text, loc = str(c.get("text", "")), str(c.get("location", "")).strip()
         if not text.strip() or not loc:
             raise IngestError("转录单元需提供位置和文字")
+        fig = str(c.get("figure") or "")
+        if fig and fig not in figure_ids:
+            raise IngestError(f"转录单元 {cid} 指向的图不在本页：{fig}")
         out.append(asdict(Unit(f"{page['id']}:x.{cid}", page["source_id"], page["id"], f"{page['location']} {loc}",
-                               text, "visual_transcription", needs_confirmation=True)) | {"reader": reader})
+                               text, "visual_transcription", needs_confirmation=True)) | {"reader": reader, "figure_id": fig})
     return out
 
 

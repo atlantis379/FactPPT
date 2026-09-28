@@ -29,7 +29,7 @@ store → deck spec → code-rendered native PPTX. The earlier full-slide image 
 - No image generation for slides: text and decoration are rendered by code. Image
   models may only make text-free illustrations; generating them is not planned for the
   mainline (they carry meaning that no fact can back). Pictures from the originals
-  enter only as source figures (`docs/FIGURE_REFERENCE.md`, designed, not built yet).
+  enter only as source figures (`docs/FIGURE_REFERENCE.md`; embedded pictures are supported, page crops are not yet).
 - No external research by default. For a failed task report failure; don't
   fabricate results. Stop at customer confirmations, human confirmations and page review.
 

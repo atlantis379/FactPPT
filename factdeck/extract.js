@@ -15,7 +15,8 @@
     if (p.length === 4 && p[3] === 0) return null;
     return { hex: p.slice(0, 3).map((v) => Math.round(v).toString(16).padStart(2, '0')).join(''), a: p.length === 4 ? p[3] : 1 };
   };
-  const out = { shapes: [], texts: [], tables: [], lines: [], rasters: [], checks: { untracked: [], mismatch: [], overflow: [], bounds: [], overlap: [] }, authored: [] };
+  const out = { shapes: [], texts: [], tables: [], lines: [], rasters: [], figures: [],
+    checks: { untracked: [], mismatch: [], overflow: [], bounds: [], overlap: [], figure_distortion: [] }, authored: [] };
 
   // ---- runs: walk text nodes, split paragraphs at block-level descendants
   function runsOf(container) {
@@ -138,12 +139,25 @@
     const ix = Math.min(A.right, B.right) - Math.max(A.left, B.left), iy = Math.min(A.bottom, B.bottom) - Math.max(A.top, B.top);
     if (ix > 2 && iy > 2) out.checks.overlap.push([a.textContent.trim().slice(0, 24), b.textContent.trim().slice(0, 24)]);
   }
+  // ---- source figures: exported from the archived original; must be whole, in bounds and uncovered
+  slide.querySelectorAll('img[data-figure]').forEach((el) => {
+    const r = rel(el.getBoundingClientRect());
+    out.figures.push({ id: el.dataset.figure, ...r, nw: el.naturalWidth, nh: el.naturalHeight });
+    if (!el.complete || !el.naturalWidth) out.checks.figure_distortion.push(el.dataset.figure + '（图片未加载）');
+    if (r.x < -0.5 || r.y < -0.5 || r.x + r.w > 1280.5 || r.y + r.h > 720.5) out.checks.bounds.push('图超出页面：' + el.dataset.figure);
+    const A = el.getBoundingClientRect();
+    slide.querySelectorAll('[data-t]').forEach((t) => {
+      const B = t.getBoundingClientRect();
+      const ix = Math.min(A.right, B.right) - Math.max(A.left, B.left), iy = Math.min(A.bottom, B.bottom) - Math.max(A.top, B.top);
+      if (ix > 1 && iy > 1) out.checks.overlap.push(['图 ' + el.dataset.figure, t.textContent.trim().slice(0, 24)]);
+    });
+  });
   // tables in bounds
   // body content must stay above the footer
   const foot = slide.querySelector('.foot');
   if (foot) {
     const limit = rel(foot.getBoundingClientRect()).y;
-    slide.querySelectorAll('.body [data-t], .body table, .body [data-shape]').forEach((el) => {
+    slide.querySelectorAll('.body [data-t], .body table, .body [data-shape], .body img[data-figure]').forEach((el) => {
       const r = rel(el.getBoundingClientRect());
       if (r.h > 0 && r.y + r.h > limit + 0.5) out.checks.bounds.push('正文超出版心（与页脚重叠）：' + el.textContent.trim().slice(0, 30));
     });

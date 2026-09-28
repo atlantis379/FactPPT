@@ -125,12 +125,30 @@ def flow_geometry(page: dict, width: float, height: float) -> dict:
     return {"w": round(width, 1), "h": round(height, 1), "gap_x": gap_x, "nodes": placed, "edges": edges}
 
 
-def build_models(deck, facts, sources, check):
+FIGURE_MIN_DPI = 150          # below this a source figure is flagged for the page reviewer (not blocking)
+SLIDE_DPI = 96                # 1280 px = 13.333 in
+
+
+def figure_geometry(page: dict, fact: dict, figure: dict) -> dict:
+    """Fit a source figure into the body without cropping or changing its aspect ratio."""
+    body_h = 720 - (196 if page.get("lead") else 150) - 72
+    width = 1152 - (324 if page.get("side") else 0)
+    cap_h = 52 if fact.get("caption") else 0
+    src_h = 26
+    box_h = body_h - cap_h - src_h
+    scale = min(width / figure["width"], box_h / figure["height"])
+    w, h = figure["width"] * scale, figure["height"] * scale
+    return {"w": round(w, 2), "h": round(h, 2), "box_w": width, "box_h": box_h, "cap_h": cap_h, "top": round((box_h - h) / 2, 2),
+            "dpi": round(figure["width"] / (w / SLIDE_DPI))}
+
+
+def build_models(deck, facts, sources, check, figures=None):
     conflicted = {fid for fid, f in facts.items() if any("来源之间不一致" in p for p in f["problems"])}
     fview = {}
     for fid, f in facts.items():
         text = f["display"] or f["quote"]
-        fview[fid] = {"id": fid, "text": text, "pending": f["needs_confirmation"], "conflict": fid in conflicted}
+        fview[fid] = {"id": fid, "text": text, "pending": f["needs_confirmation"], "conflict": fid in conflicted,
+                      "figure": f.get("figure", "")}
     pages, divider_no = [], 0
     for i, (page, res) in enumerate(zip(deck["pages"], check["pages"])):
         p = dict(page)
@@ -152,6 +170,13 @@ def build_models(deck, facts, sources, check):
         if page["layout"] == "flow":
             body_h = 720 - (150 if not page.get("lead") else 196) - 72
             p["geo"] = flow_geometry(page, 1152 - (324 if page.get("side") else 0), body_h)
+        if page["layout"] == "figure":
+            f = facts[page["figure"]["fact"]]
+            g = figures[f["figure"]]
+            src = sources.get(f["source_id"], {})
+            p["fig"] = {"fact": f["id"], "figure": f["figure"], "file": g["file"], "caption": list(f.get("caption") or []),
+                        "source": f"{short_title(src.get('title') or src.get('filename') or f['source_id'])} {f['location']}",
+                        "pending": f["needs_confirmation"], **figure_geometry(page, f, g)}
         pages.append(p)
     return pages, fview
 
@@ -208,7 +233,7 @@ def _fill_paras(tf, paras, line_height_px, align="left"):
             _set_font(run, r["size"] * (0.62 if r.get("mark") and r["size"] > 14 else 1), r["bold"], r["color"])
 
 
-def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path, title: str = ""):
+def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path, title: str = "", figure_png: dict | None = None):
     from pptx import Presentation
     from pptx.util import Emu
     from pptx.enum.shapes import MSO_SHAPE, MSO_CONNECTOR
@@ -262,6 +287,8 @@ def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path
                 if ln["arrow"] and i == len(pts) - 2:
                     lnx = c.line._get_or_add_ln()
                     lnx.append(lnx.makeelement(qn("a:tailEnd"), {"type": "triangle", "w": "med", "len": "med"}))
+        for g in m.get("figures", []):         # the archived original, not a screenshot
+            s.shapes.add_picture(str(figure_png[g["id"]]), E(g["x"]), E(g["y"]), E(g["w"]), E(g["h"]))
         for t in m["tables"]:
             nrows, ncols = len(t["rows"]), len(t["rows"][0]["cells"])
             gf = s.shapes.add_table(nrows, ncols, E(t["x"]), E(t["y"]), E(t["w"]), E(t["h"]))
@@ -315,11 +342,21 @@ def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path
 
 
 # ---------------------------------------------------------------- readback
-def readback(pptx_path: Path, pages_facts: list[list[str]], fview: dict) -> list[dict]:
+def readback(pptx_path: Path, pages_facts: list[list[str]], fview: dict, pages_figures: list[list[dict]] | None = None) -> list[dict]:
+    """Every fact's text is in the slide; every source figure is there byte-identical and undistorted."""
+    import hashlib
     from pptx import Presentation
+    from pptx.enum.shapes import MSO_SHAPE_TYPE
     prs = Presentation(str(pptx_path))
     results = []
-    for slide, fids in zip(prs.slides, pages_facts):
+    for n, (slide, fids) in enumerate(zip(prs.slides, pages_facts)):
+        pics = [(hashlib.sha256(sh.image.blob).hexdigest(), sh.width / sh.height) for sh in slide.shapes
+                if sh.shape_type == MSO_SHAPE_TYPE.PICTURE]
+        missing_figures = []
+        for g in (pages_figures or [[]] * len(pages_facts))[n]:
+            ratio = g["width"] / g["height"]
+            if not any(h == g["sha256"] and abs(r - ratio) / ratio < 0.01 for h, r in pics):
+                missing_figures.append(g["id"])
         texts = []
         for sh in slide.shapes:
             if sh.has_text_frame:
@@ -327,9 +364,9 @@ def readback(pptx_path: Path, pages_facts: list[list[str]], fview: dict) -> list
             if getattr(sh, "has_table", False) and sh.has_table:
                 texts += [c.text for row in sh.table.rows for c in row.cells]
         blob = canon("\n".join(texts))
-        missing = [fid for fid in fids if canon(fview[fid]["text"]) not in blob]
+        missing = [fid for fid in fids if not fview[fid].get("figure") and canon(fview[fid]["text"]) not in blob]
         notes = slide.notes_slide.notes_text_frame.text if slide.has_notes_slide else ""
-        results.append({"facts": len(fids), "missing": missing, "notes_chars": len(notes)})
+        results.append({"facts": len(fids), "missing": missing, "missing_figures": missing_figures, "notes_chars": len(notes)})
     return results
 
 
@@ -349,15 +386,26 @@ FIT_JS = """(id) => {
 
 # ---------------------------------------------------------------- main
 def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Path,
-           theme: str = "navy-teal", terms: list[str] | tuple[str, ...] = (), pages_only: list[str] | None = None) -> dict:
-    """Render `deck` into `out`. `facts` are verified facts by id; `sources` by id ({title|filename})."""
+           theme: str = "navy-teal", terms: list[str] | tuple[str, ...] = (), pages_only: list[str] | None = None,
+           figures: dict[str, dict] | None = None) -> dict:
+    """Render `deck` into `out`. `facts` are verified facts by id; `sources` by id ({title|filename});
+    `figures` by figure id ({path, sha256, width, height}) for every figure fact on a page."""
+    import hashlib
     from playwright.sync_api import sync_playwright
 
     out.mkdir(parents=True, exist_ok=True)
     chk = deck_check(deck, facts, terms)
     if chk["errors"]:
         raise ValueError(f"页面规格检查未通过：{chk['errors']} 处错误")
-    pages, fview = build_models(deck, facts, sources, chk)
+    figview = {}
+    for fid, g in (figures or {}).items():
+        data = Path(g["path"]).read_bytes()
+        if hashlib.sha256(data).hexdigest() != g["sha256"]:
+            raise ValueError(f"图文件已被修改：{fid}")
+        name = f"figure_{g['sha256'][:24]}.png"
+        (out / name).write_bytes(data)
+        figview[fid] = {**g, "file": name, "path": out / name}
+    pages, fview = build_models(deck, facts, sources, chk, figview)
     env = Environment(loader=FileSystemLoader(HERE / "templates"), autoescape=True)
     html = env.get_template("deck.html.j2").render(deck=deck, pages=pages, facts=fview, theme=THEMES.get(theme, THEMES["navy-teal"]))
     html_path = out / "deck.html"
@@ -387,6 +435,15 @@ def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Pa
                 raster_png[r["id"]] = png
             lint = [f"“{t}”：{'；'.join(lint_text(t, glossary, terms))}" for t in m.pop("authored") if lint_text(t, glossary, terms)]
             m["checks"]["authored_lint"] = lint
+            m["checks"]["figure_low_dpi"] = []
+            for g in m["figures"]:
+                src = figview[facts[g["id"]]["figure"]]
+                ratio, shown = src["width"] / src["height"], g["w"] / max(g["h"], 1e-6)
+                if abs(shown - ratio) / ratio >= 0.01 or g["nw"] != src["width"] or g["nh"] != src["height"]:
+                    m["checks"]["figure_distortion"].append(g["id"])
+                dpi = round(src["width"] / (g["w"] / SLIDE_DPI))
+                if dpi < FIGURE_MIN_DPI:
+                    m["checks"]["figure_low_dpi"].append({"fact": g["id"], "dpi": dpi})
             report["slides"].append({"id": p["id"], "density": k, **m["checks"]})
             models.append(m)
         html_path.write_text(page.content(), encoding="utf-8")      # keep the fitted densities
@@ -401,11 +458,15 @@ def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Pa
             f = facts[fid]
             flag = "（待人工确认）" if f["needs_confirmation"] else ""
             src = sources.get(f["source_id"], {})
-            lines.append(f"· {fview[fid]['text']} ← {src.get('filename') or src.get('title', '')} {f['location']}{flag}")
+            shown = f"〔原件图片，未作修改〕{f['figure']}" if f.get("figure") else fview[fid]["text"]
+            lines.append(f"· {shown} ← {src.get('filename') or src.get('title', '')} {f['location']}{flag}")
         notes.append("\n".join(lines) if res["facts"] else "")
     pptx_path = out / "deck.pptx"
-    build_pptx(models, raster_png, notes, pptx_path, deck.get("title", ""))
-    rb = readback(pptx_path, [r["facts"] for r in chk["pages"]], fview)
+    figure_png = {fid: figview[f["figure"]]["path"] for fid, f in facts.items() if f.get("figure") in figview}
+    build_pptx(models, raster_png, notes, pptx_path, deck.get("title", ""), figure_png)
+    pages_figures = [[{"id": g["id"], **{k: figview[facts[g["id"]]["figure"]][k] for k in ("sha256", "width", "height")}}
+                      for g in m["figures"]] for m in models]
+    rb = readback(pptx_path, [r["facts"] for r in chk["pages"]], fview, pages_figures)
     for s, r in zip(report["slides"], rb):
         s["pptx_readback"] = r
     report["summary"] = {
@@ -419,9 +480,14 @@ def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Pa
         "overlap": sum(len(s["overlap"]) for s in report["slides"]),
         "authored_lint": sum(len(s["authored_lint"]) for s in report["slides"]),
         "pptx_missing_facts": sum(len(r["missing"]) for r in rb),
+        "figures": sum(len(m["figures"]) for m in models),
+        "figure_distortion": sum(len(s["figure_distortion"]) for s in report["slides"]),
+        "figure_low_dpi": sum(len(s["figure_low_dpi"]) for s in report["slides"]),
+        "pptx_missing_figures": sum(len(r["missing_figures"]) for r in rb),
     }
     s = report["summary"]
-    report["hard_errors"] = s["untracked_text"] + s["fact_text_mismatch"] + s["overflow"] + s["out_of_bounds"] + s["overlap"] + s["authored_lint"] + s["pptx_missing_facts"]
+    report["hard_errors"] = s["untracked_text"] + s["fact_text_mismatch"] + s["overflow"] + s["out_of_bounds"] + s["overlap"] + s["authored_lint"] + s["pptx_missing_facts"] \
+        + s["figure_distortion"] + s["pptx_missing_figures"]
     report["theme"] = theme
     (out / "render_report.json").write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
     return report
