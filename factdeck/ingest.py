@@ -15,12 +15,16 @@ Two granularities:
   PNG without changing its pixels. Figures can be shown on slides as source
   figures; nothing here judges what they show. Tiny images (icons, logos, rules)
   are not registered.
+* a **page crop** is a region of a PDF page chosen by a reader (vector charts,
+  composite figures that are not one embedded picture). Code renders the page and
+  cuts the region; the reader only gives the box, never pixels.
 
 Supported: PDF, PPTX, DOCX, XLSX, TXT/MD, PNG/JPG/JPEG/WEBP.
 """
 from __future__ import annotations
 
 import io
+import math
 import re
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
@@ -30,6 +34,8 @@ MAX_UNITS = 20000
 MAX_TEXT = 3_000_000
 MAX_FIGURES = 500
 MIN_FIGURE_SIDE = 120            # px; smaller pictures are icons, logos or rules
+CROP_DPI = 200                   # page crops are cut from the page rendered at this resolution
+CROP_AGREE_IOU = 0.9             # two independent boxes closer than this count as the same region
 
 
 class IngestError(ValueError):
@@ -46,6 +52,8 @@ class Unit:
     method: str
     needs_confirmation: bool = False
     alt_text: str = ""
+    arrow: dict | None = None     # pptx_arrow units: {from, to, label} unit ids, recovered from the diagram's geometry
+    signals: dict | None = None   # what the original's author marked: {"title": [...], "emphasis": [...]} fragments of `text`
 
 
 @dataclass
@@ -65,7 +73,7 @@ class Figure:
     source_id: str
     page_id: str
     location: str
-    method: str                   # embedded (phase 1); page_crop is planned
+    method: str                   # embedded; page crops are registered by the workflow (see crop_pdf_page)
     width: int
     height: int
     original_format: str
@@ -126,6 +134,32 @@ class _Builder:
 
 
 # ------------------------------------------------------------------ PDF
+PDF_EMPHASIS = 1.2            # a line set at least this many times the page's usual size is marked
+
+
+def _pdf_marks(page) -> dict:
+    """Lines the author set apart on a PDF page: the largest line in the top zone is the title; lines in a
+    bold face or at least PDF_EMPHASIS times the usual size are emphasis."""
+    words = page.extract_words(extra_attrs=["size", "fontname"], keep_blank_chars=True) or []
+    lines: dict[int, list] = {}
+    for wd in words:
+        lines.setdefault(round(wd["top"] / 3), []).append(wd)
+    rows = []
+    for _, ws in sorted(lines.items()):
+        ws.sort(key=lambda wd: wd["x0"])
+        text = "".join(wd["text"] for wd in ws).strip()
+        if len(text) >= 2:
+            rows.append((text, max(wd["size"] for wd in ws), any("bold" in wd["fontname"].lower() for wd in ws), ws[0]["top"]))
+    if not rows:
+        return {"title": [], "emphasis": []}
+    sizes = sorted(r[1] for r in rows)
+    usual = sizes[len(sizes) // 2]
+    top = [r for r in rows if r[3] <= TITLE_ZONE * page.height and r[1] >= PDF_EMPHASIS * usual]
+    title = [max(top, key=lambda r: r[1])[0]] if top else []
+    emphasis = [r[0] for r in rows if (r[2] or r[1] >= PDF_EMPHASIS * usual) and r[0] not in title]
+    return {"title": title, "emphasis": emphasis[:12]}
+
+
 def _pdf(b: _Builder, content: bytes):
     from pypdf import PdfReader
     from pypdf.generic import ContentStream
@@ -138,6 +172,7 @@ def _pdf(b: _Builder, content: bytes):
         if not opened:
             raise IngestError("PDF需要密码才能打开，请提供未加密的版本")
     columns: list[str] = []
+    marks: list[dict] = []
     try:                          # second reading: left half, then right half (two-column layouts)
         import pdfplumber
         with pdfplumber.open(io.BytesIO(content), password="") as pdf:
@@ -145,6 +180,7 @@ def _pdf(b: _Builder, content: bytes):
                 w, h = page.width, page.height
                 columns.append((page.crop((0, 0, w / 2, h)).extract_text() or "") + "\n" +
                                (page.crop((w / 2, 0, w, h)).extract_text() or ""))
+                marks.append(_pdf_marks(page))
     except Exception:
         columns = []
     for i, page in enumerate(reader.pages, 1):
@@ -158,6 +194,12 @@ def _pdf(b: _Builder, content: bytes):
         text = page.extract_text() or ""
         p = b.page(f"p{i}", f"第{i}页", visual or not text.strip())
         b.unit(p, "", f"第{i}页", text, "pdf_page", alt=columns[i - 1] if i <= len(columns) else "")
+        if i <= len(marks) and b.units and b.units[-1].id == p.id:
+            from .lexicon import canon
+            whole = canon(text)                          # keep only lines the page's own text contains
+            m = {k: [x for x in v if canon(x) in whole] for k, v in marks[i - 1].items()}
+            if m["title"] or m["emphasis"]:
+                b.units[-1].signals = m
         try:
             images = list(page.images)
         except Exception:
@@ -195,21 +237,187 @@ def _tf_text(text_frame) -> str:
     return "\n".join(paras)
 
 
+def _run_text(el, qn) -> str:
+    t = el.findtext(qn("a:t")) or ""
+    rpr = el.find(qn("a:rPr"))
+    try:
+        base = int(rpr.get("baseline", "0")) if rpr is not None else 0
+    except ValueError:
+        base = 0
+    return t.translate(_SUP) if base > 0 else t.translate(_SUB) if base < 0 else t
+
+
+def _tf_emphasis(text_frame) -> tuple[list[str], float]:
+    """Fragments the author set apart inside a text frame (bold, an explicit colour other than the frame's usual one,
+    or a size at least 1.2 times the frame's usual size), and the frame's largest explicit size in points.
+    Consecutive marked runs join into one fragment; the fragments are substrings of `_tf_text`."""
+    from pptx.oxml.ns import qn
+    runs = []                                  # (text, bold, colour, size)
+    for p in text_frame._txBody.iter(qn("a:p")):
+        for el in p:
+            if el.tag in (qn("a:r"), qn("a:fld")):
+                rpr = el.find(qn("a:rPr"))
+                fill = rpr.find(qn("a:solidFill")) if rpr is not None else None
+                clr = None
+                if fill is not None and len(fill):
+                    clr = fill[0].get("val")
+                size = int(rpr.get("sz")) / 100 if rpr is not None and rpr.get("sz", "").isdigit() else None
+                runs.append((_run_text(el, qn), rpr is not None and rpr.get("b") == "1", clr, size))
+            elif el.tag == qn("a:br"):
+                runs.append(("\v", False, None, None))
+        runs.append(("\n", False, None, None))
+    colours = [c for _, _, c, _ in runs if c]
+    usual_colour = max(set(colours), key=colours.count) if colours and len(set(colours)) > 1 else None
+    sizes = sorted(s for _, _, _, s in runs if s)
+    usual_size = sizes[len(sizes) // 2] if sizes else None
+    out, cur = [], ""
+    for t, bold, clr, size in runs:
+        marked = t.strip() and (bold or (usual_colour and clr and clr != usual_colour) or (usual_size and size and size >= 1.2 * usual_size))
+        if marked:
+            cur += t
+        else:
+            if len(cur.strip()) >= 2:
+                out.append(cur.strip())
+            cur = ""
+    if len(cur.strip()) >= 2:
+        out.append(cur.strip())
+    return out, (sizes[-1] if sizes else 0.0)
+
+
+_A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+_BLOCK = {"rightArrow": "right", "leftArrow": "left", "upArrow": "up", "downArrow": "down",
+          "notchedRightArrow": "right", "stripedRightArrow": "right"}
+_TURN = {"right": "down", "down": "left", "left": "up", "up": "right"}       # a quarter turn clockwise
+
+
+def _plain_text(shape) -> bool:
+    """A text box with no fill or outline: how diagrams write arrow labels such as 是/否 (filled shapes are nodes)."""
+    el = shape._element
+    c = el.find("./{*}nvSpPr/{*}cNvSpPr")
+    if c is not None and c.get("txBox") == "1":
+        return True
+    sp = el.find("./{*}spPr")
+    if sp is None or sp.find("./" + _A + "prstGeom") is None:
+        return False
+    filled = any(sp.find("./" + _A + k) is not None for k in ("solidFill", "gradFill", "pattFill", "blipFill"))
+    ln = sp.find("./" + _A + "ln")
+    outlined = ln is not None and ln.find("./" + _A + "noFill") is None
+    return not filled and not outlined and el.find("./{*}style") is None
+
+
+def _xfrm(shape):
+    el = shape._element
+    for path in ("./{*}grpSpPr/" + _A + "xfrm", "./{*}spPr/" + _A + "xfrm"):
+        x = el.find(path)
+        if x is not None and x.find(_A + "off") is not None and x.find(_A + "ext") is not None:
+            return x
+    return None
+
+
+def _box(x, T):
+    """Absolute (x, y, w, h) of an xfrm under the group transform T (scale x, scale y, offset x, offset y)."""
+    sx, sy, ox, oy = T
+    off, ext = x.find(_A + "off"), x.find(_A + "ext")
+    return (ox + int(off.get("x")) * sx, oy + int(off.get("y")) * sy, int(ext.get("cx")) * sx, int(ext.get("cy")) * sy)
+
+
+def _connector_path(el, x, T):
+    """The connector's drawn path as absolute points: elbow connectors follow their bends (adj values),
+    then flip and rotation are applied about the centre as DrawingML does."""
+    bx, by, w, h = _box(x, T)
+    prst = el.find(".//" + _A + "prstGeom")
+    kind = prst.get("prst", "") if prst is not None else ""
+    adj = {g.get("name"): int(g.get("fmla", "val 50000").split()[-1]) / 100000 for g in el.iter(_A + "gd")}
+    a1, a2, a3 = adj.get("adj1", .5), adj.get("adj2", .5), adj.get("adj3", .5)
+    local = {"bentConnector2": [(0, 0), (w, 0), (w, h)], "curvedConnector2": [(0, 0), (w, 0), (w, h)],
+             "bentConnector3": [(0, 0), (a1 * w, 0), (a1 * w, h), (w, h)], "curvedConnector3": [(0, 0), (a1 * w, 0), (a1 * w, h), (w, h)],
+             "bentConnector4": [(0, 0), (a1 * w, 0), (a1 * w, a2 * h), (w, a2 * h), (w, h)],
+             "bentConnector5": [(0, 0), (a1 * w, 0), (a1 * w, a2 * h), (a3 * w, a2 * h), (a3 * w, h), (w, h)],
+             }.get(kind, [(0, 0), (w, h)])
+    fh, fv = x.get("flipH") == "1", x.get("flipV") == "1"
+    t = math.radians(int(x.get("rot", "0")) / 60000)
+    cx, cy = w / 2, h / 2
+
+    def place(p):
+        px, py = (w - p[0] if fh else p[0]), (h - p[1] if fv else p[1])
+        return (bx + cx + (px - cx) * math.cos(t) - (py - cy) * math.sin(t),
+                by + cy + (px - cx) * math.sin(t) + (py - cy) * math.cos(t))
+    return [place(p) for p in local]
+
+
+TITLE_ZONE = 0.2              # share of the slide height from the top where a title box sits
+FOOT_ZONE = 0.85              # boxes starting below this share of the height are footnotes and references: no marks
+
+
+def _headline(text: str) -> bool:
+    """Worth reading as a title: at least two characters that are not digits or punctuation (not a page number)."""
+    return sum(ch.isalpha() for ch in text) >= 2
+
+
+def _mark_slide(text_unit: dict, sig: dict, slide_height: int) -> None:
+    """Attach each text box's marks to its unit. Emphasis is a fragment set apart inside a box (a whole box in bold is
+    the box's style, not a mark). The slide title is the title placeholder; failing that, the box
+    in the top zone set in the slide's largest explicit type size (a headline written as an ordinary text box)."""
+    titles = [i for i in text_unit if sig.get(i, {}).get("title") and _headline(text_unit[i].text)]
+    if not titles:                         # a headline in the top zone: a placeholder first, then the largest type, then the highest
+        top = [i for i in text_unit if sig.get(i, {}).get("top") is not None and sig[i]["top"] <= TITLE_ZONE * slide_height
+               and _headline(text_unit[i].text)]
+        if top:
+            titles = [min(top, key=lambda i: (not sig[i].get("placeholder"), -(sig[i]["size"] or 0), sig[i]["top"]))]
+    for i, u in text_unit.items():
+        s = sig.get(i) or {}
+        if s.get("top") is not None and s["top"] >= FOOT_ZONE * slide_height:
+            s = {}
+        marks = {"title": [u.text.strip()] if i in titles else [],
+                 "emphasis": [e for e in s.get("emphasis", []) if e in u.text and e != u.text.strip() and _headline(e)]}
+        if marks["title"] or marks["emphasis"]:
+            u.signals = marks
+
+
 def _pptx(b: _Builder, content: bytes):
     from pptx import Presentation
     from pptx.enum.shapes import MSO_SHAPE_TYPE
+    from .diagram import arrows as find_arrows
     prs = Presentation(io.BytesIO(content))
     for n, slide in enumerate(prs.slides, 1):
         visual = False
         items: list[tuple[str, object]] = []
         pictures: list[bytes] = []
+        geo = {"text": {}, "segments": [], "blocks": []}     # text item index → box; connector lines; block arrows
+        sig: dict[int, dict] = {}                             # text item index → the author's marks
 
-        def walk(shape):
+        def walk(shape, T=(1.0, 1.0, 0.0, 0.0)):
             nonlocal visual
             st = shape.shape_type
+            x = _xfrm(shape)
             if st == MSO_SHAPE_TYPE.GROUP:
+                if x is not None and x.find(_A + "chOff") is not None:
+                    off, ext, cho, che = (x.find(_A + k) for k in ("off", "ext", "chOff", "chExt"))
+                    gx = int(ext.get("cx")) / max(1, int(che.get("cx")))
+                    gy = int(ext.get("cy")) / max(1, int(che.get("cy")))
+                    sx, sy, ox, oy = T
+                    T = (sx * gx, sy * gy, ox + (int(off.get("x")) - int(cho.get("x")) * gx) * sx,
+                         oy + (int(off.get("y")) - int(cho.get("y")) * gy) * sy)
                 for child in shape.shapes:
-                    walk(child)
+                    walk(child, T)
+                return
+            tag = shape._element.tag.rsplit("}", 1)[-1]
+            if tag == "cxnSp" and x is not None:
+                ln = shape._element.find(".//" + _A + "ln")
+                head = lambda k: ln is not None and ln.find(_A + k) is not None and ln.find(_A + k).get("type", "none") != "none"
+                st_c, en_c = shape._element.find(".//" + _A + "stCxn"), shape._element.find(".//" + _A + "endCxn")
+                geo["segments"].append((_connector_path(shape._element, x, T), head("headEnd"), head("tailEnd"),
+                                        st_c.get("id") if st_c is not None else None, en_c.get("id") if en_c is not None else None))
+                return
+            prst = shape._element.find(".//" + _A + "prstGeom")
+            if prst is not None and prst.get("prst") in _BLOCK and x is not None \
+                    and not (getattr(shape, "has_text_frame", False) and shape.text_frame.text.strip()):
+                d = _BLOCK[prst.get("prst")]
+                for _ in range(round(int(x.get("rot", "0")) / 5400000) % 4):
+                    d = _TURN[d]
+                if x.get("flipH") == "1" and d in ("left", "right") or x.get("flipV") == "1" and d in ("up", "down"):
+                    d = {"left": "right", "right": "left", "up": "down", "down": "up"}[d]
+                geo["blocks"].append((*_box(x, T), d))
                 return
             if st in (MSO_SHAPE_TYPE.PICTURE, MSO_SHAPE_TYPE.CHART, MSO_SHAPE_TYPE.MEDIA, MSO_SHAPE_TYPE.EMBEDDED_OLE_OBJECT) \
                     or getattr(shape, "has_chart", False):
@@ -222,6 +430,13 @@ def _pptx(b: _Builder, content: bytes):
             if getattr(shape, "has_table", False) and shape.has_table:
                 items.append(("table", shape.table))
             elif getattr(shape, "has_text_frame", False) and shape.text_frame.text.strip():
+                if x is not None:
+                    geo["text"][len(items)] = (_box(x, T), str(shape.shape_id), _plain_text(shape))
+                emph, size = _tf_emphasis(shape.text_frame)
+                ph = shape.placeholder_format.type if getattr(shape, "is_placeholder", False) else None
+                sig[len(items)] = {"title": ph in (1, 3), "emphasis": emph, "size": size,     # 1 TITLE, 3 CENTER_TITLE
+                                   "placeholder": ph is not None and ph not in (13, 15, 16),     # not slide number/footer/date
+                                   "top": _box(x, T)[1] if x is not None else (0 if ph is not None else None)}
                 items.append(("text", _tf_text(shape.text_frame)))
             elif type(shape).__name__ == "GraphicFrame" and not getattr(shape, "has_table", False):
                 visual = True       # SmartArt and other diagrams
@@ -231,15 +446,34 @@ def _pptx(b: _Builder, content: bytes):
         p = b.page(f"s{n}", f"第{n}页", True)   # slides always need a look at the original
         p.requires_visual = True
         box = tab = 0
-        for kind, obj in items:
+        boxes, labels, by_shape, units, text_unit = {}, {}, {}, {}, {}
+        for i, (kind, obj) in enumerate(items):
             if kind == "text":
                 box += 1
                 b.unit(p, f"b{box}", f"第{n}页 文本框{box}", obj, "pptx_text")
+                if b.units and b.units[-1].id == f"{p.id}:b{box}":
+                    text_unit[i] = b.units[-1]
+                if i in geo["text"] and b.units and b.units[-1].id == f"{p.id}:b{box}":
+                    key = f"b{box}"
+                    boxes[key], units[key] = geo["text"][i][0], b.units[-1]
+                    by_shape[geo["text"][i][1]] = key
+                    if geo["text"][i][2]:
+                        labels[key] = obj
             else:
                 tab += 1
                 for r, row in enumerate(obj.rows, 1):
                     for c, cell in enumerate(row.cells, 1):
                         b.unit(p, f"t{tab}r{r}c{c}", f"第{n}页 表格{tab} 第{r}行第{c}列", _tf_text(cell.text_frame), "pptx_table_cell")
+        if boxes and (geo["segments"] or geo["blocks"]):
+            segs = [(path, h0, h1, by_shape.get(g0), by_shape.get(g1)) for path, h0, h1, g0, g1 in geo["segments"]]
+            for k, a in enumerate(find_arrows(boxes, segs, geo["blocks"], labels, prs.slide_width or 12192000), 1):
+                src, dst = units[a["from"]], units[a["to"]]
+                lab = units[a["label"]] if a["label"] else None
+                how = {"connector": "连接线", "connector_geometry": "连接线，按图形位置推断", "block_arrow": "箭头图形，按位置推断"}[a["method"]]
+                text = f"{src.text.strip()}→{dst.text.strip()}" + (f"（{lab.text.strip()}）" if lab else "")
+                b.unit(p, f"a{k}", f"第{n}页 箭头{k}（文本框{a['from'][1:]}→文本框{a['to'][1:]}，{how}）", text, "pptx_arrow")
+                b.units[-1].arrow = {"from": src.id, "to": dst.id, "label": lab.id if lab else None, "method": a["method"]}
+        _mark_slide(text_unit, sig, prs.slide_height or 6858000)
         if slide.has_notes_slide:
             b.unit(p, "notes", f"第{n}页 演讲者备注", _tf_text(slide.notes_slide.notes_text_frame), "pptx_notes")
         p.location = f"第{n}页" + ("（含图片/图表）" if visual else "")
@@ -281,6 +515,19 @@ def _docx(b: _Builder, content: bytes):
                 para_no += 1
                 count += 1
                 b.unit(section, f"para{para_no}", f"{section.location} 第{para_no}段", text, "docx_paragraph")
+                bold, cur = [], ""
+                for run in para.runs:                  # consecutive bold runs form one emphasised fragment
+                    if run.bold and run.text.strip():
+                        cur += run.text
+                    else:
+                        if len(cur.strip()) >= 2:
+                            bold.append(cur.strip())
+                        cur = ""
+                if len(cur.strip()) >= 2:
+                    bold.append(cur.strip())
+                marks = {"title": [text.strip()] if heading else [], "emphasis": [x for x in bold if x in text and x != text.strip()]}
+                if marks["title"] or marks["emphasis"]:
+                    b.units[-1].signals = marks
         elif el.tag == ns_w + "tbl":
             if section is None:
                 new_section("")
@@ -361,6 +608,55 @@ def extract_all(filename: str, content: bytes, source_id: str) -> tuple[list[Pag
     if len(b.units) > MAX_UNITS or sum(len(u.text) for u in b.units) > MAX_TEXT:
         raise IngestError("资料超出容量；请拆分导入，不能截断")
     return b.pages, b.units, b.figures
+
+
+def check_bbox(bbox) -> list[float]:
+    """A crop box in normalised page coordinates [x0, y0, x1, y1] (origin top left)."""
+    if not (isinstance(bbox, list) and len(bbox) == 4 and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in bbox)):
+        raise IngestError("截取区域 bbox 需为 [x0, y0, x1, y1] 四个数（页面归一化坐标，左上角为原点）")
+    x0, y0, x1, y1 = (float(v) for v in bbox)
+    if not (0 <= x0 < x1 <= 1 and 0 <= y0 < y1 <= 1):
+        raise IngestError(f"截取区域超出页面或方向颠倒：{bbox}")
+    if x1 - x0 < 0.05 or y1 - y0 < 0.05:
+        raise IngestError(f"截取区域过小：{bbox}")
+    return [round(v, 4) for v in (x0, y0, x1, y1)]
+
+
+def iou(a: list[float], b: list[float]) -> float:
+    ix = max(0.0, min(a[2], b[2]) - max(a[0], b[0]))
+    iy = max(0.0, min(a[3], b[3]) - max(a[1], b[1]))
+    inter = ix * iy
+    union = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - inter
+    return round(inter / union, 4) if union > 0 else 0.0
+
+
+def render_pdf_page(content: bytes, number: int, dpi: int = CROP_DPI):
+    """PIL image of PDF page `number` (1-based), rendered by code (pypdfium2) on a white background."""
+    import pypdfium2 as pdfium
+    pdf = pdfium.PdfDocument(content)
+    try:
+        if not 1 <= number <= len(pdf):
+            raise IngestError(f"PDF没有第{number}页")
+        page = pdf[number - 1]
+        try:
+            return page.render(scale=dpi / 72, fill_color=(255, 255, 255, 255)).to_pil().convert("RGB")
+        finally:
+            page.close()
+    finally:
+        pdf.close()
+
+
+def crop_pdf_page(content: bytes, number: int, bbox: list[float], dpi: int = CROP_DPI) -> tuple[bytes, int, int]:
+    """Cut `bbox` out of the rendered page; PNG bytes and size. Same input, same bytes."""
+    im = render_pdf_page(content, number, dpi)
+    W, H = im.size
+    box = (round(bbox[0] * W), round(bbox[1] * H), round(bbox[2] * W), round(bbox[3] * H))
+    part = im.crop(box)
+    if min(part.size) < MIN_FIGURE_SIDE:
+        raise IngestError(f"截取区域在 {dpi} dpi 下只有 {part.size[0]}×{part.size[1]} 像素，过小")
+    out = io.BytesIO()
+    part.save(out, "PNG", optimize=False)
+    return out.getvalue(), part.size[0], part.size[1]
 
 
 def transcription_units(page: dict, cells: list[dict], reader: str, figure_ids=frozenset()) -> list[dict]:

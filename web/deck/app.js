@@ -10,27 +10,33 @@ const time = (t) => (t ? String(t).replace("T", " ").slice(0, 19) : "—");
 
 const STEPS = [
   ["阅读", ["READING_REQUIRED"]],
+  ["论断清单", ["CLAIMS_REQUIRED"]],
   ["总结", ["SUMMARY_REQUIRED"]],
+  ["总结审查", ["SUMMARY_REVIEW_REQUIRED", "SUMMARY_ISSUES"]],
   ["内容确认", ["CONTENT_CONFIRMATION"]],
   ["事实库", ["FACTS_REQUIRED"]],
   ["页面规格", ["DECK_REQUIRED", "DECK_REVISION"]],
   ["确认与审查", ["CONFIRMATIONS_REQUIRED", "SEMANTIC_REVIEW_REQUIRED", "SEMANTIC_ISSUES"]],
-  ["渲染", ["RENDER_REQUIRED"]],
+  ["生成", ["RENDER_REQUIRED", "GENERATION_RUNNING", "GENERATION_FAILED"]],
   ["样页审核", ["SAMPLES_REVIEW"]],
   ["风格确认", ["STYLE_CONFIRMATION"]],
   ["逐页审核", ["PAGE_REVIEW"]],
   ["交付", ["READY_TO_EXPORT", "DELIVERED"]],
 ];
 const STAGE_LABEL = {
-  READING_REQUIRED: "待阅读资料", SUMMARY_REQUIRED: "待全文总结", CONTENT_CONFIRMATION: "待客户确认内容",
+  READING_REQUIRED: "待阅读资料", CLAIMS_REQUIRED: "待列论断清单", SUMMARY_REQUIRED: "待全文总结",
+  SUMMARY_REVIEW_REQUIRED: "待独立总结审查", SUMMARY_ISSUES: "总结审查有阻断问题", CONTENT_CONFIRMATION: "待客户确认内容",
   FACTS_REQUIRED: "待建立事实库", DECK_REQUIRED: "待编写页面规格", DECK_REVISION: "页面规格需修订",
   CONFIRMATIONS_REQUIRED: "待人工确认", SEMANTIC_REVIEW_REQUIRED: "待独立语义审查", SEMANTIC_ISSUES: "语义审查有阻断问题",
   RENDER_REQUIRED: "待正式渲染", SAMPLES_REVIEW: "待审核前5页", STYLE_CONFIRMATION: "待客户确认风格",
+  GENERATION_RUNNING: "A 原生矢量生成中", GENERATION_FAILED: "生成需处理",
   PAGE_REVIEW: "待逐页审核", READY_TO_EXPORT: "可交付", DELIVERED: "已交付",
 };
 const KIND_LABEL = {
-  READ_SOURCE: "阅读资料", SECOND_READ: "第二次独立转录", SUMMARY: "全文总结",
+  READ_SOURCE: "阅读资料", SECOND_READ: "第二次独立转录/截取", CLAIMS: "论断清单", SUMMARY: "全文总结",
+  SUMMARY_REVIEW: "独立总结审查",
   FACTS: "事实库", DECK: "页面规格", SEMANTIC_REVIEW: "独立语义审查",
+  VISUAL_DESIGN: "完整设计稿", VISUAL_LAYOUT: "版面拆解", VISUAL_CLEAN: "去字与图形分离", VISUAL_VECTOR: "图形矢量化", VISUAL_CRITIQUE: "版面评审",
 };
 const TABS = [
   ["overview", "项目与需求", "ti-settings"], ["sources", "资料", "ti-files"], ["tasks", "执行端任务", "ti-list-check"],
@@ -81,7 +87,7 @@ async function act(fn, ok) {
 }
 function badge(text, color) { return `<span class="badge bg-${color}-lt">${esc(text)}</span>`; }
 function stageBadge(stage) {
-  const color = stage === "DELIVERED" ? "green" : stage === "READY_TO_EXPORT" ? "teal" : /REVISION|ISSUES/.test(stage) ? "red" : "blue";
+  const color = stage === "DELIVERED" ? "green" : stage === "READY_TO_EXPORT" ? "teal" : /REVISION|ISSUES|FAILED/.test(stage) ? "red" : "blue";
   return badge(STAGE_LABEL[stage] || stage, color);
 }
 function card(title, body, extra = "") {
@@ -107,6 +113,18 @@ function figureBadges(info) {
   return [r ? badge(DEID_LABEL[r.deidentified], r.deidentified === "IDENTIFIABLE" ? "red" : "green") : badge("待截取/去标识确认", "orange"),
           l ? badge(l.permitted ? "已许可" : "未许可", l.permitted ? "green" : "red") : badge("待登记许可", "orange"),
           info.reading && info.reading.may_contain_patient_info ? badge("可能含患者信息", "red") : ""].join(" ");
+}
+function cropBox(b, style) {
+  return `<div style="position:absolute;left:${b[0] * 100}%;top:${b[1] * 100}%;width:${(b[2] - b[0]) * 100}%;height:${(b[3] - b[1]) * 100}%;${style}"></div>`;
+}
+// the whole original page with the crop box (solid) and the independent second box (dashed)
+function cropView(it, height = 320) {
+  const sr = it.second_read;
+  return `<a href="${it.page_image_url}" target="_blank" style="position:relative;display:inline-block;height:${height}px">
+      <img src="${it.page_image_url}" alt="原页" loading="lazy" style="height:100%;border:1px solid var(--tblr-border-color)">
+      ${cropBox(it.bbox, "border:2px solid #d63939")}${sr ? cropBox(sr.bbox, "border:2px dashed #206bc4") : ""}</a>
+    <div class="small text-secondary mt-1"><span style="color:#d63939">实线</span>：截取区域
+      ${sr ? `· <span style="color:#206bc4">虚线</span>：第二次独立截取（交并比 ${sr.iou}）` : "· 尚无第二次独立截取"}</div>`;
 }
 function figureThumb(fid, height = 120) {
   return `<a href="${figUrl(fid)}" target="_blank"><img src="${figUrl(fid)}" alt="${esc(fid)}" loading="lazy"
@@ -200,6 +218,7 @@ function tabOverview() {
   const themes = health.themes.map((t) => `<option ${t === w.theme ? "selected" : ""}>${esc(t)}</option>`).join("")
     + (w.brand ? `<option value="brand" ${w.theme === "brand" ? "selected" : ""}>客户模板（${esc(w.brand.filename)}）</option>` : "");
   $("#tab").innerHTML = brandCard(w) + card("项目与需求", `<form id="settings" class="card-body">
+      <div class="form-hint mb-2">PPT 正式生成采用 A 原生矢量方案：完整设计稿 → 去字 → 矢量化 → 原生文字与图形。</div>
       <div class="alert alert-warning">修改提纲或需求会使总结、事实库或页面规格失效，需要重新生成和确认。</div>
       <div class="mb-3"><label class="form-label">名称</label><input name="title" class="form-control" value="${esc(w.title)}"></div>
       <div class="mb-3"><label class="form-label">教学提纲（每行一条）</label>
@@ -284,7 +303,7 @@ function tabSources() {
         const info = figureInfo(w, g.id);
         return `<div class="col-sm-6 col-lg-3"><div class="card card-sm"><div class="text-center p-2">${figureThumb(g.id)}</div>
           <div class="card-body"><div class="mono small">${esc(g.id)}</div><div class="small">${esc(s.filename)} · ${esc(g.location)}</div>
-          <div class="small text-secondary">${g.width}×${g.height}px · 原件内嵌</div>
+          <div class="small text-secondary">${g.width}×${g.height}px · ${g.method === "page_crop" ? `页面截取 ${g.dpi} dpi` : "原件内嵌"}</div>
           ${info.reading ? `<div class="small mt-1">${esc(info.reading.note)}</div>` : `<div class="small text-secondary mt-1">尚未阅读</div>`}
           <div class="mt-1">${figureBadges(info)}</div></div></div></div>`;
       })).join("")}</div>
@@ -309,7 +328,7 @@ function tabSources() {
 
 function tabTasks() {
   const w = current;
-  const buttons = Object.entries(KIND_LABEL).map(([k, label]) =>
+  const buttons = Object.entries(KIND_LABEL).filter(([k]) => !["VISUAL_DESIGN", "VISUAL_LAYOUT", "VISUAL_CLEAN", "VISUAL_VECTOR"].includes(k)).map(([k, label]) =>
     `<button class="btn btn-sm" data-queue="${k}"><i class="ti ti-plus me-1"></i>${label}</button>`).join(" ");
   const color = { PENDING: "secondary", RUNNING: "blue", COMPLETE: "green", FAILED: "red", CANCELLED: "secondary" };
   const rows = [...w.tasks].reverse().map((t) => `<tr><td>${esc(KIND_LABEL[t.kind] || t.kind)}</td><td class="mono">${esc(t.binding ?? "—")}</td>
@@ -317,6 +336,7 @@ function tabTasks() {
       <td class="text-secondary">${time(t.created_at)}</td><td class="small text-danger">${esc(t.error ?? "")}</td></tr>`).join("");
   $("#tab").innerHTML = card("执行端任务", `<div class="card-body border-bottom">
       <div class="d-flex flex-wrap gap-2">${buttons}</div>
+      <div class="form-hint mt-2">设计稿、版面拆解、去字和矢量化由“渲染与审核”页的生成入口自动排队。</div>
       <div class="form-hint mt-2">任务由执行端领取完成：<code>python tools/codex_worker.py</code>。服务器会拒绝前置条件未满足的任务；
         语义审查和第二次转录须由不同的执行端身份完成。</div></div>
     ${w.tasks.length ? `<div class="table-responsive"><table class="table card-table table-vcenter">
@@ -351,22 +371,45 @@ function bindApproval(id, kind, subject) {
 function tabSummary() {
   const w = current, s = w.summary, a = w.content_approval, subject = w.approval_subjects.content;
   if (!s) { $("#tab").innerHTML = card("全文总结", empty("尚无总结。全部资料阅读完成后，在“执行端任务”中加入“全文总结”。")); return; }
-  const loc = {};
+  const loc = {}, unit = {};
   w.sources.forEach((src) => src.pages.forEach((p) => { loc[p.id] = `${src.filename} · ${p.location}`; }));
+  w.sources.forEach((src) => [...src.units, ...src.transcriptions].forEach((u) => { unit[u.id] = u; }));
+  const points = (x) => (x.key_points || []).length ? `<div class="mt-2">${x.key_points.map((k) => `<div class="mb-2"><b>要点：</b>${esc(k.point)}
+      ${k.unit_ids.map((id) => unit[id] ? `<div class="small text-secondary ms-3">原文（${esc(unit[id].location)}）：${esc(unit[id].text)}</div>` : "").join("")}</div>`).join("")}</div>` : "";
   const sections = s.sections.map((x) => `<div class="mb-3"><h4 class="mb-1">${esc(x.title)} <span class="text-secondary small mono">${esc(x.id)}</span></h4>
-      <div class="quote">${esc(x.summary)}</div>
+      <div class="quote">${esc(x.summary)}</div>${points(x)}
       <div class="small text-secondary mt-1">来源：${x.source_page_ids.map((r) => esc(loc[r] || r)).join("；")}</div></div>`).join("");
   const issues = s.pending_issues.length ? `<div class="alert alert-warning"><b>待解决问题（需先处理才能确认）</b><ul class="mb-0">
       ${s.pending_issues.map((i) => `<li>${esc(typeof i === "string" ? i : JSON.stringify(i))}</li>`).join("")}</ul></div>` : "";
   const approved = a && a.subject_sha256 === subject;
+  const sr = w.summary_review, srCurrent = sr && !["SUMMARY_REVIEW_REQUIRED"].includes(w.stage) && subject;
+  const srRows = srCurrent ? sr.issues.map((i) => {
+    const d = sr.dismissed[i.id];
+    return `<tr><td class="mono">${esc(i.ref)}</td><td>${i.severity === "BLOCKER" ? badge("阻断", "red") : badge("提示", "secondary")}</td>
+      <td>${esc(i.problem)}</td><td>${d ? `<span class="small">已驳回：${esc(d.reason)}（${esc(d.reviewer)}）</span>` : i.severity === "BLOCKER"
+        ? `<form data-sdismiss="${esc(i.id)}" class="d-flex gap-1"><input name="reason" class="form-control form-control-sm" placeholder="驳回理由" required>
+           <button class="btn btn-sm">驳回</button></form>` : ""}</td></tr>`;
+  }).join("") : "";
+  const review = card(`独立总结审查${srCurrent ? ` <span class="text-secondary small">${esc(sr.reviewer)} · ${time(sr.at)}</span>` : ""}`,
+    !srCurrent ? empty("当前总结尚未经独立审查。在“执行端任务”中加入“独立总结审查”（须由总结作者和论断清单作者之外的执行端完成）。")
+      : srRows ? `<div class="card-body border-bottom small text-secondary">只有确认问题不成立时才驳回；成立的问题应修订总结。</div>
+        <div class="table-responsive"><table class="table card-table"><thead><tr><th>位置</th><th>级别</th><th>问题</th><th></th></tr></thead><tbody>${srRows}</tbody></table></div>`
+      : empty("审查未报告问题。"));
+  const canApprove = subject && !s.pending_issues.length && ["CONTENT_CONFIRMATION"].includes(w.stage);
   $("#tab").innerHTML = card("全文总结", `<div class="card-body">
       ${subject ? "" : `<div class="alert alert-danger">总结已过期（资料、阅读或提纲已变更），需要重新生成。</div>`}
       ${issues}<p class="quote">${esc(s.overall_summary)}</p><hr>${sections}</div>`,
       `<a class="btn btn-sm" href="${url("/confirmation-draft")}"><i class="ti ti-download me-1"></i>内容确认稿</a>`)
+    + review
     + card("客户内容确认", (approved ? `<div class="card-body"><div class="alert alert-success mb-0">已确认：${esc(a.customer)}（${esc(a.method)}），
-        操作人 ${esc(a.operator)}，${time(a.at)}</div></div>` : subject && !s.pending_issues.length ? approvalForm("approve-content", subject, "记录客户已确认内容")
-        : empty("当前不能确认：需先有当前版本的总结并处理全部待解决问题。")));
+        操作人 ${esc(a.operator)}，${time(a.at)}</div></div>` : canApprove ? approvalForm("approve-content", subject, "记录客户已确认内容")
+        : empty("当前不能确认：需先有当前版本的总结，经独立审查且无未处理的阻断问题，并处理全部待解决问题。")));
   bindApproval("approve-content", "content", subject);
+  document.querySelectorAll("form[data-sdismiss]").forEach((f) => f.onsubmit = (ev) => {
+    ev.preventDefault();
+    act(() => api("POST", `/workflows/${wid()}/summary-review/issues/${encodeURIComponent(f.dataset.sdismiss)}/dismiss`,
+      { reviewer: me(), reason: f.reason.value }), "已驳回");
+  });
 }
 
 async function tabFacts() {
@@ -436,7 +479,9 @@ async function tabConfirm() {
       if (it.kind === "figure_review") return `<div class="card-body border-bottom"><div class="mb-1">${badge("截取与去标识", "azure")}
           <span class="mono">${esc(it.id)}</span> · ${esc(it.location)} · ${it.width}×${it.height}px
           ${it.reading && it.reading.may_contain_patient_info ? badge("阅读时提示：可能含患者信息", "red") : ""}</div>
-        <div class="row g-3"><div class="col-md-5">${figureThumb(it.id, 220)}</div><div class="col-md-7">
+        <div class="row g-3"><div class="col-md-5">${figureThumb(it.id, 220)}${it.method === "page_crop" ? `<div class="mt-2">${cropView(it)}</div>` : ""}</div><div class="col-md-7">
+          ${it.second_read && !it.second_read.agree ? `<div class="alert alert-warning py-2 small">两次独立截取区域不一致（交并比 ${it.second_read.iou}）。
+            请对照原页，在备注中说明现有截取为何完整；若确有遗漏，不要登记，请重新排队阅读并修正截取区域。</div>` : ""}
           ${it.reading ? `<div class="small text-secondary mb-2">阅读说明：${esc(it.reading.note)}</div>` : ""}
           <div class="small mb-2">请打开 <a href="${url(`/sources/${encodeURIComponent(it.source_id)}/file`)}" target="_blank">原件</a> 对照：图例、坐标轴、脚注、显著性标记是否都在；图中有无姓名、编号、日期、面部等可识别信息。</div>
           <form data-figreview="${esc(it.id)}">
@@ -445,6 +490,9 @@ async function tabConfirm() {
               ${Object.entries(DEID_LABEL).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select>
             <input name="note" class="form-control form-control-sm mb-2" placeholder="备注">
             <button class="btn btn-sm btn-primary">登记</button></form></div></div></div>`;
+      if (it.kind === "figure_second_crop") return `<div class="card-body border-bottom"><div class="mb-1">${badge("待第二次截取", "orange")}
+          <span class="mono">${esc(it.id)}</span> · ${esc(it.location)}</div>
+        <div class="small text-secondary">此图由阅读执行端按区域从原页截取，需另一执行端独立截取一次（排队“第二次独立转录/截取”任务）后才能正式渲染。</div></div>`;
       if (it.kind === "figure_licence") return `<div class="card-body border-bottom"><div class="mb-1">${badge("使用许可", "teal")}
           <span class="mono">${esc(it.id)}</span> · ${esc(it.location)}</div>
         <div class="d-flex gap-3 align-items-start">${figureThumb(it.id, 90)}
@@ -533,7 +581,21 @@ function reviewState(w, p) {
   return r.visual_status === "PASS" && r.content_status === "PASS" ? ["通过", "green"] : ["需修改", "red"];
 }
 
+let generationPoll = null;
+function generationProgress(g) {
+  if (!g || !g.pages.length) return '<div class="text-secondary small">启动后先锁定内容，再由 Codex＋Adobe 执行端制作每页设计与矢量素材。</div>';
+  const labels = { design: "设计稿", layout: "版面拆解", clean: "去字", vector: "矢量化" };
+  const cost = g.cost || {};
+  return `<div class="small mb-2">${badge(g.status === "COMPLETE" ? "已生成" : g.status === "FAILED" ? "需处理" : g.status === "STALE" ? "内容已变化" : "生成中", g.status === "FAILED" ? "red" : "azure")}
+      · 已存档调用 ${cost.accepted_tool_calls || 0} · 任务尝试 ${cost.task_attempts || 0} · 已报工具耗时 ${cost.reported_tool_seconds || 0} 秒</div>
+    ${g.render && g.render.error ? `<div class="alert alert-warning">${esc(g.render.error)}</div>` : ""}
+    <div class="table-responsive"><table class="table table-sm"><thead><tr><th>页面</th>${Object.values(labels).map(l => `<th>${l}</th>`).join("")}<th>进度</th></tr></thead><tbody>
+      ${g.pages.map(p => `<tr><td>${esc(p.id)}</td>${Object.keys(labels).map(k => `<td>${p.stages[k] ? badge("已完成", "green") : "待完成"}</td>`).join("")}
+        <td>${p.tasks.map(t => `${esc(KIND_LABEL[t.kind])} · ${esc(t.status)}${t.error ? `<div class="text-warning">${esc(t.error)}</div>` : ""}`).join("")}</td></tr>`).join("")}</tbody></table></div>
+    <div class="form-hint">费用尚无真实计费数据。调用回执与矢量差异随交付存档。</div>`;
+}
 function tabRender() {
+  clearTimeout(generationPoll);
   const w = current, r = w.render, d = w.draft_render;
   const lowDpi = (x) => x && x.warnings && x.warnings.figure_low_dpi.length ? `<div class="small text-warning">清晰度提示（不拦截，请在逐页审核时判断）：
       ${x.warnings.figure_low_dpi.map((d) => `${esc(d.fact)} 约 ${d.dpi} dpi`).join("；")}，低于 150 dpi</div>` : "";
@@ -543,6 +605,23 @@ function tabRender() {
       ${Object.entries(x.summary).map(([k, v]) => `${esc(k)} ${v}`).join(" · ")}</div>` : "";
   const files = (x, kind) => x ? ["deck.pptx", "deck.pdf", "deck.html", "render_report.json"].map((n) =>
       `<a class="btn btn-sm" href="${url(`/render/${kind}/${n}`)}" target="_blank">${n}</a>`).join(" ") : "";
+  // what the page reviewer checks on every page (app/deckflow.py RUBRIC); ticking one means "needs revision"
+  const RUBRIC = [["first_glance", "第一眼"], ["peers", "并列同等"], ["qualifiers", "限定未变"], ["whitespace", "留白"],
+    ["reading_order", "阅读方向"], ["repetition", "不重复"]];
+  const DESIGN = [["first", "第一眼"], ["then", "随后"], ["reference", "查阅"], ["strong", "强元素"]];
+  const pageNotes = (p) => {
+    const d = p.design || {}, sig = p.signals || [], rev = p.review || [];
+    const lines = DESIGN.filter(([k]) => d[k]).map(([k, n]) => `<div><span class="text-secondary">${n}：</span>${esc(d[k])}</div>`).join("");
+    const sigs = sig.map((s) => `<div class="${s.justified ? "text-secondary" : "text-warning"}">${s.justified ? "已说明" : "待处理"} · ${esc(s.detail)}${s.justified ? `（${esc(s.justified)}）` : ""}</div>`).join("");
+    const revs = rev.map((x) => `<div class="text-secondary">语义审查 · ${esc(x)}</div>`).join("");
+    // the visual critique of this exact image (another worker; advisory, never a page review)
+    const cr = w.critique && w.critique.pages[p.id] && w.critique.pages[p.id].png_sha256 === p.sha256 ? w.critique.pages[p.id] : null;
+    const crit = cr ? `<div class="mt-1"><span class="text-secondary">版面评审（${esc(w.critique.critic)}）：</span>${
+      RUBRIC.filter(([k]) => cr.rubric[k] === "REVISE").map(([, n]) => badge(n, "orange")).join(" ") || badge("各项通过", "green")}
+      ${cr.fixes.map((f) => `<div>· ${esc(f)}</div>`).join("")}</div>` : "";
+    return lines || sigs || revs || crit ? `<details class="small mb-1"><summary>本页设计、提示与审查项${sig.some((s) => !s.justified) ? " " + badge("有提示", "yellow") : ""}</summary>
+      ${lines}${sigs}${revs}${crit}</details>` : "";
+  };
   let gallery = "";
   if (r) {
     gallery = `<div class="row row-cards">${r.pages.map((p, i) => {
@@ -553,7 +632,10 @@ function tabRender() {
         <div class="card-body p-2"><div class="d-flex justify-content-between align-items-center mb-1">
           <span><b>${i + 1}</b> <span class="mono">${esc(p.id)}</span>${i < 5 ? " " + badge("样页", "azure") : ""}</span>${badge(label, color)}</div>
           ${rev && rev.feedback ? `<div class="small text-secondary mb-1">${esc(rev.feedback)}</div>` : ""}
+          ${pageNotes(p)}
           <form data-review="${esc(p.id)}" data-sha="${esc(p.sha256)}">
+            <div class="d-flex flex-wrap gap-2 small mb-1"><span class="text-secondary">需修改：</span>${RUBRIC.map(([k, n]) =>
+              `<label class="form-check form-check-inline m-0"><input class="form-check-input" type="checkbox" name="r_${k}"><span class="form-check-label">${n}</span></label>`).join("")}</div>
             <div class="d-flex gap-2 small mb-1"><select name="visual" class="form-select form-select-sm"><option value="PASS">版面通过</option><option value="REVISE">版面需修改</option></select>
               <select name="content" class="form-select form-select-sm"><option value="PASS">内容通过</option><option value="REVISE">内容需修改</option></select></div>
             <input name="feedback" class="form-control form-control-sm mb-1" placeholder="意见">
@@ -566,24 +648,40 @@ function tabRender() {
   const styleDone = a && a.subject_sha256 === subject;
   const samplesOk = r && r.pages.slice(0, 5).every((p) => reviewState(w, p)[0] === "通过");
   $("#tab").innerHTML =
-    card("渲染", `<div class="card-body">
+    card("PPT 生成 · A 原生矢量", `<div class="card-body">
       <div class="d-flex gap-2 flex-wrap mb-2">
-        <button class="btn btn-primary" id="render-final"><i class="ti ti-player-play me-1"></i>正式渲染</button>
+        <button class="btn btn-primary" id="render-final"><i class="ti ti-player-play me-1"></i>开始／续跑生成</button>
         <button class="btn" id="render-draft">草稿渲染</button></div>
-      <div class="form-hint mb-2">渲染由代码完成（HTML → PNG/PDF/原生 PPTX 并回读核对）。草稿可带待确认标记，不能用于审核。</div>
+      <div class="form-hint mb-2">完整设计稿 → 版面拆解 → 去字 → 矢量化 → 原生文字、表格与图形 → PowerPoint 渲染核对。素材齐备后自动导出；完成后逐页审核。草稿用于内容检查。</div>
+      <div id="generation-progress">${generationProgress(w.generation_status)}</div>
       ${r ? `<div class="mb-2"><b>正式版</b> <span class="mono small">${short(r.input_sha256)}</span> ${r.hard_errors ? badge("有硬错误", "red") : ""} ${files(r, "final")}${summary(r)}</div>` : ""}
       ${d ? `<div><b>草稿</b> <span class="mono small">${short(d.input_sha256)}</span> ${files(d, "draft")}${summary(d)}</div>` : ""}</div>`)
     + (r ? card("客户风格确认（前5页）", styleDone ? `<div class="card-body"><div class="alert alert-success mb-0">已确认：${esc(a.customer)}（${esc(a.method)}），${time(a.at)}</div></div>`
         : subject && samplesOk ? approvalForm("approve-style", subject, "记录客户已确认样页风格") : empty("前5页全部审核通过后才能记录风格确认。")) : "")
     + (r ? card("逐页审核", `<div class="card-body">${gallery}</div>`) : "");
-  $("#render-final").onclick = () => act(() => api("POST", `/workflows/${wid()}/render`), "正式渲染完成");
+  $("#render-final").onclick = () => act(() => api("POST", `/workflows/${wid()}/generation`), "生成流程已启动，执行端任务已排队");
   $("#render-draft").onclick = () => act(() => api("POST", `/workflows/${wid()}/render?draft=true`), "草稿渲染完成");
+  if (w.generation_status && ["WAITING_WORKER", "PENDING", "RUNNING"].includes(w.generation_status.status)) {
+    const id = wid();
+    const poll = async () => {
+      if (!$("#generation-progress") || wid() !== id) return;
+      try {
+        const g = await api("GET", `/workflows/${id}/generation`);
+        if (!$("#generation-progress") || wid() !== id) return;
+        $("#generation-progress").innerHTML = generationProgress(g);
+        if (g.status === "COMPLETE") { await route(); return; }
+        if (["WAITING_WORKER", "PENDING", "RUNNING"].includes(g.status)) generationPoll = setTimeout(poll, 5000);
+      } catch (e) { generationPoll = setTimeout(poll, 15000); }
+    };
+    generationPoll = setTimeout(poll, 5000);
+  }
   bindApproval("approve-style", "style", subject);
   document.querySelectorAll("form[data-review]").forEach((f) => f.onsubmit = (ev) => {
     ev.preventDefault();
     act(() => api("POST", `/workflows/${wid()}/pages/${encodeURIComponent(f.dataset.review)}/review`, {
       reviewer: me(), png_sha256: f.dataset.sha, sources_checked: f.checked.checked,
-      visual_status: f.visual.value, content_status: f.content.value, feedback: f.feedback.value }), `已记录 ${f.dataset.review}`);
+      visual_status: f.visual.value, content_status: f.content.value, feedback: f.feedback.value,
+      rubric: Object.fromEntries(RUBRIC.map(([k]) => [k, f[`r_${k}`].checked ? "REVISE" : "PASS"])) }), `已记录 ${f.dataset.review}`);
   });
 }
 

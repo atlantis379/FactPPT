@@ -3,14 +3,23 @@
    become PowerPoint text boxes carry data-t. Anything else is reported as untracked.
    Layout sizes inside the body scale with --k so the renderer can tighten a dense
    page without changing its structure. #}
-{%- macro fact(ref, cls="") -%}
+{%- macro fact(ref, cls="", one=False) -%}
 {%- set f = facts[ref.fact] -%}
-<span class="f {{ cls }}{% if f.conflict %} conflict{% endif %}" data-fact="{{ f.id }}">
-{%- if ref.emph %}{% for piece, on in emph_spans(f.text, ref.emph) %}{% if on %}<b class="em">{{ piece }}</b>{% else %}{{ piece }}{% endif %}{% endfor %}{% else %}{{ f.text }}{% endif -%}
+<span class="f {{ cls }}{% if ref.focus %} fx{% endif %}{% if f.conflict %} conflict{% endif %}" data-fact="{{ f.id }}">
+{%- if ref.emph %}{% for piece, on in emph_spans(f.text, ref.emph) %}{% if on %}<b class="em">{{ piece }}</b>{% else %}{{ piece }}{% endif %}{% endfor %}{% elif one %}{{ f.text|oneline }}{% else %}{{ f.text }}{% endif -%}
 </span>
 {%- if f.pending %}<span class="mark" data-mark="pending" title="待人工确认">●</span>{% endif -%}
 {%- endmacro -%}
-{%- macro node(ref) -%}{% if ref is mapping and ref.fact is defined %}{{ fact(ref) }}{% elif ref is mapping %}<span data-authored>{{ ref.text }}</span>{% endif %}{%- endmacro -%}
+{%- macro figure(g, fill=False) -%}
+<div class="figbox" style="height:{{ g.box_h if fill else g.h }}px"><img data-figure="{{ g.fact }}" src="{{ g.file }}" alt="" style="width:{{ g.w }}px;height:{{ g.h }}px"></div>
+{% if g.caption %}<div class="figcap" data-t>{% for c in g.caption %}{{ fact({"fact": c}) }}{% if not loop.last %} {% endif %}{% endfor %}</div>{% endif %}
+<div class="figsrc" data-t data-chrome>图源：{{ g.source }}（原件图片，未作修改）{% if g.pending %}<span class="legend"> ● 待确认</span>{% endif %}</div>
+{%- endmacro -%}
+{%- macro node(ref, one=False) -%}{% if ref is mapping and ref.fact is defined %}{{ fact(ref, "", one) }}{% elif ref is mapping %}<span data-authored>{{ ref.text }}</span>{% endif %}{%- endmacro -%}
+{%- macro notes(p) -%}{% if p.notes %}<div class="cardnotes aux" data-shape>
+    {% if p.notes_title %}<div class="h" data-t>{{ node(p.notes_title) }}</div>{% endif %}
+    <ul>{% for n in p.notes %}<li data-t>{{ node(n) }}</li>{% endfor %}</ul>
+  </div>{% endif %}{%- endmacro -%}
 <!doctype html>
 <html lang="zh-CN">
 <head>
@@ -29,23 +38,26 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
 @media print{html,body{background:none}.slide{margin:0;page-break-after:always}}
 @page{size:1280px 720px;margin:0}
 /* chrome */
-.head{position:absolute;left:64px;top:40px;right:64px}
+/* Three surface levels: white content surfaces with a hairline edge; a tinted surface only for callouts
+   (side notes, card notes, statements); the primary colour for the one strongest element (band, hero, core node).
+   The accent marks data (card tops, big values, bullets, labels); structure uses the primary colours. */
+.head{position:absolute;left:64px;top:44px;right:64px}
 .section{font-size:14px;font-weight:700;letter-spacing:.12em;color:var(--accent);height:20px;line-height:20px;white-space:nowrap;overflow:hidden}
 .title{margin-top:8px;font-size:calc(var(--k)*34px);font-weight:700;line-height:46px;color:var(--primary);height:46px;white-space:nowrap}
-.lead{margin-top:8px;font-size:calc(var(--k)*17px);line-height:calc(var(--k)*26px);color:var(--muted);height:54px}
+.lead{margin-top:10px;font-size:calc(var(--k)*17px);line-height:calc(var(--k)*27px);color:var(--muted);height:54px}
 .logo{position:absolute;right:48px;top:34px;max-width:170px;max-height:40px;object-fit:contain}
 .has-logo .head{right:240px}
-.accent-bar{position:absolute;left:0;top:60px;width:8px;height:52px;background:var(--accent)}
+.accent-bar{position:absolute;left:0;top:64px;width:8px;height:52px;background:var(--accent)}
 .foot{position:absolute;left:64px;right:64px;bottom:20px;height:36px;border-top:1px solid var(--line)}
 .foot .src{position:absolute;left:0;top:7px;right:110px;font-size:10.5px;line-height:15px;color:var(--muted);height:30px;overflow:hidden}
-.foot .pg{position:absolute;right:0;top:7px;width:100px;text-align:right;font-size:12px;line-height:16px;color:var(--muted);font-weight:700}
+.foot .pg{position:absolute;right:0;top:7px;width:32px;text-align:right;font-size:12px;line-height:16px;color:var(--muted);font-weight:700}
 .legend{color:var(--amber);font-weight:700}
-.mark{color:#E0A526;font-size:.5em;margin-left:3px;vertical-align:.6em;opacity:.85}
+.mark{color:#E0A526;font-size:.5em;margin-left:3px;vertical-align:.6em;opacity:.85;line-height:0}
 .f.conflict{color:var(--red)}
 .em{font-weight:800;color:var(--accent)}
 .band .em,.node.core .em{color:var(--accent-on-dark)}   /* dark surfaces; PPTX export keeps weight and colour only */
 .tag-conflict{display:inline-block;margin-left:6px;padding:0 6px;border-radius:4px;background:#FBE9E7;color:var(--red);font-size:11px;line-height:18px;font-weight:700}
-.body{position:absolute;left:64px;right:64px;top:{{ 196 }}px;bottom:72px}
+.body{position:absolute;left:64px;right:64px;top:{{ body_top }}px;bottom:88px;display:flex;flex-direction:column;justify-content:flex-start;padding:14px 0 8px}
 /* cover / divider / closing */
 .L-cover,.L-divider{background:var(--primary)}
 .L-cover .art,.L-divider .art{position:absolute;right:0;top:0;width:640px;height:720px}
@@ -54,47 +66,60 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
 .L-cover .bar,.L-divider .bar{position:absolute;left:88px;top:410px;width:72px;height:4px;background:var(--accent2)}
 .L-cover .s{position:absolute;left:88px;top:430px;width:640px;height:68px;font-size:calc(var(--k)*22px);line-height:34px;color:#D5DFEC}
 .L-cover .meta{position:absolute;left:88px;bottom:56px;width:640px;height:20px;font-size:13px;line-height:20px;color:#9FB0C8}
-.L-divider .t{position:absolute;left:88px;top:270px;width:680px;height:120px;font-size:calc(var(--k)*46px);line-height:calc(var(--k)*60px);font-weight:900;color:#fff}
+/* divider: the cover's language — letter-spaced number where the cover has its kicker, then title, bar, subtitle */
+.L-divider .t{position:absolute;left:88px;top:196px;width:640px;height:204px;font-size:calc(var(--k)*48px);line-height:calc(var(--k)*68px);font-weight:900;color:#fff;
+  display:flex;flex-direction:column;justify-content:flex-end}
+.L-divider .t .no{display:block;font-size:16px;line-height:24px;letter-spacing:.2em;font-weight:700;color:var(--accent-on-dark);margin-bottom:14px}
 .L-divider .s{position:absolute;left:88px;top:430px;width:640px;height:68px;font-size:calc(var(--k)*20px);line-height:32px;color:#D5DFEC}
-.L-divider .no{position:absolute;left:88px;top:212px;width:200px;height:40px;font-size:30px;line-height:40px;font-weight:900;color:var(--accent-on-dark)}
-/* bullets */
+/* original line breaks inside a quote stay line breaks (the fact text itself is unchanged) */
+.body .f{white-space:pre-line}
+/* inside small diagram boxes, headings, labels and table headers the original's breaks were only wrapping */
+.canvas .f,.tile .th .f,.card .lb .f,.panel .st .f,.tbl th .f,.btile .tt .f{white-space:normal}
+/* bullets: the demo's notes list: teal dots, hairline separators, fixed size, whitespace when short */
 .items{list-style:none;column-gap:48px}
 .items.two{column-count:2}
-.items li{position:relative;padding-left:24px;font-size:calc(var(--k)*20px);line-height:calc(var(--k)*31px);color:var(--ink);margin-bottom:calc(var(--k)*16px);break-inside:avoid}
-.items li:before{content:"";position:absolute;left:2px;top:calc(var(--k)*11px);width:9px;height:9px;border-radius:2px;background:var(--accent)}
-.items.two li{font-size:calc(var(--k)*18px);line-height:calc(var(--k)*28px)}
-.items.big li{font-size:calc(var(--k)*24px);line-height:calc(var(--k)*36px);padding:calc(var(--k)*20px) 0 calc(var(--k)*20px) 34px;margin:0;border-bottom:1px solid var(--line)}
-.items.big li:first-child{border-top:1px solid var(--line)}
-.items.big li:before{left:4px;top:calc(var(--k)*34px);width:12px;height:12px;border-radius:3px}
+.items li{position:relative;padding:calc(var(--k)*14px) 8px calc(var(--k)*14px) 26px;font-size:calc(var(--k)*17px);line-height:calc(var(--k)*27px);color:var(--ink);
+  border-bottom:1px solid var(--line);break-inside:avoid}
+.items li:first-child{border-top:1px solid var(--line)}
+.items.two li:nth-child(n){border-top:none}
+.items.two{border-top:1px solid var(--line)}
+.items li:before{content:"";position:absolute;left:4px;top:calc(var(--k)*25px);width:7px;height:7px;border-radius:50%;background:var(--accent)}
+/* agenda: numbered parts of the deck */
+.agenda{display:grid;grid-template-columns:1fr;column-gap:48px;border-top:1px solid var(--line)}
+.agenda.two{grid-template-columns:1fr 1fr}
+.ag{display:flex;align-items:center;gap:24px;padding:calc(var(--k)*18px) 8px;border-bottom:1px solid var(--line)}
+.ag .no{flex:none;width:calc(var(--k)*56px);font-size:calc(var(--k)*28px);line-height:calc(var(--k)*38px);font-weight:700;color:var(--accent)}
+.ag .at{flex:1;font-size:calc(var(--k)*20px);line-height:calc(var(--k)*30px);font-weight:700;color:var(--primary)}
 /* table */
 .tbl{border-collapse:collapse;width:1152px;table-layout:fixed}
-.tbl th{background:var(--primary);color:#fff;font-size:calc(var(--k)*15px);line-height:calc(var(--k)*21px);font-weight:700;text-align:left;padding:calc(var(--k)*11px) 14px}
-.tbl td{font-size:calc(var(--k)*16px);line-height:calc(var(--k)*23px);padding:calc(var(--k)*11px) 14px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink)}
+.tbl th{background:var(--primary);color:#fff;font-size:calc(var(--k)*15px);line-height:calc(var(--k)*21px);font-weight:700;text-align:left;padding:calc(var(--k)*13px) 16px}
+.tbl td{font-size:calc(var(--k)*16px);line-height:calc(var(--k)*24px);padding:calc(var(--k)*13px) 16px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink)}
 .tbl tr:nth-child(even) td{background:var(--sky)}
 .tbl td:first-child{font-weight:700;color:var(--primary)}
 .tbl .cellline{display:block}
 /* cards */
-.cards{display:flex;gap:20px;height:calc(var(--k)*190px)}
-.card{flex:1;background:var(--paper);border:1px solid var(--line);border-top:5px solid var(--accent);border-radius:10px;padding:18px 22px;position:relative;overflow:hidden}
-.card .lb{font-size:calc(var(--k)*15px);line-height:calc(var(--k)*22px);color:var(--muted);height:calc(var(--k)*44px);overflow:hidden}
-.card .vl{margin-top:10px;font-size:calc(var(--k)*40px);line-height:calc(var(--k)*52px);font-weight:800;color:var(--primary)}
-.card .vl.word{font-size:calc(var(--k)*24px);line-height:calc(var(--k)*34px)}
+.cards{display:flex;gap:20px;min-height:calc(var(--k)*200px)}
+.card{flex:1;background:var(--paper);border:1px solid var(--line);border-top:5px solid var(--accent);border-radius:10px;padding:22px 26px;position:relative;overflow:hidden;
+  display:flex;flex-direction:column;justify-content:flex-start}
+.card .lb{font-size:calc(var(--k)*15px);line-height:calc(var(--k)*22px);color:var(--muted);min-height:calc(var(--k)*44px)}
+.card .vl{margin-top:14px;font-size:calc(var(--k)*44px);line-height:calc(var(--k)*56px);font-weight:800;color:var(--primary)}
+.card .vl.word{font-size:calc(var(--k)*30px);line-height:calc(var(--k)*40px)}
 .card .nt{margin-top:6px;font-size:calc(var(--k)*13.5px);line-height:calc(var(--k)*20px);color:var(--muted)}
 .cardnotes{margin-top:24px;background:var(--soft);border-radius:10px;padding:16px 24px}
 .cardnotes .h,.panel .h,.side .h{font-size:13px;line-height:18px;font-weight:700;color:var(--accent);letter-spacing:.1em;height:18px;margin-bottom:6px}
-.cardnotes li{list-style:none;position:relative;padding-left:18px;font-size:calc(var(--k)*15.5px);line-height:calc(var(--k)*24px);margin-bottom:6px}
+.cardnotes li{list-style:none;position:relative;padding-left:18px;font-size:calc(var(--k)*17px);line-height:calc(var(--k)*26px);margin-bottom:6px}
 .cardnotes li:before{content:"";position:absolute;left:0;top:calc(var(--k)*9px);width:7px;height:7px;border-radius:50%;background:var(--accent)}
 /* compare */
-.panels{display:flex;gap:24px;align-items:stretch;max-height:calc(100% - var(--band, 0px))}
-.panel{flex:1;border:1px solid var(--line);border-top:5px solid var(--primary2);border-radius:12px;padding:18px 24px;position:relative;overflow:hidden}
-.panel .st{font-size:calc(var(--k)*19px);line-height:calc(var(--k)*27px);font-weight:700;color:var(--primary)}
-.panel .big{margin-top:12px;font-size:calc(var(--k)*52px);line-height:calc(var(--k)*64px);font-weight:900;color:var(--accent)}
+.panels{display:flex;gap:24px;align-items:stretch}
+.panel{flex:1;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:22px 26px;position:relative;overflow:hidden}
+.panel .st{font-size:calc(var(--k)*20px);line-height:calc(var(--k)*29px);font-weight:700;color:var(--primary)}
+.panel .big{margin-top:12px;font-size:calc(var(--k)*48px);line-height:calc(var(--k)*68px);font-weight:900;color:var(--accent)}
 .panel .bl{font-size:calc(var(--k)*15px);line-height:calc(var(--k)*22px);color:var(--muted);margin-bottom:12px}
-.panel .ci{font-size:calc(var(--k)*15.5px);line-height:calc(var(--k)*23px);color:var(--ink);padding:calc(var(--k)*7px) 0 calc(var(--k)*7px) 22px;border-bottom:1px dashed var(--line);position:relative}
+.panel .ci{font-size:calc(var(--k)*18px);line-height:calc(var(--k)*27px);color:var(--ink);padding:calc(var(--k)*7px) 0 calc(var(--k)*7px) 22px;border-bottom:1px dashed var(--line);position:relative}
 .panel .ci:before{content:"";position:absolute;left:2px;top:calc(var(--k)*14px);width:9px;height:9px;border-radius:2px;background:var(--accent)}
 .band{position:relative;margin-top:20px;min-height:64px;background:var(--primary);border-radius:10px;padding:14px 26px;color:#fff;overflow:hidden}
 .band .b1{font-size:calc(var(--k)*17px);line-height:calc(var(--k)*26px);font-weight:700}
-.band .b2{font-size:calc(var(--k)*14px);line-height:calc(var(--k)*22px);color:#C9D6E8;margin-top:4px}
+.band .b2{font-size:calc(var(--k)*15px);line-height:calc(var(--k)*23px);color:#C9D6E8;margin-top:4px}
 /* flow */
 .canvas{position:absolute;left:0;top:0}
 .node{position:absolute;border-radius:9px;background:var(--paper);border:1.5px solid var(--primary2);display:flex;align-items:center;justify-content:center;text-align:center;
@@ -103,38 +128,45 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
 .node.soft{background:var(--sky);border-color:var(--line);color:var(--ink);font-weight:500}
 .edges{position:absolute;left:0;top:0;overflow:visible}
 .tag{position:absolute;transform:translateX(-50%);height:24px;border-radius:12px;background:var(--accent);color:#fff;font-size:calc(var(--k)*12.5px);line-height:24px;font-weight:700;text-align:center;white-space:nowrap;overflow:hidden;padding:0 8px}
+.elabel{position:absolute;border-radius:11px;background:var(--paper);border:1.5px solid var(--accent);color:var(--accent);font-size:12.5px;line-height:19px;
+  font-weight:700;text-align:center;white-space:nowrap;overflow:hidden;display:flex;align-items:center;justify-content:center}
 .side{position:absolute;right:0;top:0;width:{{ 300 }}px;bottom:0}
 .side .p{font-size:calc(var(--k)*14.5px);line-height:calc(var(--k)*22px);color:var(--ink);padding:12px 16px;border-left:4px solid var(--accent);background:var(--sky);border-radius:0 8px 8px 0;margin-bottom:12px}
 /* statement */
-.stmt{position:absolute;left:40px;right:40px;top:10px;height:210px;display:flex;align-items:center;font-size:calc(var(--k)*30px);line-height:calc(var(--k)*46px);font-weight:700;color:var(--primary);
-  border-left:6px solid var(--accent);padding-left:36px}
-.support{position:absolute;left:40px;right:40px;top:250px}
-.support li{list-style:none;position:relative;padding-left:22px;font-size:calc(var(--k)*17px);line-height:calc(var(--k)*27px);color:var(--ink);margin-bottom:12px}
+/* statement: the demo's band (the page's one strong element), then its support as a notes list */
+.stmt{position:relative;display:flex;align-items:center;font-size:calc(var(--k)*22px);line-height:calc(var(--k)*34px);font-weight:700;color:#fff;
+  background:var(--primary);border-radius:10px;padding:calc(var(--k)*24px) 32px}
+.stmt .em{color:var(--accent-on-dark)}
+.support{position:relative;margin-top:calc(var(--k)*24px);border-top:1px solid var(--line)}
+.support li{list-style:none;position:relative;padding:calc(var(--k)*14px) 8px calc(var(--k)*14px) 26px;font-size:calc(var(--k)*17px);line-height:calc(var(--k)*27px);color:var(--ink);
+  border-bottom:1px solid var(--line)}
 /* hero: one key number */
-.herowrap{position:absolute;left:0;right:0;top:0;bottom:24px;display:flex;align-items:center;gap:48px}
+.herowrap{position:absolute;left:0;right:0;top:14px;bottom:24px;display:flex;align-items:flex-start;gap:48px}
 .hero{width:520px;flex:none;background:var(--primary);border-radius:16px;padding:48px 52px;overflow:hidden}
 .hero .hv{font-size:calc(var(--k)*80px);line-height:calc(var(--k)*108px);font-weight:900;color:var(--accent-on-dark);max-height:calc(var(--k)*216px);overflow:hidden}
 .hero .hl{margin-top:18px;font-size:calc(var(--k)*22px);line-height:calc(var(--k)*32px);color:#D5DFEC;max-height:calc(var(--k)*64px);overflow:hidden}
 .herosup{flex:1;list-style:none}
-.herosup li{position:relative;padding:calc(var(--k)*18px) 0 calc(var(--k)*18px) 26px;font-size:calc(var(--k)*21px);line-height:calc(var(--k)*32px);color:var(--ink);border-bottom:1px solid var(--line)}
+.herosup li{position:relative;padding:calc(var(--k)*14px) 0 calc(var(--k)*14px) 26px;font-size:calc(var(--k)*17px);line-height:calc(var(--k)*27px);color:var(--ink);border-bottom:1px solid var(--line)}
 .herosup li:first-child{border-top:1px solid var(--line)}
-.herosup li:before{content:"";position:absolute;left:2px;top:calc(var(--k)*30px);width:10px;height:10px;border-radius:2px;background:var(--accent)}
+.herosup li:before{content:"";position:absolute;left:4px;top:calc(var(--k)*25px);width:7px;height:7px;border-radius:50%;background:var(--accent)}
 /* timeline */
-.tlwrap{position:absolute;left:0;right:0;top:0;bottom:24px;display:flex;align-items:center}
+.tlwrap{position:absolute;left:0;right:0;top:14px;bottom:24px;display:flex;align-items:flex-start}
 .tl{position:relative;display:flex;gap:24px;width:100%}
 .tlline{position:absolute;left:0;right:0;top:calc(var(--k)*72px);height:4px;background:var(--line)}
 .tls{flex:1;position:relative}
 .tls .when{height:calc(var(--k)*60px);font-size:calc(var(--k)*22px);line-height:calc(var(--k)*30px);font-weight:800;color:var(--primary);overflow:hidden;display:flex;align-items:flex-end}
 .tls .dot{width:24px;height:24px;border-radius:50%;background:var(--accent);border:5px solid var(--soft);margin-top:calc(var(--k)*2px)}
-.tls .what{margin-top:18px;font-size:calc(var(--k)*19px);line-height:calc(var(--k)*29px);color:var(--ink);background:var(--sky);border-radius:10px;padding:18px 20px;
+.tls .what{margin-top:18px;font-size:calc(var(--k)*19px);line-height:calc(var(--k)*29px);color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:18px 20px;
   border-top:4px solid var(--accent)}
 /* grid of tiles */
-.gridwrap{position:absolute;left:0;right:0;top:0;bottom:16px;display:flex;align-items:center}
+.gridwrap{position:absolute;left:0;right:0;top:14px;bottom:16px;display:flex;align-items:flex-start}
 .grid{display:grid;gap:20px;width:100%}
-.tile{background:var(--paper);border:1px solid var(--line);border-top:5px solid var(--accent);border-radius:12px;padding:20px 24px;overflow:hidden}
+.tile{background:var(--paper);border:1px solid var(--line);border-top:4px solid var(--primary2);border-radius:10px;padding:20px 24px;overflow:hidden}
 .tile .th{font-size:calc(var(--k)*21px);line-height:calc(var(--k)*30px);font-weight:800;color:var(--primary);margin-bottom:10px}
-.tile .ti{position:relative;padding-left:18px;font-size:calc(var(--k)*18px);line-height:calc(var(--k)*27px);color:var(--ink);margin-bottom:8px}
+.tile .ti{position:relative;padding-left:18px;font-size:calc(var(--k)*18.5px);line-height:calc(var(--k)*28px);color:var(--ink);margin-bottom:8px}
 .tile .ti:before{content:"";position:absolute;left:0;top:calc(var(--k)*10px);width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.tile .th + .ti:last-child{padding-left:0}                 /* a single item is not a list: no bullet */
+.tile .th + .ti:last-child:before{display:none}
 /* chart: bars drawn from fact values, zero baseline, no tick numbers */
 .chart{position:absolute;left:0;top:4px}
 .cbar{position:absolute;background:var(--accent);border-radius:3px 3px 0 0}
@@ -147,10 +179,54 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
 /* figure: a source picture, whole and unaltered, with its caption and source */
 .figwrap{position:absolute;left:0;top:0}
 .figbox{display:flex;align-items:center;justify-content:center}
+.figpanel{margin-top:12px;box-sizing:border-box}
 .figbox img{display:block;object-fit:contain}
 .figcap{margin-top:8px;height:44px;font-size:calc(var(--k)*14.5px);line-height:calc(var(--k)*22px);color:var(--ink);text-align:center;overflow:hidden}
 .figsrc{height:20px;margin-top:6px;font-size:12px;line-height:20px;color:var(--muted);text-align:center;white-space:nowrap;overflow:hidden}
-.support li:before{content:"";position:absolute;left:2px;top:calc(var(--k)*10px);width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.support li:before{content:"";position:absolute;left:4px;top:calc(var(--k)*25px);width:7px;height:7px;border-radius:50%;background:var(--accent)}
+/* composed pages: blocks placed by the page's own design; text colours and surfaces come from the theme */
+.L-composed .body{padding:0}
+.cb{position:absolute}
+.cb .f{white-space:pre-line}
+.cb{--t-ink:var(--ink);--t-muted:var(--muted);--t-primary:var(--primary);--t-primary2:var(--primary2);--t-accent:var(--accent);--t-on-dark:#fff;--t-on-dark-accent:var(--accent-on-dark)}
+.cb.surface.tone-line,.cb.marker.tone-line{background:#fff;border:1.5px solid var(--line)}
+.cb.surface.tone-tint{background:var(--sky)}
+.cb.marker.tone-tint{background:var(--sky);border:1.5px solid #B9C6D3}   /* a small key needs an edge to be seen */
+.cb.surface.tone-strong,.cb.marker.tone-strong{background:var(--primary)}
+.cb.surface.tone-accent,.cb.marker.tone-accent{background:var(--accent)}
+.cb.surface.tone-white,.cb.marker.tone-white{background:#fff;border:2px solid var(--primary2)}
+.cb.rule{background:var(--line)}.cb.rule.tone-strong{background:var(--primary2)}.cb.rule.tone-accent{background:var(--accent)}
+.cb.bar{border-radius:3px;background:#CBD5E1}.cb.bar.tone-strong{background:var(--primary)}.cb.bar.tone-accent{background:var(--accent)}
+/* focus: peers keep identical surfaces; the focus fact itself is set in the strong weight and colour */
+.fx{font-weight:700;color:var(--primary)}
+.card .vl .fx,.kvv .fx,.big .fx{color:inherit}
+/* auxiliary area: under compare and grid the notes follow the main body; under a flow they sit below the canvas */
+.gridwrap{flex-direction:column}
+.gridwrap .cardnotes{width:100%}
+.flownotes{position:absolute;left:0}
+.flownotes .cardnotes{margin-top:0}
+/* side value cards: a large number and the sentence it comes from */
+.side .p.kv{padding:14px 18px}
+.side .kvv{font-size:calc(var(--k)*34px);line-height:calc(var(--k)*44px);font-weight:800;color:var(--primary)}
+.side .kvl{margin-top:4px;font-size:calc(var(--k)*14px);line-height:calc(var(--k)*21px);color:var(--ink)}
+/* nested: each level holds the next; the innermost is the dark core */
+.nestwrap{position:relative}
+.nest{display:flex;gap:24px;border:1.5px solid var(--primary2);border-radius:14px;padding:20px 20px 20px 22px;background:var(--paper)}
+.nest .nest{flex:1;min-width:0}
+.nest .nc{flex:0 0 var(--ncw);min-width:0}
+.nest.lv2{background:var(--sky);border-color:var(--line)}
+.nest.core{background:var(--primary);border-color:var(--primary)}
+.nest.core .nc{flex:1}
+.nest .nh{font-size:calc(var(--k)*21px);line-height:calc(var(--k)*30px);font-weight:800;color:var(--primary)}
+.nest .nv{margin-top:6px;font-size:calc(var(--k)*40px);line-height:calc(var(--k)*50px);font-weight:800;color:var(--accent)}
+.nest .ni{margin-top:10px;font-size:calc(var(--k)*16px);line-height:calc(var(--k)*25px);color:var(--ink)}
+.nest.core .nh,.nest.core .ni{color:#fff}
+.nest.core .nv{color:var(--accent-on-dark)}
+.L-nested .cardnotes{margin-top:20px}
+/* the auxiliary area is supporting information: one step smaller and quieter than the body */
+.cardnotes.aux li{font-size:calc(var(--k)*15px);line-height:calc(var(--k)*23px);color:var(--muted)}
+.cardnotes.aux li:before{top:calc(var(--k)*8px)}
+.fnote{position:absolute;left:64px;right:64px;bottom:58px;height:28px;font-size:11px;line-height:14px;color:var(--muted);overflow:hidden}
 </style>
 </head>
 <body>
@@ -175,22 +251,25 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
   {% if p.subtitle %}<div class="s" data-t>{{ node(p.subtitle) }}</div>{% endif %}
   <div class="meta" data-t data-chrome>{{ p.chrome_meta }}</div>
   {% else %}
-  <div class="no" data-t data-chrome>{{ "%02d"|format(p.divider_no) }}</div>
-  <div class="t" data-t>{{ node(p.title) }}</div>
+  <div class="t" data-t><span class="no" data-chrome>{{ "%02d"|format(p.divider_no) }}</span><span>{{ node(p.title) }}</span></div>
   <div class="bar" data-shape></div>
   {% if p.subtitle %}<div class="s" data-t>{{ node(p.subtitle) }}</div>{% endif %}
   {% endif %}
 {% else %}
-  <div class="accent-bar" data-shape></div>
   {% if logo %}<img class="logo" src="{{ logo }}" alt="" data-raster="logo-{{ p.id }}">{% endif %}
+  <div class="accent-bar" data-shape></div>
   <div class="head">
     {% if p.section %}<div class="section" data-t>{{ node(p.section) }}</div>{% else %}<div class="section"></div>{% endif %}
-    <div class="title" data-t>{{ node(p.title) }}</div>
+    <div class="title" data-t>{{ node(p.title, True) }}</div>
     {% if p.lead %}<div class="lead" data-t>{{ node(p.lead) }}</div>{% endif %}
   </div>
-  <div class="body"{% if not p.lead %} style="top:150px"{% endif %}>
+  <div class="body"{% if not p.lead %} style="top:{{ body_top_no_lead }}px"{% endif %}>
   {% if p.layout == "bullets" or p.layout == "closing" %}
-    {% set n_items = (p['items'] or [])|length %}<ul class="items{% if n_items > 5 %} two{% elif n_items <= 4 %} big{% endif %}">{% for it in p['items'] or [] %}<li data-t>{{ node(it) }}</li>{% endfor %}</ul>
+    {% set its = p.get('items') or [] %}
+    <ul class="items{% if p.variant == 'two' %} two{% endif %}">{% for it in its %}<li data-t>{{ node(it) }}</li>{% endfor %}</ul>
+  {% elif p.layout == "agenda" %}
+  <div class="agenda{% if p['items']|length > 4 %} two{% endif %}">{% for it in p['items'] %}<div class="ag" data-shape>
+    <div class="no" data-t data-chrome>{{ "%02d"|format(loop.index) }}</div><div class="at" data-t>{{ node(it) }}</div></div>{% endfor %}</div>
   {% elif p.layout == "table" %}
   <table class="tbl" data-table>
     <colgroup>{% for w in p.col_widths %}<col style="width:{{ w }}%">{% endfor %}</colgroup>
@@ -199,8 +278,8 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
   </table>
   {% elif p.layout == "cards" %}
   <div class="cards">
-    {% for c in p.cards %}<div class="card" data-shape>
-      {% if c.label %}<div class="lb" data-t>{{ node(c.label) }}</div>{% endif %}
+    {% for c in p.cards %}<div class="card{% if c.is_focus %} focus{% endif %}" data-shape>
+      {% if c.label %}<div class="lb" data-t>{{ node(c.label, True) }}</div>{% endif %}
       <div class="vl{% if not c.numeric %} word{% endif %}" data-t>{{ node(c.value) }}</div>
       {% if c.note %}<div class="nt" data-t>{{ node(c.note) }}</div>{% endif %}
     </div>{% endfor %}
@@ -211,17 +290,19 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
   </div>{% endif %}
   {% elif p.layout == "compare" %}
   <div class="panels" style="--band:{{ 104 if p.band else 0 }}px">
-    {% for pn in p.panels %}<div class="panel" data-shape>
-      <div class="st" data-t>{{ node(pn.heading) }}</div>
+    {% for pn in p.panels %}<div class="panel{% if pn.is_focus %} focus{% endif %}" data-shape>
+      <div class="st" data-t>{{ node(pn.heading, True) }}</div>
       {% if pn.value %}<div class="big" data-t>{{ node(pn.value) }}</div>{% endif %}
       {% if pn.value_label %}<div class="bl" data-t>{{ node(pn.value_label) }}</div>{% endif %}
-      {% for c in pn['items'] or [] %}<div class="ci" data-t>{{ node(c) }}</div>{% endfor %}
+      {% for c in pn.get('items') or [] %}<div class="ci" data-t>{{ node(c) }}</div>{% endfor %}
+      {% if pn.fig %}<div class="figpanel" style="height:{{ pn.fig.box_h + pn.fig.cap_h + 26 }}px">{{ figure(pn.fig, True) }}</div>{% endif %}
     </div>{% endfor %}
   </div>
   {% if p.band %}<div class="band" data-shape>
     <div class="b1" data-t>{{ node(p.band[0]) }}</div>
     {% if p.band|length > 1 %}<div class="b2" data-t>{{ node(p.band[1]) }}</div>{% endif %}
   </div>{% endif %}
+  {{ notes(p) }}
   {% elif p.layout == "flow" %}
   <div class="canvas" style="width:{{ p.geo.w }}px;height:{{ p.geo.h }}px">
     <svg class="edges" data-edges viewBox="0 0 {{ p.geo.w }} {{ p.geo.h }}" width="{{ p.geo.w }}" height="{{ p.geo.h }}">
@@ -232,8 +313,21 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
     <div class="node {{ n.cls }}" style="left:{{ n.x }}px;top:{{ n.y }}px;width:{{ n.w }}px;height:{{ n.h }}px" data-shape data-t>{{ node(n.ref) }}</div>
     {% if n.tag %}<div class="tag" style="left:{{ n.x + n.w / 2 }}px;top:{{ n.tag_y }}px;min-width:{{ n.w }}px;max-width:{{ n.w + p.geo.gap_x - 8 }}px" data-shape data-t>{{ node(n.tag) }}</div>{% endif %}
     {% endfor %}
+    {% for e in p.geo.edges if e.label %}<div class="elabel" style="left:{{ e.lx }}px;top:{{ e.ly }}px;width:{{ e.lw }}px;height:{{ e.lh }}px" data-shape data-t>{{ node(e.label) }}</div>{% endfor %}
   </div>
-  {% if p.side %}<div class="side">{% for x in p.side %}<div class="p" data-shape data-t>{{ node(x) }}</div>{% endfor %}</div>{% endif %}
+  {% if p.side %}<div class="side">{% for x in p.side %}{% if x.value is defined %}<div class="p kv{% if x.is_focus %} focus{% endif %}" data-shape>
+    <div class="kvv" data-t>{{ node(x.value) }}</div><div class="kvl" data-t>{{ node(x.label) }}</div></div>
+    {% else %}<div class="p{% if x.is_focus %} focus{% endif %}" data-shape data-t>{{ node(x) }}</div>{% endif %}{% endfor %}</div>{% endif %}
+  {% if p.notes %}<div class="flownotes" style="top:{{ p.notes_top }}px;right:{{ 324 if p.side else 0 }}px">{{ notes(p) }}</div>{% endif %}
+  {% elif p.layout == "nested" %}
+  <div class="nestwrap" style="--ncw:{{ p.nest_w }}px">
+    {% for lv in p.levels %}<div class="nest lv{{ loop.index }}{% if loop.last %} core{% endif %}" data-shape><div class="nc">
+      <div class="nh" data-t>{{ node(lv.heading, True) }}</div>
+      {% if lv.value %}<div class="nv" data-t>{{ node(lv.value) }}</div>{% endif %}
+      {% for x in lv['items'] or [] %}<div class="ni" data-t>{{ node(x) }}</div>{% endfor %}
+    </div>{% endfor %}{% for lv in p.levels %}</div>{% endfor %}
+  </div>
+  {{ notes(p) }}
   {% elif p.layout == "hero" %}
   <div class="herowrap"><div class="hero" data-shape>
     <div class="hv" data-t>{{ node(p.value) }}</div>
@@ -249,13 +343,13 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
     </div>{% endfor %}
   </div></div>
   {% elif p.layout == "grid" %}
-  {% set n = p.tiles|length %}{% set cols = 2 if n in (2, 4) else 3 %}
+  {% set cols = p.grid_cols %}
   <div class="gridwrap"><div class="grid" style="grid-template-columns:repeat({{ cols }},1fr)">
-    {% for t in p.tiles %}<div class="tile" data-shape>
-      <div class="th" data-t>{{ node(t.heading) }}</div>
+    {% for t in p.tiles %}<div class="tile{% if t.is_focus %} focus{% endif %}" data-shape>
+      <div class="th" data-t>{{ node(t.heading, True) }}</div>
       {% for x in t['items'] %}<div class="ti" data-t>{{ node(x) }}</div>{% endfor %}
     </div>{% endfor %}
-  </div></div>
+  </div>{{ notes(p) }}</div>
   {% elif p.layout == "chart" %}
   {% set g = p.cg %}
   <div class="chart{% if g.horizontal %} h{% endif %}" style="width:{{ g.w }}px;height:{{ g.h }}px">
@@ -269,18 +363,23 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
   </div>
   {% if p.side %}<div class="side">{% for x in p.side %}<div class="p" data-shape data-t>{{ node(x) }}</div>{% endfor %}</div>{% endif %}
   {% elif p.layout == "figure" %}
-  <div class="figwrap" style="width:{{ p.fig.box_w }}px;top:{{ p.fig.top }}px">
-    <div class="figbox" style="height:{{ p.fig.h }}px"><img data-figure="{{ p.fig.fact }}" src="{{ p.fig.file }}" alt=""
-      style="width:{{ p.fig.w }}px;height:{{ p.fig.h }}px"></div>
-    {% if p.fig.caption %}<div class="figcap" data-t>{% for c in p.fig.caption %}{{ fact({"fact": c}) }}{% if not loop.last %} {% endif %}{% endfor %}</div>{% endif %}
-    <div class="figsrc" data-t data-chrome>图源：{{ p.fig.source }}（原件图片，未作修改）{% if p.fig.pending %}<span class="legend"> ● 待确认</span>{% endif %}</div>
-  </div>
+  <div class="figwrap" style="width:{{ p.fig.box_w }}px;top:{{ p.fig.top }}px">{{ figure(p.fig) }}</div>
   {% if p.side %}<div class="side">{% for x in p.side %}<div class="p" data-shape data-t>{{ node(x) }}</div>{% endfor %}</div>{% endif %}
+  {% elif p.layout == "composed" %}
+  {% for b in p.blocks %}{% if b.kind == "text" %}<div class="cb" style="{{ b.style }}" data-t{% if b.group %} data-group="{{ b.group }}"{% endif %}>{% for r in b.refs %}{{ node(r, b.one) }}{% if not loop.last %}{{ b.sep if b.sep is defined else "　" }}{% endif %}{% endfor %}</div>
+  {% else %}<div class="cb {{ b.kind }} tone-{{ b.tone or 'line' }}" style="{{ b.style }}" data-shape{% if b.group %} data-group="{{ b.group }}"{% endif %}></div>
+  {% endif %}{% endfor %}
+  {% if p.arrows %}<svg class="edges" data-edges width="1" height="1">
+    <defs><marker id="arr-{{ p.id }}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--primary2)"/></marker>
+    <marker id="arrl-{{ p.id }}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--accent-on-dark)"/></marker></defs>
+    {% for a in p.arrows %}<polyline data-edge="{{ a.support }}"{% if a.group %} data-group="{{ a.group }}"{% endif %} points="{{ a.points }}" fill="none" style="stroke:{{ 'var(--accent-on-dark)' if a.tone == 'on-dark' else 'var(--primary2)' }}" stroke-width="2" marker-end="url(#{{ 'arrl' if a.tone == 'on-dark' else 'arr' }}-{{ p.id }})"/>{% endfor %}
+  </svg>{% endif %}
   {% elif p.layout == "statement" %}
   <div class="stmt" data-shape data-t>{{ node(p.statement) }}</div>
-  {% if p.support %}<ul class="support">{% for x in p.support %}<li data-t>{{ node(x) }}</li>{% endfor %}</ul>{% endif %}
+  {% if p.support %}<ul class="support">{% for x in p.support %}<li data-shape data-t>{{ node(x) }}</li>{% endfor %}</ul>{% endif %}
   {% endif %}
   </div>
+  {% if p.footnote %}<div class="fnote" data-t>{% for x in p.footnote %}{{ node(x) }}{% if not loop.last %}　{% endif %}{% endfor %}</div>{% endif %}
   <div class="foot">
     <div class="src" data-t data-chrome>{% if p.pending_count %}<span class="legend">● 待人工确认 {{ p.pending_count }} 项</span>　{% endif %}{% if p.sources_line %}来源：{{ p.sources_line }}{% endif %}</div>
     <div class="pg" data-t data-chrome>{{ "%02d"|format(loop.index) }}</div>

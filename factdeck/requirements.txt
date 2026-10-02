@@ -3,3 +3,5 @@ playwright>=1.45
 pdfplumber>=0.11
 python-pptx>=0.6.23
 lxml>=4.9
+fonttools>=4.50,<5.0
+pywin32>=306; sys_platform == "win32"

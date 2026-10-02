@@ -1,0 +1,41 @@
+{
+  "schema": "ppt_generation_route_decision.v1",
+  "date": "2026-10-01",
+  "status": "selected_by_user",
+  "route": "A",
+  "variant": "generated_design_native_vector",
+  "user_instruction": "那现在的PPT生成方案就固定为 A，生成图然后进行矢量化，文字填充",
+  "editability_instruction": "所有图形都变成原生矢量，可改轮廓和颜色；允许部分纹理细节损失",
+  "stages": [
+    "lock_content_and_design_spec",
+    "generate_complete_design_with_text",
+    "remove_design_text",
+    "vectorize_artwork",
+    "convert_svg_paths_to_native_ppt_shapes",
+    "fill_locked_native_text_tables_data_and_connectors",
+    "render_in_powerpoint_and_verify"
+  ],
+  "content_authority": "source_grounded_locked_facts_and_relations",
+  "generated_design_text_is_authoritative": false,
+  "generated_artwork_must_be_native_shapes": true,
+  "embedded_svg_is_native_geometry": false,
+  "accept_partial_texture_loss": true,
+  "palette": {
+    "status": "default_from_color_feedback_not_formal_style_approval",
+    "primary": "#355E78",
+    "table_header": "#3E6278",
+    "body": "#151B24",
+    "paper": "#F6F4EF",
+    "artwork": "low_saturation_blue_gray"
+  },
+  "reference_pptx": "output/visual_ab_test/A_vector_muted/deck.pptx",
+  "validated_sample_pages": 6,
+  "production_automatic_pipeline_integrated": true,
+  "production_executor": "codex_and_adobe_worker",
+  "production_entrypoint": "/api/deck/workflows/{workflow_id}/generation",
+  "production_default_route": "A_NATIVE_VECTOR",
+  "server_independent_vendor_api_calls": false,
+  "workflow_confirmation_updated": false,
+  "medical_approval_granted": false,
+  "details": "docs/PPT_GENERATION_ROUTE.md"
+}

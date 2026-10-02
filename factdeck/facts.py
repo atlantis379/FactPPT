@@ -28,7 +28,7 @@ import json
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 
-from .lexicon import canon, critical_tokens, extractive, dropped_blockers
+from .lexicon import canon, critical_tokens, extractive, dropped_blockers, scope_labels
 
 
 @dataclass
@@ -50,8 +50,10 @@ class Fact:
     needs_confirmation: bool = False
     problems: list[str] = field(default_factory=list)
     dropped: str = ""         # text of the quote that the display leaves out (for semantic review)
+    scope: list[str] = field(default_factory=list)   # labels the display cuts off before kept text: the page must state them
     location: str = ""
     source_id: str = ""
+    arrow: dict = field(default_factory=dict)   # quote of a diagram arrow unit: {from, to, label} unit ids
 
     def text(self) -> str:
         return self.display or self.quote or (f"〔图〕{self.location or self.figure}" if self.figure else "")
@@ -81,7 +83,7 @@ class Conflict:
         return f"{self.entity}|{self.attribute}"
 
 
-FACT_FIELDS = {f for f in Fact.__dataclass_fields__} - {"status", "needs_confirmation", "problems", "dropped", "location", "source_id"}
+FACT_FIELDS = {f for f in Fact.__dataclass_fields__} - {"status", "needs_confirmation", "problems", "dropped", "scope", "location", "source_id", "arrow"}
 DER_FIELDS = {"id", "claim", "rule", "evidence", "kind"}
 
 
@@ -130,7 +132,7 @@ def verify(facts: list[Fact], ders: list[Derivation], units: list[dict], resolut
     seen: set[str] = set()
 
     for f in facts:
-        f.status, f.problems, f.needs_confirmation, f.dropped = "PENDING", [], False, ""
+        f.status, f.problems, f.needs_confirmation, f.dropped, f.arrow = "PENDING", [], False, "", {}
         if not f.id or f.id in seen:
             f.status, f.problems = "REJECTED", ["事实编号为空或重复"]
             continue
@@ -146,6 +148,7 @@ def verify(facts: list[Fact], ders: list[Derivation], units: list[dict], resolut
             f.status, f.problems = "REJECTED", [f"来源单元不存在：{f.unit}"]
             continue
         f.location, f.source_id = u["location"], u["source_id"]
+        f.arrow = dict(u.get("arrow") or {})
         if not canon(f.quote) or (canon(f.quote) not in canon(u["text"]) and canon(f.quote) not in canon(u.get("alt_text", ""))):
             f.status, f.problems = "REJECTED", ["引文在来源单元中不存在（不是逐字引用）"]
             continue
@@ -167,6 +170,7 @@ def verify(facts: list[Fact], ders: list[Derivation], units: list[dict], resolut
         ok, dropped = extractive(f.text(), f.quote) if f.display else (True, "")
         blockers = dropped_blockers(dropped) if ok else []
         f.dropped = dropped if ok else ""
+        f.scope = scope_labels(f.text(), f.quote) if ok and f.display else []
         rewritten = not ok or bool(blockers)
         if extra or rewritten:
             if not f_ders:

@@ -2969,10 +2969,23 @@ def medical_review_sheet(project: Project) -> dict:
     }
 
 
-app = FastAPI(title="FactPPTv2", version="2.0.0")
+from contextlib import asynccontextmanager as _generation_context
+import threading as _generation_threading
+
+@_generation_context
+async def _generation_lifespan(application):
+    from app.deckflow_api import recover_generation_jobs
+    stop = _generation_threading.Event()
+    _generation_threading.Thread(target=recover_generation_jobs, args=(stop,), daemon=True, name="factdeck-native-renderer").start()
+    try:
+        yield
+    finally:
+        stop.set()
+
+app = FastAPI(title="FactPPTv2", version="2.0.0", lifespan=_generation_lifespan)
 from app.deckflow_api import router as deckflow_router
 from app.fact57098_api import router as fact57098_router
-app.include_router(deckflow_router)      # mainline: fact store + HTML rendering
+app.include_router(deckflow_router)      # mainline: facts + A native-vector generation
 app.include_router(fact57098_router)     # earlier full-slide image workflow, kept for existing projects
 app.mount("/web", StaticFiles(directory=ROOT / "web"), name="web")
 

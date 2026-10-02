@@ -32,7 +32,22 @@ def canon(text: str) -> str:
     return re.sub(r"\s+", "", t)
 
 
-_OP = r"[≥≤<>]|>=|<="
+def locate(text: str, quote: str) -> tuple[int, int] | None:
+    """Where `quote` occurs in `text` under `canon` matching: (start, end) offsets into the raw text, first occurrence."""
+    chars, where = [], []
+    for i, ch in enumerate(text):
+        c = canon(ch)
+        if c:
+            chars.append(c)
+            where.append(i)
+    q = canon(quote)
+    k = "".join(chars).find(q) if q else -1
+    if k < 0:
+        return None
+    return where[k], where[k + len(q) - 1] + 1
+
+
+_OP =r"[≥≤<>]|>=|<="
 _NUM = r"\d+(?:[.,]\d+)*"
 _CN_NUM = re.compile(r"[零一二三四五六七八九十两百千万几半]+(?:个月|小时|分钟|[种个项条次倍年月周天成组类期例针剂支岁分级])")
 _LATIN = re.compile(r"[A-Za-zα-ωΑ-Ω][A-Za-z0-9α-ωΑ-Ω]*(?:[-/][A-Za-z0-9α-ω]+)*")
@@ -86,6 +101,24 @@ def extractive(display: str, quote: str) -> tuple[bool, str]:
         pos = i + len(piece)
     dropped.append(q[pos:])
     return True, "".join(dropped)
+
+
+def scope_labels(display: str, quote: str) -> list[str]:
+    """Labels the display cuts off right before text it keeps ("中国：2017" shown as "2017" drops the label "中国").
+
+    Such a label sets the scope of what follows it; the excerpt stays correct only when the page states the label
+    elsewhere (once, for the whole group). A dropped entry that is not followed by kept text is not a scope label."""
+    q = canon(quote)
+    pos, labels = 0, []
+    for piece in split_fragments(display):
+        i = q.find(piece, pos)
+        if i < 0:
+            return []
+        m = re.search(r"([^\s:;,。、()\[\]0-9]{1,16})\s*:\s*$", q[pos:i])
+        if m:
+            labels.append(m.group(1))
+        pos = i + len(piece)
+    return labels
 
 
 def dropped_blockers(dropped: str) -> list[str]:

@@ -4,6 +4,7 @@
 // Coordinates are CSS px relative to the slide's top-left corner.
 (args) => {
   const { slideId, expected } = args;
+  const HIERARCHY_SHORT = 16;          // a hero value is at most 16 characters (deck.HERO_MAX_CHARS)
   const slide = document.getElementById(slideId);
   const S = slide.getBoundingClientRect();
   const rel = (r) => ({ x: r.left - S.left, y: r.top - S.top, w: r.width, h: r.height });
@@ -16,7 +17,7 @@
     return { hex: p.slice(0, 3).map((v) => Math.round(v).toString(16).padStart(2, '0')).join(''), a: p.length === 4 ? p[3] : 1 };
   };
   const out = { shapes: [], texts: [], tables: [], lines: [], rasters: [], figures: [],
-    checks: { untracked: [], mismatch: [], overflow: [], bounds: [], overlap: [], figure_distortion: [] }, authored: [] };
+    checks: { untracked: [], mismatch: [], overflow: [], bounds: [], overlap: [], figure_distortion: [], hierarchy: [] }, authored: [] };
 
   // ---- runs: walk text nodes, split paragraphs at block-level descendants
   function runsOf(container) {
@@ -24,12 +25,17 @@
     const walk = (node) => {
       for (const ch of node.childNodes) {
         if (ch.nodeType === 3) {
-          const t = ch.textContent.replace(/\s+/g, ' ');
-          if (!t.trim() && !paras[paras.length - 1].length) continue;
           const cs = getComputedStyle(ch.parentElement);
-          paras[paras.length - 1].push({ text: t, size: px(cs.fontSize), bold: parseInt(cs.fontWeight) >= 600,
-            color: color(cs.color), superscript: cs.verticalAlign !== 'baseline' && ch.parentElement.dataset.mark ? true : false,
-            mark: !!ch.parentElement.closest('[data-mark]') });
+          // pre-line text keeps the original's line breaks: each line is its own PowerPoint paragraph
+          const lines = cs.whiteSpace === 'pre-line' ? ch.textContent.split('\n') : [ch.textContent];
+          lines.forEach((line, i) => {
+            if (i > 0) paras.push([]);
+            const t = line.replace(/\s+/g, ' ');
+            if (!t.trim() && !paras[paras.length - 1].length) return;
+            paras[paras.length - 1].push({ text: t, size: px(cs.fontSize), bold: parseInt(cs.fontWeight) >= 600,
+              color: color(cs.color), superscript: cs.verticalAlign !== 'baseline' && ch.parentElement.dataset.mark ? true : false,
+              mark: !!ch.parentElement.closest('[data-mark]') });
+          });
         } else if (ch.nodeType === 1) {
           const cs = getComputedStyle(ch);
           if (cs.display === 'none') continue;
@@ -53,7 +59,9 @@
     const pt = px(cs.paddingTop) + px(cs.borderTopWidth), pb = px(cs.paddingBottom) + px(cs.borderBottomWidth);
     let align = cs.textAlign === 'center' || cs.justifyContent === 'center' ? 'center' : (cs.textAlign === 'right' ? 'right' : 'left');
     const anchor = cs.display === 'flex' && cs.alignItems === 'center' ? 'middle' : 'top';
+    const grp = el.closest('[data-group]');
     return { x: r.x + pl, y: r.y + pt, w: r.w - pl - pr, h: r.h - pt - pb, align, anchor,
+      role: el.closest('.head .title, .L-cover .t, .L-divider .t') ? 'title' : '', group: grp ? slideId + ':' + grp.dataset.group : '',
       lineHeight: cs.lineHeight === 'normal' ? px(cs.fontSize) * 1.3 : px(cs.lineHeight),
       nowrap: cs.whiteSpace === 'nowrap', paras: runsOf(el) };
   }
@@ -65,8 +73,9 @@
       r = { x: host.x + px(cs.left), y: host.y + px(cs.top), w: px(cs.width), h: px(cs.height) };
     } else r = rel(el.getBoundingClientRect());
     const bw = [px(cs.borderTopWidth), px(cs.borderRightWidth), px(cs.borderBottomWidth), px(cs.borderLeftWidth)];
+    const grp = el.closest('[data-group]');
     const shape = { ...r, fill: color(cs.backgroundColor), radius: px(cs.borderTopLeftRadius) || px(cs.borderTopRightRadius) || px(cs.borderBottomRightRadius),
-      line: null, accents: [] };
+      line: null, accents: [], group: grp ? slideId + ':' + grp.dataset.group : '' };
     const uniform = bw.every((b) => b === bw[0]);
     if (uniform && bw[0] > 0) shape.line = { w: bw[0], color: color(cs.borderTopColor) };
     else {
@@ -80,9 +89,9 @@
 
   // ---- shapes (+ ::before bullets)
   slide.querySelectorAll('[data-shape]').forEach((el) => out.shapes.push(shapeOf(el)));
-  slide.querySelectorAll('li, .ci').forEach((el) => {
+  slide.querySelectorAll('li, .ci, .ti').forEach((el) => {
     const b = getComputedStyle(el, '::before');
-    if (b.content && b.content !== 'none' && px(b.width) > 0) out.shapes.push(shapeOf(el, '::before'));
+    if (b.content && b.content !== 'none' && b.display !== 'none' && px(b.width) > 0) out.shapes.push(shapeOf(el, '::before'));
   });
   // ---- slide background
   out.background = color(getComputedStyle(slide).backgroundColor);
@@ -94,7 +103,8 @@
     svg.querySelectorAll('polyline').forEach((pl) => {
       const pts = pl.getAttribute('points').trim().split(/\s+/).map((p) => p.split(',').map(Number)).map(([x, y]) => [x + o.x, y + o.y]);
       const stroke = color(getComputedStyle(pl).stroke);
-      out.lines.push({ points: pts, color: stroke ? stroke.hex : '19376d', w: 2, arrow: true, support: pl.dataset.edge });
+      out.lines.push({ points: pts, color: stroke ? stroke.hex : '19376d', w: 2, arrow: true, support: pl.dataset.edge,
+        group: pl.dataset.group ? slideId + ':' + pl.dataset.group : '' });
     });
   });
   // ---- text boxes (not inside tables)
@@ -122,7 +132,7 @@
   slide.querySelectorAll('[data-authored]').forEach((el) => out.authored.push(el.textContent.trim()));
   slide.querySelectorAll('[data-fact]').forEach((el) => {
     const want = expected[el.dataset.fact];
-    if (el.textContent !== want) out.checks.mismatch.push({ fact: el.dataset.fact, got: el.textContent, want });
+    if (el.textContent.replace(/\s+/g, '') !== (want || '').replace(/\s+/g, '')) out.checks.mismatch.push({ fact: el.dataset.fact, got: el.textContent, want });
   });
   const tb = [...slide.querySelectorAll('[data-t], td, th')];
   tb.forEach((el) => {
@@ -138,6 +148,16 @@
     const A = a.getBoundingClientRect(), B = b.getBoundingClientRect();
     const ix = Math.min(A.right, B.right) - Math.max(A.left, B.left), iy = Math.min(A.bottom, B.bottom) - Math.max(A.top, B.top);
     if (ix > 2 && iy > 2) out.checks.overlap.push([a.textContent.trim().slice(0, 24), b.textContent.trim().slice(0, 24)]);
+  }
+  // ---- hierarchy: running text in the body never outranks the title; only short values (a number, a phrase) may
+  const title = slide.querySelector('.head .title');
+  if (title) {
+    const tsize = px(getComputedStyle(title).fontSize);
+    slide.querySelectorAll('.body [data-t]').forEach((el) => {
+      const text = el.textContent.replace(/\s+/g, '');
+      if (text.length > HIERARCHY_SHORT && px(getComputedStyle(el).fontSize) > tsize + 0.5)
+        out.checks.hierarchy.push(text.slice(0, 30));
+    });
   }
   // ---- source figures: exported from the archived original; must be whole, in bounds and uncovered
   slide.querySelectorAll('img[data-figure]').forEach((el) => {
@@ -157,6 +177,99 @@
     const r = el.getBoundingClientRect();
     return { fact: el.dataset.bar, length: el.dataset.dir === 'h' ? r.width : r.height, plot: parseFloat(el.dataset.plot) };
   });
+  // ---- occupancy: how far down the body's content reaches, as a share of the body's height (the body is top-anchored,
+  // so a low share means an empty lower part of the page)
+  const bodyEl = slide.querySelector('.body');
+  if (bodyEl) {
+    const B = bodyEl.getBoundingClientRect(), cs = getComputedStyle(bodyEl);
+    const top = B.top + px(cs.paddingTop), height = B.bottom - px(cs.paddingBottom) - top;
+    let bottom = top;
+    bodyEl.querySelectorAll('[data-t], [data-shape], table, img, svg').forEach((el) => {
+      const r = el.getBoundingClientRect(); if (r.height > 0 && r.width > 0) bottom = Math.max(bottom, r.bottom);
+    });
+    out.occupancy = height > 0 ? Math.round(Math.min(1, (bottom - top) / height) * 100) / 100 : 1;
+    // ---- largest hole: the biggest rectangle of the body that holds no ink, as a share of the body's area. Ink is
+    // what the eye sees as content: the line boxes of text (not the boxes around it), filled or tinted surfaces,
+    // pictures and drawn lines. An outlined box with little text in it still counts as a hole.
+    const G = 8, left = B.left + px(cs.paddingLeft), width = B.right - px(cs.paddingRight) - left;
+    const nx = Math.max(1, Math.floor(width / G)), ny = Math.max(1, Math.floor(height / G));
+    const ink = Array.from({ length: ny }, () => new Uint8Array(nx));
+    const mark = (r) => {
+      if (r.width <= 0 || r.height <= 0) return;
+      const x0 = Math.max(0, Math.floor((r.left - left) / G)), x1 = Math.min(nx - 1, Math.floor((r.right - left - 0.01) / G));
+      const y0 = Math.max(0, Math.floor((r.top - top) / G)), y1 = Math.min(ny - 1, Math.floor((r.bottom - top - 0.01) / G));
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) ink[y][x] = 1;
+    };
+    const range = document.createRange();
+    bodyEl.querySelectorAll('[data-t], td, th').forEach((el) => {
+      range.selectNodeContents(el);
+      [...range.getClientRects()].forEach(mark);
+    });
+    bodyEl.querySelectorAll('[data-shape], td, th').forEach((el) => {      // hairlines and thin bars divide, they do not fill
+      const c = color(getComputedStyle(el).backgroundColor), r = el.getBoundingClientRect();
+      if (c && c.hex !== 'ffffff' && r.width >= 6 && r.height >= 6) mark(r);
+    });
+    bodyEl.querySelectorAll('img, svg polyline, svg rect, svg path:not(marker path)').forEach((el) => mark(el.getBoundingClientRect()));
+    // maximal all-empty rectangle (histogram method)
+    const hgt = new Array(nx).fill(0);
+    let best = 0, rect = null;
+    for (let y = 0; y < ny; y++) {
+      for (let x = 0; x < nx; x++) hgt[x] = ink[y][x] ? 0 : hgt[x] + 1;
+      const st = [];
+      for (let x = 0; x <= nx; x++) {
+        const h = x < nx ? hgt[x] : 0;
+        let start = x;
+        while (st.length && st[st.length - 1][1] >= h) {
+          const [sx, sh] = st.pop();
+          if (sh * (x - sx) > best) { best = sh * (x - sx); rect = { x: sx * G, y: (y - sh + 1) * G, w: (x - sx) * G, h: sh * G }; }
+          start = sx;
+        }
+        st.push([start, h]);
+      }
+    }
+    out.hole = { share: Math.round(best / (nx * ny) * 100) / 100, rect };
+    // ---- composition metrics (signals for the author and reviewer, calibrated on reviewed pages; never errors)
+    // balance: where the ink's centre of mass sits against the body centre (1 = centred, 0 = in a corner)
+    let mass = 0, mx = 0, my = 0;
+    for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++) if (ink[y][x]) { mass++; mx += x + 0.5; my += y + 0.5; }
+    const dx = mass ? (mx / mass - nx / 2) / (nx / 2) : 0, dy = mass ? (my / mass - ny / 2) / (ny / 2) : 0;
+    // alignment: share of text blocks whose left edge lines up (±2 px) with another block's left edge
+    const blocks = [...bodyEl.querySelectorAll('[data-t]')].map((el) => el.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0);
+    const aligned = blocks.filter((a, i) => blocks.some((b, j) => i !== j && Math.abs(a.left - b.left) <= 2)).length;
+    // spacing regularity: vertical gaps between blocks stacked on one left edge (1 = all gaps equal)
+    const cols = {};
+    blocks.forEach((r) => { const k = Math.round(r.left / 4); (cols[k] = cols[k] || []).push(r); });
+    const gaps = [];
+    Object.values(cols).forEach((rs) => {
+      rs.sort((a, b) => a.top - b.top);
+      for (let i = 1; i < rs.length; i++) { const g = rs[i].top - rs[i - 1].bottom; if (g >= 0 && g < 120) gaps.push(g); }
+    });
+    const mean = gaps.length ? gaps.reduce((a, b) => a + b, 0) / gaps.length : 0;
+    const sd = gaps.length ? Math.sqrt(gaps.reduce((a, b) => a + (b - mean) ** 2, 0) / gaps.length) : 0;
+    // type sizes: distinct sizes of running text in the body (14–23 px; references and labels below, data values above)
+    const sizes = new Set();
+    const walker2 = document.createTreeWalker(bodyEl, NodeFilter.SHOW_TEXT);
+    let t2;
+    while ((t2 = walker2.nextNode())) {
+      if (!t2.textContent.trim() || t2.parentElement.closest('[data-mark]')) continue;
+      const fs = Math.round(px(getComputedStyle(t2.parentElement).fontSize));
+      if (fs >= 14 && fs < 24) sizes.add(fs);
+    }
+    // strong areas: dark filled surfaces larger than a marker (bars are data marks, not surfaces)
+    const dark = [...bodyEl.querySelectorAll('[data-shape], th')].filter((el) => {
+      if (el.classList.contains('bar') || el.hasAttribute('data-bar')) return false;
+      const c = color(getComputedStyle(el).backgroundColor), r = el.getBoundingClientRect();
+      if (!c || r.width * r.height < 900) return false;
+      const [R, G, B] = [0, 2, 4].map((i) => parseInt(c.hex.slice(i, i + 2), 16) / 255);
+      return 0.2126 * R + 0.7152 * G + 0.0722 * B < 0.3 && c.a > 0.5;
+    });
+    const headRow = bodyEl.querySelector('th') ? 1 : 0;                  // a table header row counts once, not per cell
+    out.metrics = { balance: Math.round((1 - Math.sqrt((dx * dx + dy * dy) / 2)) * 100) / 100, centre: [Math.round(dx * 100) / 100, Math.round(dy * 100) / 100],
+      alignment: blocks.length ? Math.round(aligned / blocks.length * 100) / 100 : 1,
+      regularity: mean ? Math.round(Math.max(0, 1 - sd / mean) * 100) / 100 : 1,
+      type_sizes: [...sizes].sort((a, b) => a - b),
+      strong_areas: dark.filter((el) => el.tagName !== 'TH').length + headRow };
+  }
   // tables in bounds
   // body content must stay above the footer
   const foot = slide.querySelector('.foot');

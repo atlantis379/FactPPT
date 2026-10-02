@@ -4,6 +4,7 @@ Model outputs here are hand-written fixtures and approvals are test records; the
 not model evidence, customer sign-off or medical review. Content is invented.
 """
 import copy
+from pathlib import Path
 import io
 import zipfile
 
@@ -32,16 +33,52 @@ def read_all(store, wid, worker="reader-1"):
             if row["id"] == "S03:s1":              # a chart on the slide, transcribed by the reader
                 row["transcription"] = [{"id": "c1", "location": "柱状图 研究甲标签", "text": "缓解率38%"}]
         store.complete(wid, t["id"], t["lease_token"], result)
+    return claim_all(store, wid)
+
+
+def claim_all(store, wid, worker="claims-1"):
+    """A mechanical claims list for the fixtures: one claim per text unit of each body page (test records only)."""
+    store.queue(wid, "CLAIMS")
+    while t := store.claim(wid, worker, "CLAIMS"):
+        result = copy.deepcopy(t["brief"]["result_contract"])
+        for row, page in zip(result["pages"], t["brief"]["pages"]):
+            if page["classification"] != "SUBSTANTIVE":
+                row["claims"] = []
+                continue
+            units = [u for u in page["units"] if u["text"].strip()]
+            row["claims"] = [{"id": f"k{i}", "type": "background", "spans": [{"unit_id": u["id"], "quote": u["text"][:120]}]}
+                             for i, u in enumerate(units, 1)]
+            row["no_claims"] = "" if units else "本页没有文字（测试）"
+        store.complete(wid, t["id"], t["lease_token"], result)
     return store.get(wid)
+
+
+def claim_of(w, unit_id):
+    """The fixture claim quoting a unit."""
+    return next(k["id"] for s in w["sources"] for k in (s.get("claims") or {}).get("items", []) if unit_id in k["unit_ids"])
+
+
+def review_summary(store, wid, worker="reviewer-S"):
+    """An all-clear summary review (test record, not a real review)."""
+    return run_task(store, wid, "SUMMARY_REVIEW", worker, lambda t: t["brief"]["result_contract"])
+
+
+def key_points(w, page_ids):
+    """One key point per cited page that has text, resting on that page's first unit."""
+    first = {}
+    for s in w["sources"]:
+        for u in s["units"] + s["transcriptions"]:
+            first.setdefault(u["page_id"], u["id"])
+    return [{"point": "本页要点（程序验收用）", "unit_ids": [first[p]]} for p in page_ids if p in first]
 
 
 def summary(w):
     ids = [p["id"] for s in w["sources"] for p in s["pages"]]
-    return {"schema_version": "full_source_summary.v2", "input_sha256": input_hash(w),
+    return {"schema_version": "full_source_summary.v3", "input_sha256": input_hash(w),
             "overall_summary": "程序验收用的虚构资料总结：示例病X的定义与诊断、评估流程与药物、两项研究及其不可直接比较的限制。",
-            "sections": [{"id": "s1", "title": "概述与诊断", "summary": "示例病X的定义、患病率与两项诊断指标的同时满足规则。", "source_page_ids": ids[:3]},
-                         {"id": "s2", "title": "评估与治疗", "summary": "评估流程、高风险人群、药物靶点与用法以及用药限制。", "source_page_ids": ids[3:5]},
-                         {"id": "s3", "title": "研究证据", "summary": "两项研究的人群与缓解率，以及随访结果和比较限制。", "source_page_ids": ids[5:]}],
+            "sections": [{"id": "s1", "title": "概述与诊断", "summary": "示例病X的定义、患病率与两项诊断指标的同时满足规则。", "source_page_ids": ids[:3], "key_points": key_points(w, ids[:3])},
+                         {"id": "s2", "title": "评估与治疗", "summary": "评估流程、高风险人群、药物靶点与用法以及用药限制。", "source_page_ids": ids[3:5], "key_points": key_points(w, ids[3:5])},
+                         {"id": "s3", "title": "研究证据", "summary": "两项研究的人群与缓解率，以及随访结果和比较限制。", "source_page_ids": ids[5:], "key_points": key_points(w, ids[5:])}],
             "outline_coverage": [{"outline_id": o["id"], "section_ids": [f"s{i}"]} for i, o in enumerate(w["outline"], 1)],
             "pending_issues": []}
 
@@ -54,6 +91,8 @@ def run_task(store, wid, kind, worker, make):
 
 
 def approve(store, w, kind):
+    if kind == "content" and w["stage"] == "SUMMARY_REVIEW_REQUIRED":
+        w = review_summary(store, w["id"])
     return store.approval(w["id"], kind, {"customer": "TEST-CUSTOMER", "operator": "TEST-OPERATOR",
                                           "method": "AUTOMATED_PROTOCOL_TEST_NOT_REAL_APPROVAL", "subject_sha256": w["approval_subjects"][kind]})
 
@@ -73,7 +112,7 @@ def deck_result(w):
 
 
 def to_deck(store):
-    w = store.create("示例病X（程序验收）", OUTLINE, {"audience": "规培医生", "target_pages": 9, "purpose": "程序验收"})
+    w = store.create("示例病X（程序验收）", OUTLINE, {"audience": "规培医生", "target_pages": 9, "purpose": "程序验收"}, generation_route="CODE_NATIVE")
     for name, make in fx_.SOURCES.items():
         store.add_source(w["id"], name, make())
     w = read_all(store, w["id"])
@@ -113,6 +152,30 @@ def test_reading_must_cover_every_page_and_inspect_visuals(store):
         store.complete(w["id"], t["id"], t["lease_token"], lazy)
 
 
+def test_summary_key_points_must_rest_on_units_of_the_section(store):
+    w = store.create("关键依据", OUTLINE)
+    for name, make in fx_.SOURCES.items():
+        store.add_source(w["id"], name, make())
+    w = read_all(store, w["id"])
+    store.queue(w["id"], "SUMMARY")
+    t = store.claim(w["id"], "author-A", "SUMMARY")
+    assert all("units" in p for s in t["brief"]["sources"] for p in s["pages"])
+
+    def submit(edit):
+        r = summary(w)
+        edit(r["sections"])
+        store.complete(w["id"], t["id"], t["lease_token"], r)
+
+    with pytest.raises(WorkflowError, match="key_points"):
+        submit(lambda ss: ss[0].update(key_points=[]))
+    with pytest.raises(WorkflowError, match="不存在的论断或文字单元"):
+        submit(lambda ss: ss[0]["key_points"][0].update(unit_ids=["S99:x"]))
+    with pytest.raises(WorkflowError, match="未引用页面"):
+        submit(lambda ss: ss[0]["key_points"][0].update(unit_ids=ss[2]["key_points"][0]["unit_ids"]))
+    submit(lambda ss: None)
+    assert store.get(w["id"])["summary"]["sections"][0]["key_points"]
+
+
 def test_fact_gate_runs_on_the_store(store):
     w = to_deck(store)
     v = verified(w)
@@ -133,6 +196,40 @@ def test_deck_with_authored_claims_is_refused(store):
     bad["pages"] = [p for p in bad["pages"] if w["outline"][2]["id"] not in (p.get("outline_ids") or [])]
     with pytest.raises(WorkflowError, match="提纲"):
         store.author(w["id"], "DECK", bad, "editor")
+
+
+def test_deck_may_carve_verbatim_facts_for_its_slots(store):
+    w = to_deck(store)
+    store.queue(w["id"], "DECK")
+    brief = store.claim(w["id"], "author-A", "DECK")["brief"]
+    assert brief["units"] and brief["result_contract"]["facts"] == [] and brief["layouts"]["flow"]["example"]["edges"]
+
+    def deck(*cut, card=({"fact": "risk.who"}, {"fact": "risk.age"})):
+        d = deck_result(w)
+        d["facts"] = [dict(c) for c in cut]
+        d["pages"][3]["cards"].append({"label": card[0], "value": card[1]})
+        return d
+
+    who = {"id": "risk.who", "unit": fx_.UIDS["doc_risk"], "quote": "高风险人群", "section_ids": ["s2"]}
+    age = {"id": "risk.age", "unit": fx_.UIDS["doc_risk"], "quote": "年龄≥65岁", "section_ids": ["s2"]}
+    with pytest.raises(WorkflowError, match="未通过核对"):
+        store.author(w["id"], "DECK", deck(who, {**age, "quote": "年龄≥60岁"}), "editor")        # not in the unit
+    with pytest.raises(WorkflowError, match="未通过核对"):
+        store.author(w["id"], "DECK", deck(who, {**age, "display": "年龄65岁"}), "editor")       # drops the operator
+    with pytest.raises(WorkflowError, match="重复"):
+        store.author(w["id"], "DECK", deck(who, {**age, "id": "risk"}, card=({"fact": "risk.who"}, {"fact": "risk"})), "editor")
+    with pytest.raises(WorkflowError, match="不能带推导"):
+        store.author(w["id"], "DECK", deck(who, {**age, "derivation": "d1"}), "editor")
+    with pytest.raises(WorkflowError, match="没有在任何页面使用"):
+        store.author(w["id"], "DECK", deck(who, age, {"id": "spare", "unit": fx_.UIDS["doc_risk"], "quote": "既往住院≥2次"}), "editor")
+    w = store.author(w["id"], "DECK", deck(who, age), "editor")
+    v = verified(w)
+    assert v["facts"]["risk.age"]["status"] == "ACCEPTED" and v["facts"]["risk.age"]["carved"]
+    assert not v["facts"]["risk"]["carved"]
+    store.queue(w["id"], "SEMANTIC_REVIEW")
+    t = store.claim(w["id"], "reviewer-B", "SEMANTIC_REVIEW")
+    shown = {f["id"]: f for p in t["brief"]["pages"] for f in p["facts"]}
+    assert shown["risk.age"]["carved_by_deck"] and shown["risk.age"]["unit_text"].startswith("高风险人群")
 
 
 def test_semantic_review_must_be_independent_and_blocks_on_issues(store):
@@ -215,6 +312,39 @@ def test_full_mainline_to_delivery(store):
     assert w["stage"] == "DECK_REQUIRED"
 
 
+def test_visual_critique_is_independent_bound_to_the_images_and_never_reviews_pages(store):
+    pytest.importorskip("playwright")
+    w = store.render(finish_gates(store, to_deck(store))["id"])
+    store.queue(w["id"], "VISUAL_CRITIQUE")
+    t = store.claim(w["id"], w["deck"]["author"], "VISUAL_CRITIQUE")
+    brief = t["brief"]
+    assert all(Path(p["png"]).exists() and "design" in p and "signals" in p for p in brief["pages"])
+    r = copy.deepcopy(brief["result_contract"])
+    with pytest.raises(WorkflowError, match="页面作者之外"):
+        store.complete(w["id"], t["id"], t["lease_token"], r)
+    store.fail(w["id"], t["id"], t["lease_token"], "author cannot critique")
+    t = store.claim(w["id"], "critic-C", "VISUAL_CRITIQUE")
+    first = r["pages"][0]["page_id"]
+    r["pages"][0]["rubric"]["whitespace"] = "REVISE"
+    with pytest.raises(WorkflowError, match="具体修改意见"):
+        store.complete(w["id"], t["id"], t["lease_token"], r)
+    r["pages"][0]["fixes"] = ["下半部空白：把相邻的研究说明并入本页"]
+    bad = copy.deepcopy(r)
+    bad["pages"][1]["png_sha256"] = "0" * 64
+    with pytest.raises(WorkflowError, match="不是当前版本"):
+        store.complete(w["id"], t["id"], t["lease_token"], bad)
+    w = store.complete(w["id"], t["id"], t["lease_token"], r)
+    assert w["critique"]["revise"] == [first] and w["page_reviews"] == {}
+    # the page author sees what to revise; a human review with a rubric item marked cannot pass the page
+    store.queue(w["id"], "DECK")
+    deck_brief = store.claim(w["id"], "author-A2", "DECK")["brief"]
+    assert deck_brief["visual_critique"][first]["fixes"]
+    p = w["render"]["pages"][0]
+    with pytest.raises(WorkflowError, match="评分项"):
+        store.review(w["id"], p["id"], {"reviewer": "R", "png_sha256": p["sha256"], "sources_checked": True, "visual_status": "PASS",
+                                        "content_status": "PASS", "rubric": {"whitespace": "REVISE"}})
+
+
 def test_draft_render_is_not_reviewable(store):
     pytest.importorskip("playwright")
     w = to_deck(store)
@@ -278,3 +408,20 @@ def test_render_endpoint_runs_inside_the_server(tmp_path, monkeypatch):
     png = c.get(f"/api/deck/workflows/{w['id']}/render/draft/{first}")
     assert png.status_code == 200 and png.content[:4] == b"\x89PNG"
     assert c.get(f"/api/deck/workflows/{w['id']}/render/draft/..%2Fsecret").status_code == 404
+
+
+def test_confirmation_draft_quotes_key_point_evidence(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+    import app.deckflow_api as api
+    from app.main import app
+    s = Store(tmp_path / "api-draft")
+    monkeypatch.setattr(api, "store", s)
+    w = s.create("确认稿", OUTLINE)
+    for name, make in fx_.SOURCES.items():
+        s.add_source(w["id"], name, make())
+    w = read_all(s, w["id"])
+    w = run_task(s, w["id"], "SUMMARY", "author-A", lambda t: summary(w))
+    text = TestClient(app).get(f"/api/deck/workflows/{w['id']}/confirmation-draft").text
+    k = w["summary"]["sections"][0]["key_points"][0]
+    u = next(u for x in w["sources"] for u in x["units"] if u["id"] == k["unit_ids"][0])
+    assert f"要点：{k['point']}" in text and " ".join(u["text"].split()) in text

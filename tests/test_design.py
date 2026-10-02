@@ -123,6 +123,58 @@ def test_new_layouts_render_cleanly_and_export_natively(tmp_path):
     assert len(bars) == 2 and abs(bars[0] / bars[1] - 38 / 12) < 0.02          # native bars keep the ratio
 
 
+def test_running_text_larger_than_the_title_is_reported():
+    """The hierarchy check itself: long body text above the title's size fails; a short value may be larger."""
+    from pathlib import Path
+    from playwright.sync_api import sync_playwright
+    js = (Path(__file__).resolve().parents[1] / "factdeck" / "extract.js").read_text(encoding="utf-8")
+    html = ('<section id="s" style="position:relative;width:1280px;height:720px"><div class="head"><div class="title" data-t '
+            'style="font-size:34px">标题</div></div><div class="body"><div data-t data-authored style="font-size:40px">{}</div></div></section>')
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        page = browser.new_page()
+        got = []
+        for text in ("这是一句明显超过十六个字的正文内容用来测试层级检查", "≥150/µL"):
+            page.set_content(html.format(text))
+            got.append(page.evaluate(js, {"slideId": "s", "expected": {}})["checks"]["hierarchy"])
+        browser.close()
+    assert got[0] and not got[1]
+
+
+def test_line_breaks_in_a_quote_render_as_lines_and_read_back(tmp_path):
+    units = [{"id": "L1", "source_id": "S01", "location": "第1页", "text": "评估并解决以下问题\n明确诊断\n提高依从性"}]
+    Fs, D, Tm = fx.parse({"facts": [{"id": "lst", "unit": "L1", "quote": "评估并解决以下问题\n明确诊断\n提高依从性"}]})
+    fx.verify(Fs, D, units, {}, Tm)
+    fs = {f["id"]: f for f in fx.as_dict(Fs, D, [])["facts"]}
+    deck = {"title": "分行", "pages": [{"id": "b", "layout": "bullets", "title": t("要点"), "items": [r("lst")]}]}
+    rep = render(deck, fs, {"S01": {"title": "资料一"}}, tmp_path)
+    assert rep["hard_errors"] == 0, rep["summary"]
+    from pptx import Presentation
+    paras = [p.text for sh in Presentation(str(tmp_path / "deck.pptx")).slides[0].shapes if sh.has_text_frame
+             for p in sh.text_frame.paragraphs if p.text.strip()]
+    assert {"评估并解决以下问题", "明确诊断", "提高依从性"} <= set(paras)
+
+
+def test_sparse_pages_keep_the_fixed_type_scale(tmp_path):
+    fs = facts()
+    deck = {"title": "版式", "pages": [
+        {"id": "ag", "layout": "agenda", "title": t("课程结构"), "items": [t("第一部分"), t("第二部分"), t("小结")]},
+        {"id": "few", "layout": "bullets", "title": t("要点"), "items": [r("a.v"), r("b.v")]},
+        {"id": "tbl", "layout": "table", "title": t("研究"), "columns": [t("研究"), t("人群")],
+         "rows": [[[r("a.n")], [r("a.pop")]], [[r("b.n")], [r("range")]]]},
+        {"id": "flow-like", "layout": "cards", "title": t("数"), "cards": [{"value": r("prev")}, {"value": r("range")}]}]}
+    assert check(deck, fs)["errors"] == 0
+    assert check({"pages": [{"id": "x", "layout": "agenda", "title": t("结构"), "items": [t("唯一")]}]}, fs)["errors"]
+    rep = render(deck, fs, {"S01": {"title": "资料一"}, "S02": {"title": "资料二"}}, tmp_path)
+    assert rep["hard_errors"] == 0, rep["summary"]
+    density = {s["id"]: s["density"] for s in rep["slides"]}
+    assert density["few"] == 1 and density["tbl"] == 1                    # sparse pages keep whitespace, never grow text
+    assert rep["summary"]["hierarchy"] == 0
+    html = (tmp_path / "deck.html").read_text(encoding="utf-8")
+    assert html.count('class="no"') >= 3                                  # numbered agenda entries (chrome)
+    assert html.count('class="vl word"') == 1 and html.count('class="vl"') == 1   # per card: a short number large, a phrase smaller
+
+
 # ------------------------------------------------------------------ brand
 def template(accent1="C8102E", accent2="F2A900", font="BrandSans") -> bytes:
     from pptx import Presentation

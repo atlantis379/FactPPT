@@ -23,11 +23,15 @@ from jinja2 import Environment, FileSystemLoader
 
 from .deck import check as deck_check, emph_spans
 from . import charts
+from . import compose
+from . import recipes
 from .lexicon import lint_text, canon
 
 HERE = Path(__file__).parent
 PX = 9525                       # EMU per CSS px at 96 dpi
 PPT_FONT = "Microsoft YaHei"
+# Body type is fixed by the design and only ever tightens to fit; a sparse page keeps its whitespace
+# rather than growing its text towards the title's size (that flattens the hierarchy).
 DENSITY = (1, .92, .85, .78, .72)
 
 THEMES = {
@@ -89,18 +93,29 @@ def cover_art(seed: int):
     return {"branches": branches, "dots": dots}
 
 
-def flow_geometry(page: dict, width: float, height: float) -> dict:
+NODE_FONT = 15                # px, .node in the template
+GRID_SHORT = 24               # characters per tile (heading + items) below which a grid reads across in one row
+FLOW_TOP = 24                 # a diagram starts just below the header, like every other body
+
+
+def flow_geometry(page: dict, width: float, height: float, facts: dict | None = None) -> dict:
     """Place nodes on a col/row grid and route orthogonal arrows between them."""
     nodes = page["nodes"]
     ncol = max(n["col"] for n in nodes) + 1
     nrow = max(n["row"] for n in nodes) + 1
     tagged = any(n.get("tag") for n in nodes)
-    gap_x, gap_y = 56, (40 if tagged else 34)
+    labelled = any(len(e) == 4 for e in page["edges"])
+    gap_x, gap_y = (76 if labelled else 56), (40 if tagged else 34)
     w = min(220, (width - gap_x * (ncol - 1)) / ncol)
-    h = min(84, max(46, (height - gap_y * (nrow - 1) - (30 if tagged else 0)) / nrow))
+    room = (height - gap_y * (nrow - 1) - (30 if tagged else 0)) / nrow
+    # boxes as tall as their text needs (the demo's compact nodes), never taller than the room per row
+    text = lambda ref: (ref.get("text") if "text" in ref else ((facts or {}).get(ref.get("fact")) or {}).get("text", "")) or ""
+    wide = lambda s: sum(1 if ord(ch) > 0x2E80 else 0.58 for ch in s.replace("\n", "").replace("\v", ""))
+    lines = max(math.ceil(wide(text(n["ref"])) * NODE_FONT / max(w - 22, 40)) for n in nodes) if facts else 3
+    h = min(84, max(46, room if not facts else lines * 20 + 18), room) if room >= 46 else 46
     total_w = ncol * w + (ncol - 1) * gap_x
     total_h = nrow * h + (nrow - 1) * gap_y
-    ox, oy = (width - total_w) / 2, max(0, (height - total_h) / 2)
+    ox, oy = (width - total_w) / 2, min(max(0, (height - total_h) / 2), FLOW_TOP)
     geo = {}
     placed = []
     for n in nodes:
@@ -110,12 +125,14 @@ def flow_geometry(page: dict, width: float, height: float) -> dict:
                        "cls": {"core": "core", "soft": "soft"}.get(n.get("emphasis", ""), ""),
                        "tag": n.get("tag"), "tag_y": round(y + h + 4, 1)})
     edges = []
-    for a, b, support in page["edges"]:
+    for a, b, support, *label in page["edges"]:
         (ax, ay), (bx, by) = geo[a], geo[b]
         if abs(ay - by) < 1:                                   # same row: side to side
             pts = [(ax + w, ay + h / 2), (bx - 2, by + h / 2)] if bx > ax else [(ax, ay + h / 2), (bx + w + 2, by + h / 2)]
+            at = ((pts[0][0] + pts[1][0]) / 2, pts[0][1])
         elif abs(ax - bx) < 1:                                 # same column: top/bottom
             pts = [(ax + w / 2, ay + h), (bx + w / 2, by - 2)] if by > ay else [(ax + w / 2, ay), (bx + w / 2, by + h + 2)]
+            at = (pts[0][0], (pts[0][1] + pts[1][1]) / 2)
         else:                                                  # elbow through the gap between columns
             if bx > ax:
                 x1, x2 = ax + w, bx - 2
@@ -123,18 +140,42 @@ def flow_geometry(page: dict, width: float, height: float) -> dict:
                 x1, x2 = ax, bx + w + 2
             xm = x1 + (x2 - x1) / 2
             pts = [(x1, ay + h / 2), (xm, ay + h / 2), (xm, by + h / 2), (x2, by + h / 2)]
-        edges.append({"support": support, "points": " ".join(f"{x:.1f},{y:.1f}" for x, y in pts)})
+            at = (xm, by + h / 2)                              # at the bend on the target's row: branches keep apart
+        e = {"support": support, "points": " ".join(f"{x:.1f},{y:.1f}" for x, y in pts)}
+        if label:
+            lw = label_width(label[0], facts)
+            e.update(label=label[0], lx=round(at[0] - lw / 2, 1), ly=round(at[1] - LABEL_H / 2, 1), lw=lw, lh=LABEL_H)
+        edges.append(e)
     return {"w": round(width, 1), "h": round(height, 1), "gap_x": gap_x, "nodes": placed, "edges": edges}
 
 
+LABEL_H = 22                  # an arrow label pill, centred on the line, as narrow as its text so the arrowhead stays visible
+
+
+def label_width(ref: dict, facts: dict | None) -> float:
+    text = ref.get("text") if "text" in ref else ((facts or {}).get(ref.get("fact")) or {}).get("text", "")
+    wide = sum(1 if ord(ch) > 0x2E80 else 0.6 for ch in (text or "").strip())
+    return round(max(30.0, min(68.0, wide * 13.5 + 16)), 1)
+
+
+PANEL_CHROME = 5 + 36 + 29 + 12    # compare panel: top border, padding, one-line heading, gap
 FIGURE_MIN_DPI = 150          # below this a source figure is flagged for the page reviewer (not blocking)
 SLIDE_DPI = 96                # 1280 px = 13.333 in
+BODY_BOTTOM = 88             # px between the body and the slide bottom (footer + breathing room); matches .body in the template
+BODY_TOP, BODY_TOP_NO_LEAD = 196, 170   # body top under title + lead, and under a title alone (keeps a steady gap)
 
 
-def figure_geometry(page: dict, fact: dict, figure: dict) -> dict:
-    """Fit a source figure into the body without cropping or changing its aspect ratio."""
-    body_h = 720 - (196 if page.get("lead") else 150) - 72
+def body_top(page: dict) -> int:
+    return BODY_TOP if page.get("lead") else BODY_TOP_NO_LEAD
+
+
+def figure_geometry(page: dict, fact: dict, figure: dict, box: tuple[float, float] | None = None) -> dict:
+    """Fit a source figure into the body (or a given (width, height) box, caption and source
+    line included) without cropping or changing its aspect ratio."""
+    body_h = 720 - body_top(page) - BODY_BOTTOM
     width = 1152 - (324 if page.get("side") else 0)
+    if box:
+        width, body_h = box
     cap_h = 52 if fact.get("caption") else 0
     src_h = 26
     box_h = body_h - cap_h - src_h
@@ -160,6 +201,112 @@ def chart_geometry_errors(page: dict, facts: dict, drawn: list[dict]) -> list[st
     return errors
 
 
+def table_widths(page, fview) -> list[float]:
+    """Column weights from content length when the spec gives none: a column of short
+    names should not take half the table from a column of long source sentences."""
+    def length(ref):
+        if isinstance(ref, dict) and "fact" in ref:
+            return len(fview[ref["fact"]]["text"])
+        return len(ref.get("text", "")) if isinstance(ref, dict) else len(str(ref))
+    out = []
+    for c, head in enumerate(page["columns"]):
+        longest = max([length(head)] + [sum(length(r) for r in row[c]) for row in page["rows"]])
+        out.append(max(4.0, min(longest, 60)) ** 0.75)
+    total = sum(out)
+    return [max(x / total, 0.14) for x in out]
+
+
+def oneline(text: str) -> str:
+    """A heading set on one line: the original's line breaks were wrapping, so breaks between CJK characters go away and
+    other breaks become a space (the fact text is unchanged; checks compare it without whitespace)."""
+    text = re.sub(r"(?<=[\u2E80-\u9FFF\uFF00-\uFFEF])\s*[\n\v]\s*(?=[\u2E80-\u9FFF\uFF00-\uFFEF])", "", text)
+    return re.sub(r"\s*[\n\v]\s*", " ", text)
+
+
+def refs_in(x) -> set:
+    """Every fact id referenced inside a page part."""
+    if isinstance(x, dict):
+        return ({x["fact"]} if "fact" in x else set()) | set().union(*[refs_in(v) for v in x.values()] or [set()])
+    if isinstance(x, list):
+        return set().union(*[refs_in(v) for v in x] or [set()])
+    return set()
+
+
+def mark_focus(x, focus: str):
+    """A copy of a page part in which the reference to the focus fact carries focus=True."""
+    if isinstance(x, dict):
+        return {**{k: mark_focus(v, focus) for k, v in x.items()}, **({"focus": True} if x.get("fact") == focus else {})}
+    if isinstance(x, list):
+        return [mark_focus(v, focus) for v in x]
+    return x
+
+
+NOTES_H = 118                 # the auxiliary area under a flow: heading + up to two lines per note
+
+
+OCCUPANCY_MIN = 0.6           # a content page whose body reaches less than this share of the body height reads as empty
+HOLE_MAX = 0.2                # nor may any empty rectangle (no text lines, surfaces or drawing) exceed this share of the body
+FULL_BLEED = {"cover", "divider", "agenda"}
+
+
+def signal_reason(page: dict, signal: str) -> str | None:
+    """The page's own reason for a visual signal (design.exceptions), if it gives one."""
+    for e in ((page.get("design") or {}).get("exceptions") or []):
+        if isinstance(e, dict) and e.get("signal") == signal and str(e.get("reason", "")).strip():
+            return str(e["reason"]).strip()
+    return None
+
+
+def whitespace_reason(page: dict) -> str | None:
+    return signal_reason(page, "whitespace")
+
+
+MAX_TYPE_SIZES = 3            # running-text sizes in the body (display sizes excluded), per the visual standard
+MAX_STRONG_AREAS = 1          # one dark area per page: more and they compete
+MIN_BALANCE = 0.75            # reviewed pilot pages sit at 0.83–0.91 (ink centre of mass against the body centre)
+MIN_ALIGNMENT = 0.6           # and at 0.71–1.0 (share of text blocks sharing a left edge)
+
+
+def metric_signals(slide: dict, page: dict) -> list[dict]:
+    """Signals from the composition metrics that the visual standard gives a clear limit for."""
+    m, out = slide.get("metrics") or {}, []
+    if page.get("layout") in FULL_BLEED or not m:
+        return out
+    if len(m.get("type_sizes") or []) > MAX_TYPE_SIZES:
+        out.append({"signal": "type_sizes", "detail": f"{slide['id']}：正文用了 {len(m['type_sizes'])} 种字号（{'、'.join(map(str, m['type_sizes']))} px），"
+                    f"标准为至多 {MAX_TYPE_SIZES} 种（数据大字不计）", "justified": signal_reason(page, "type_sizes")})
+    if m.get("balance") is not None and m["balance"] < MIN_BALANCE:
+        side = "右" if m["centre"][0] > 0 else "左"
+        out.append({"signal": "balance", "detail": f"{slide['id']}：内容重心偏{side}{'下' if m['centre'][1] > 0 else '上'}（平衡 {m['balance']}），版面一侧过空",
+                    "justified": signal_reason(page, "balance")})
+    if m.get("alignment") is not None and m["alignment"] < MIN_ALIGNMENT:
+        out.append({"signal": "alignment", "detail": f"{slide['id']}：只有 {round(m['alignment'] * 100)}% 的文字块与其他块左对齐，版面缺少共同的对齐线",
+                    "justified": signal_reason(page, "alignment")})
+    if (m.get("strong_areas") or 0) > MAX_STRONG_AREAS:
+        out.append({"signal": "strong_areas", "detail": f"{slide['id']}：有 {m['strong_areas']} 处深色区块，会互相争夺注意力（标准为一处）",
+                    "justified": signal_reason(page, "strong_areas")})
+    return out
+
+
+def sparse(slide: dict, page: dict) -> bool:
+    """A content page with a large empty area: its body stops short, or somewhere in it a rectangle larger than
+    HOLE_MAX of the body holds nothing. A signal for the author and page reviewer, not a rule: the page fixes it in
+    its own way, or states why the space is intended."""
+    if page.get("layout") in FULL_BLEED:
+        return False
+    return slide.get("occupancy", 1) < OCCUPANCY_MIN or ((slide.get("hole") or {}).get("share") or 0) > HOLE_MAX
+
+
+def sparse_message(slide: dict) -> str:
+    hole = slide.get("hole") or {}
+    where = ""
+    if hole.get("rect"):
+        r = hole["rect"]
+        where = f"（版心内 x {r['x']}–{r['x'] + r['w']}，y {r['y']}–{r['y'] + r['h']}）"
+    return (f"{slide['id']}：留白过多——主体向下用到版心的 {round(slide.get('occupancy', 1) * 100)}%，最大空白区占版心 "
+            f"{round((hole.get('share') or 0) * 100)}%{where}；请合并同一条目的相邻内容、按内容宽度分配栏宽或改用更有分量的版式（不放大文字、不凑内容）")
+
+
 def build_models(deck, facts, sources, check, figures=None):
     conflicted = {fid for fid, f in facts.items() if any("来源之间不一致" in p for p in f["problems"])}
     fview = {}
@@ -167,39 +314,82 @@ def build_models(deck, facts, sources, check, figures=None):
         text = f["display"] or f["quote"]
         fview[fid] = {"id": fid, "text": text, "pending": f["needs_confirmation"], "conflict": fid in conflicted,
                       "figure": f.get("figure", "")}
+    def text_len(ref):
+        if isinstance(ref, dict) and "fact" in ref:
+            return len(fview[ref["fact"]]["text"])
+        return len(ref.get("text", "")) if isinstance(ref, dict) else 0
+
     pages, divider_no = [], 0
     for i, (page, res) in enumerate(zip(deck["pages"], check["pages"])):
         p = dict(page)
         p["pending_count"] = len(res["pending"])
         p["sources_line"] = sources_line(res["facts"], facts, sources)
-        if page["layout"] in ("cover", "divider"):
-            p["art"] = cover_art(7 + i)
+        if page["layout"] == "composed":
+            p.update(compose.model(page, compose.bar_values(page, facts)))
         if page["layout"] == "cover":
+            p["art"] = cover_art(7 + i)
             p["chrome_meta"] = f"原始资料 {len(sources)} 份 · 页面中每一条内容均可追溯到原文位置"
-        if page["layout"] == "divider":
+        if page["layout"] == "divider":             # the cover's language: number, title, short bar, art
             divider_no += 1
             p["divider_no"] = divider_no
+            p["art"] = cover_art(7 + i)
+        if page["layout"] in ("bullets", "closing"):
+            items = page.get("items") or []
+            lens = [text_len(x) for x in items] or [0]
+            p["variant"] = "two" if len(items) > 5 and max(lens) <= 40 else "list"
+        if page["layout"] == "grid":
+            # short tiles (a label and a name) read across in one row; fuller tiles wrap into 2 or 3 columns
+            n = len(page["tiles"])
+            short = all(text_len(t["heading"]) + sum(text_len(x) for x in t["items"]) <= GRID_SHORT for t in page["tiles"])
+            p["grid_cols"] = n if short and n <= 6 else (2 if n in (2, 4) else 3)
         if page["layout"] == "table":
-            ws = page.get("widths") or [1] * len(page["columns"])
+            ws = page.get("widths") or table_widths(page, fview)
             p["col_widths"] = [round(100 * x / sum(ws), 2) for x in ws]
         if page["layout"] == "cards":
+            # per card, as in the demo: a short number is set large, a word or phrase one step smaller
             p["cards"] = [{**c, "numeric": "fact" in c["value"] and bool(re.search(r"\d", fview[c["value"]["fact"]]["text"]))
-                           and len(fview[c["value"]["fact"]]["text"]) <= 14} for c in page["cards"]]
+                           and len(fview[c["value"]["fact"]]["text"]) <= 9} for c in page["cards"]]
         if page["layout"] == "flow":
-            body_h = 720 - (150 if not page.get("lead") else 196) - 72
-            p["geo"] = flow_geometry(page, 1152 - (324 if page.get("side") else 0), body_h)
+            body_h = 720 - body_top(page) - BODY_BOTTOM - (NOTES_H + 20 if page.get("notes") else 0)
+            p["geo"] = flow_geometry(page, 1152 - (324 if page.get("side") else 0), body_h, fview)
+            if page.get("notes"):
+                p["notes_top"] = round(max(n["y"] + n["h"] for n in p["geo"]["nodes"]) + 36, 1)
         if page["layout"] == "chart":
-            body_h = 720 - (196 if page.get("lead") else 150) - 72
+            body_h = 720 - body_top(page) - BODY_BOTTOM
             cm = charts.model(page["chart"], facts)
             p["cg"] = charts.geometry(page["chart"], cm, 1152 - (324 if page.get("side") else 0), body_h - 8)
             p["cg"].update(refs=page["chart"]["bars"], w=1152 - (324 if page.get("side") else 0), h=body_h - 8)
-        if page["layout"] == "figure":
-            f = facts[page["figure"]["fact"]]
+        def fig_model(ref, box=None):
+            f = facts[ref["fact"]]
             g = figures[f["figure"]]
             src = sources.get(f["source_id"], {})
-            p["fig"] = {"fact": f["id"], "figure": f["figure"], "file": g["file"], "caption": list(f.get("caption") or []),
-                        "source": f"{short_title(src.get('title') or src.get('filename') or f['source_id'])} {f['location']}",
-                        "pending": f["needs_confirmation"], **figure_geometry(page, f, g)}
+            return {"fact": f["id"], "figure": f["figure"], "file": g["file"], "caption": list(f.get("caption") or []),
+                    "source": f"{short_title(src.get('title') or src.get('filename') or f['source_id'])} {f['location']}",
+                    "pending": f["needs_confirmation"], **figure_geometry(page, f, g, box)}
+        if page["layout"] == "figure":
+            p["fig"] = fig_model(page["figure"])
+        if page["layout"] == "compare" and any("figure" in pn for pn in page["panels"]):
+            n = len(page["panels"])
+            body_h = 720 - body_top(page) - BODY_BOTTOM - 8 - (104 if page.get("band") else 0)
+            inner = ((1152 - 24 * (n - 1)) / n - 48, body_h - PANEL_CHROME)
+            p["panels"] = [{**pn, "fig": fig_model(pn["figure"], inner)} if "figure" in pn else pn for pn in page["panels"]]
+            p["fixed_size"] = True           # the figures are sized for body text at k = 1
+        # the page's focus. Panels, tiles, cards and side notes are peers: they keep identical surfaces (darkening one
+        # would say that peer matters more), and the focus fact itself is marked. Nested levels and flow nodes are not
+        # peers: the level or node holding the focus is the page's one strong element.
+        focus = (page.get("focus") or {}).get("fact") if isinstance(page.get("focus"), dict) else None
+        if focus:
+            for key in ("panels", "tiles", "cards", "side"):
+                if p.get(key):
+                    p[key] = mark_focus(p[key], focus)
+            if p.get("levels"):
+                p["levels"] = [{**x, "is_focus": focus in refs_in(x)} for x in p["levels"]]
+            if p.get("geo"):
+                for n in p["geo"]["nodes"]:
+                    if focus in refs_in(n["ref"]):
+                        n["cls"] = "core"
+        if page["layout"] == "nested":
+            p["nest_w"] = round((1152 - 44 * (len(page["levels"]) - 1)) / len(page["levels"]) - 44, 1)
         pages.append(p)
     return pages, fview
 
@@ -253,24 +443,79 @@ def _fill_paras(tf, paras, line_height_px, align="left", font=PPT_FONT):
         for r in runs:
             run = para.add_run()
             run.text = r["text"]
-            _set_font(run, r["size"] * (0.62 if r.get("mark") and r["size"] > 14 else 1), r["bold"], r["color"], font)
+            _set_font(run, r["size"] * (0.62 if r.get("mark") and r["size"] > 14 else 1), r["bold"], r["color"], r.get("font",font))
+
+
+# theme colour slots: a colour on a slide that equals one of these tokens is written as a reference to the theme, so a
+# client who changes the theme (Design → Variants → Colors) recolours the whole deck
+THEME_SLOTS = [("dk1", "tx1", "ink"), ("lt1", "bg1", None), ("dk2", "tx2", "primary"), ("lt2", "bg2", "sky"),
+               ("accent1", "accent1", "primary"), ("accent2", "accent2", "accent"), ("accent3", "accent3", "primary2"),
+               ("accent4", "accent4", "accent2"), ("accent5", "accent5", "muted"), ("accent6", "accent6", "line")]
+
+
+def _write_theme(prs, tokens: dict, font: str):
+    """Colours and fonts of the deck's theme into the presentation theme; slide colours then refer to it."""
+    from lxml import etree
+    from pptx.opc.constants import RELATIONSHIP_TYPE as RT
+    from pptx.oxml.ns import qn
+    part = prs.slide_master.part.part_related_by(RT.THEME)
+    root = etree.fromstring(part.blob)
+    scheme = root.find(".//" + qn("a:clrScheme"))
+    scheme.set("name", "FactDeck")
+    slot_hex = {}
+    for slot, ref, token in THEME_SLOTS:
+        hexv = "FFFFFF" if token is None else tokens[token].lstrip("#").upper()
+        el = scheme.find(qn("a:" + slot))
+        for ch in list(el):
+            el.remove(ch)
+        el.append(el.makeelement(qn("a:srgbClr"), {"val": hexv}))
+        slot_hex.setdefault(hexv, ref)
+    fonts = root.find(".//" + qn("a:fontScheme"))
+    fonts.set("name", "FactDeck")
+    for kind in ("a:majorFont", "a:minorFont"):
+        f = fonts.find(qn(kind))
+        for script in ("a:latin", "a:ea"):
+            f.find(qn(script)).set("typeface", font)
+    part._blob = etree.tostring(root, xml_declaration=True, encoding="UTF-8", standalone=True)
+    return slot_hex
+
+
+def _theme_refs(slide, slot_hex: dict):
+    """Rewrite every explicit colour that equals a theme colour as a reference to that theme slot."""
+    from pptx.oxml.ns import qn
+    for el in slide._element.iter(qn("a:srgbClr")):
+        ref = slot_hex.get((el.get("val") or "").upper())
+        if ref:
+            el.tag = qn("a:schemeClr")
+            el.attrib.clear()
+            el.set("val", ref)
 
 
 def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path, title: str = "", figure_png: dict | None = None,
-               font: str = PPT_FONT):
+               font: str = PPT_FONT, theme: dict | None = None, strict_text_geometry: bool = False):
     from pptx import Presentation
     from pptx.util import Emu
     from pptx.enum.shapes import MSO_SHAPE, MSO_CONNECTOR
-    from pptx.enum.text import MSO_ANCHOR
+    from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE
     from pptx.oxml.ns import qn
 
     prs = Presentation()
     prs.core_properties.title = title
     prs.slide_width, prs.slide_height = Emu(1280 * PX), Emu(720 * PX)
-    blank = prs.slide_layouts[6]
+    title_only = prs.slide_layouts[5]          # the page title goes into a real title placeholder (outline view, accessibility)
+    slot_hex = _write_theme(prs, theme, font) if theme else {}
     E = lambda v: Emu(int(round(v * PX)))
     for m, note in zip(models, notes):
-        s = prs.slides.add_slide(blank)
+        s = prs.slides.add_slide(title_only)
+        groups = {}
+
+        def into(group):
+            """Where a shape goes: the slide, or the PowerPoint group of its item (created on first use)."""
+            if not group:
+                return s.shapes
+            if group not in groups:
+                groups[group] = s.shapes.add_group_shape()
+            return groups[group].shapes
         if m.get("background"):
             bg = s.background.fill
             bg.solid()
@@ -279,7 +524,8 @@ def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path
             s.shapes.add_picture(str(raster_png[r["id"]]), E(r["x"]), E(r["y"]), E(r["w"]), E(r["h"]))
         for sh in m["shapes"]:
             kind = MSO_SHAPE.ROUNDED_RECTANGLE if sh["radius"] > 0.5 else MSO_SHAPE.RECTANGLE
-            shape = s.shapes.add_shape(kind, E(sh["x"]), E(sh["y"]), E(sh["w"]), E(sh["h"]))
+            target = into(sh.get("group"))
+            shape = target.add_shape(kind, E(sh["x"]), E(sh["y"]), E(sh["w"]), E(sh["h"]))
             if kind == MSO_SHAPE.ROUNDED_RECTANGLE:
                 shape.adjustments[0] = min(0.5, sh["radius"] / max(1, min(sh["w"], sh["h"])))
             if sh["fill"]:
@@ -296,7 +542,7 @@ def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path
             shape.shadow.inherit = False
             shape.text_frame.text = ""
             for a in sh["accents"]:
-                acc = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, E(a["x"]), E(a["y"]), E(a["w"]), E(a["h"]))
+                acc = target.add_shape(MSO_SHAPE.RECTANGLE, E(a["x"]), E(a["y"]), E(a["w"]), E(a["h"]))
                 acc.fill.solid()
                 acc.fill.fore_color.rgb = _rgb(a["color"])
                 acc.line.fill.background()
@@ -305,7 +551,7 @@ def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path
             pts = ln["points"]
             for i in range(len(pts) - 1):
                 (x1, y1), (x2, y2) = pts[i], pts[i + 1]
-                c = s.shapes.add_connector(MSO_CONNECTOR.STRAIGHT, E(x1), E(y1), E(x2), E(y2))
+                c = into(ln.get("group")).add_connector(MSO_CONNECTOR.STRAIGHT, E(x1), E(y1), E(x2), E(y2))
                 c.line.color.rgb = _rgb({"hex": ln["color"]})
                 c.line.width = E(ln["w"])
                 if ln["arrow"] and i == len(pts) - 2:
@@ -341,7 +587,8 @@ def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path
                     tf.word_wrap = True
                     _fill_paras(tf, cd["paras"] or [[{"text": "", "size": 14, "bold": False, "color": None}]], cd["lineHeight"], font=font)
                     tcPr = cell._tc.get_or_add_tcPr()
-                    for side in ("a:lnL", "a:lnR", "a:lnT", "a:lnB"):
+                    for index,side in enumerate(("a:lnL", "a:lnR", "a:lnT", "a:lnB")):
+                        for existing in list(tcPr.findall(qn(side))): tcPr.remove(existing)
                         ln = tcPr.makeelement(qn(side), {"w": "9525" if side == "a:lnB" and cd["border"] else "0"})
                         if side == "a:lnB" and cd["border"]:
                             sf = ln.makeelement(qn("a:solidFill"), {})
@@ -349,18 +596,30 @@ def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path
                             ln.append(sf)
                         else:
                             ln.append(ln.makeelement(qn("a:noFill"), {}))
-                        tcPr.append(ln)
+                        # DrawingML requires line children before the cell fill.
+                        # Office otherwise falls back to the black Table Grid style.
+                        tcPr.insert(index,ln)
+        title_ph = s.shapes.title
         for t in m["texts"]:
             if not t["paras"]:
                 continue
-            w = t["w"] * 1.03 + 2        # PowerPoint CJK metrics differ slightly from the browser's
-            tb = s.shapes.add_textbox(E(t["x"]), E(t["y"]), E(w), E(max(t["h"], t["lineHeight"])))
+            w = t["w"] if strict_text_geometry else t["w"] * 1.03 + 2
+            geo = (E(t["x"]), E(t["y"]), E(w), E(max(t["h"], t["lineHeight"])))
+            if t.get("role") == "title" and title_ph is not None and not title_ph.text_frame.text:
+                tb = title_ph
+                tb.left, tb.top, tb.width, tb.height = geo
+            else:
+                tb = into(t.get("group")).add_textbox(*geo)
             tf = tb.text_frame
             tf.word_wrap = not t["nowrap"]
             tf.margin_left = tf.margin_right = tf.margin_top = tf.margin_bottom = 0
             tf.vertical_anchor = MSO_ANCHOR.MIDDLE if t["anchor"] == "middle" else MSO_ANCHOR.TOP
-            tf.auto_size = None
+            tf.auto_size = MSO_AUTO_SIZE.NONE      # explicit: a placeholder would otherwise inherit the layout's autofit
             _fill_paras(tf, t["paras"], t["lineHeight"], t["align"], font)
+        if title_ph is not None and not title_ph.text_frame.text:      # a slide without a title keeps no empty placeholder
+            title_ph._element.getparent().remove(title_ph._element)
+        if slot_hex:
+            _theme_refs(s, slot_hex)
         s.notes_slide.notes_text_frame.text = note
     prs.save(str(out))
 
@@ -372,9 +631,18 @@ def readback(pptx_path: Path, pages_facts: list[list[str]], fview: dict, pages_f
     from pptx import Presentation
     from pptx.enum.shapes import MSO_SHAPE_TYPE
     prs = Presentation(str(pptx_path))
+
+    def flat(shapes):
+        """Every shape on the slide, including those inside groups."""
+        for sh in shapes:
+            if sh.shape_type == MSO_SHAPE_TYPE.GROUP:
+                yield from flat(sh.shapes)
+            else:
+                yield sh
     results = []
     for n, (slide, fids) in enumerate(zip(prs.slides, pages_facts)):
-        pics = [(hashlib.sha256(sh.image.blob).hexdigest(), sh.width / sh.height) for sh in slide.shapes
+        shapes = list(flat(slide.shapes))
+        pics = [(hashlib.sha256(sh.image.blob).hexdigest(), sh.width / sh.height) for sh in shapes
                 if sh.shape_type == MSO_SHAPE_TYPE.PICTURE]
         missing_figures = []
         for g in (pages_figures or [[]] * len(pages_facts))[n]:
@@ -382,7 +650,7 @@ def readback(pptx_path: Path, pages_facts: list[list[str]], fview: dict, pages_f
             if not any(h == g["sha256"] and abs(r - ratio) / ratio < 0.01 for h, r in pics):
                 missing_figures.append(g["id"])
         texts = []
-        for sh in slide.shapes:
+        for sh in shapes:
             if sh.has_text_frame:
                 texts.append(sh.text_frame.text)
             if getattr(sh, "has_table", False) and sh.has_table:
@@ -394,9 +662,47 @@ def readback(pptx_path: Path, pages_facts: list[list[str]], fview: dict, pages_f
     return results
 
 
+DRIFT_MAX = 0.06              # mean per-pixel difference (0–1) between PowerPoint-side and browser renders of a slide
+
+
+def soffice_path() -> str | None:
+    for c in (shutil.which("soffice"), shutil.which("libreoffice"),
+              r"C:\Program Files\LibreOffice\program\soffice.exe", r"C:\Program Files (x86)\LibreOffice\program\soffice.exe"):
+        if c and Path(c).exists():
+            return c
+    return None
+
+
+def appearance_check(out: Path, n_slides: int) -> dict:
+    """Does the exported PPTX look like the browser render? LibreOffice renders the PPTX (an independent office
+    renderer), each page is compared with slideNN.png. Skipped, with a notice, where LibreOffice is not installed."""
+    import subprocess
+    import tempfile
+    soffice = soffice_path()
+    if not soffice:
+        return {"status": "skipped", "reason": "未安装 LibreOffice，未比对 PPTX 与浏览器画面（安装后自动启用）"}
+    try:
+        import pypdfium2 as pdfium
+        from PIL import Image, ImageChops, ImageStat
+    except ImportError as e:
+        return {"status": "skipped", "reason": f"缺少比对组件：{e}"}
+    with tempfile.TemporaryDirectory() as tmp:
+        subprocess.run([soffice, "--headless", "--convert-to", "pdf", "--outdir", tmp, str(out / "deck.pptx")],
+                       check=True, capture_output=True, timeout=300)
+        pdf = pdfium.PdfDocument(str(Path(tmp) / "deck.pdf"))
+        slides = []
+        for i in range(min(len(pdf), n_slides)):
+            office = pdf[i].render(scale=1280 / pdf[i].get_width()).to_pil().convert("L").resize((640, 360))
+            browser = Image.open(out / f"slide{i + 1:02d}.png").convert("L").resize((640, 360))
+            diff = ImageStat.Stat(ImageChops.difference(office, browser)).mean[0] / 255
+            slides.append({"slide": i + 1, "drift": round(diff, 3)})
+    return {"status": "checked", "slides": slides, "drifted": [x["slide"] for x in slides if x["drift"] > DRIFT_MAX]}
+
+
 FIT_JS = """(id) => {
   const s = document.getElementById(id); const S = s.getBoundingClientRect();
-  const foot = s.querySelector('.foot'); const limit = foot ? foot.getBoundingClientRect().top : S.bottom;
+  const foot = s.querySelector('.foot'), body = s.querySelector('.body');
+  const limit = Math.min(foot ? foot.getBoundingClientRect().top : S.bottom, body ? body.getBoundingClientRect().bottom : S.bottom);
   let bad = 0;
   s.querySelectorAll('[data-t], td, th').forEach((el) => {
     if (el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1) bad++;
@@ -405,6 +711,29 @@ FIT_JS = """(id) => {
     const r = el.getBoundingClientRect(); if (r.height > 0 && r.bottom > limit + 0.5) bad++;
   });
   return bad;
+}"""
+
+
+MEASURE_JS = r"""(id) => {
+  // natural height of every composed text block, keyed like recipes.mkey: size | width | text without whitespace
+  const out = {};
+  document.querySelectorAll('#' + id + ' .cb[data-t]').forEach((el) => {
+    const cs = getComputedStyle(el), h0 = el.style.height;
+    el.style.height = 'auto';
+    const h = Math.ceil(el.getBoundingClientRect().height);
+    el.style.height = h0;
+    const text = [...el.querySelectorAll('[data-fact],[data-authored]')].map((x) => x.textContent).join('　').replace(/\s+/g, '');
+    const key = Math.round(parseFloat(cs.fontSize)) + '|' + Math.round(el.getBoundingClientRect().width) + '|' + text;
+    out[key] = Math.max(out[key] || 0, h);
+  });
+  return out;
+}"""
+
+
+SET_K_JS = """([id, k]) => {
+  const s = document.getElementById(id); const b = s.querySelector('.body');
+  s.style.setProperty('--k', Math.min(k, 1));
+  if (b) b.style.setProperty('--k', k);
 }"""
 
 
@@ -446,9 +775,12 @@ def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Pa
         name = f"figure_{g['sha256'][:24]}.png"
         (out / name).write_bytes(data)
         figview[fid] = {**g, "file": name, "path": out / name}
+    source_deck = deck
+    deck, _ = recipes.expand_deck(deck, facts)                  # recipe pages placed as the check saw them (estimates)
     pages, fview = build_models(deck, facts, sources, chk, figview)
     env = Environment(loader=FileSystemLoader(HERE / "templates"), autoescape=True)
     env.globals["emph_spans"] = emph_spans
+    env.filters["oneline"] = oneline
     tokens, font, logo, theme_name = resolve_theme(theme)
     if logo:
         logo_name = "logo" + Path(logo).suffix.lower()
@@ -456,7 +788,8 @@ def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Pa
         logo = logo_name
     html_path = out / "deck.html"
     write = lambda f: html_path.write_text(env.get_template("deck.html.j2").render(
-        deck=deck, pages=pages, facts=fview, theme=tokens, brand_font=f, logo=logo), encoding="utf-8")
+        deck=deck, pages=pages, facts=fview, theme=tokens, brand_font=f, logo=logo,
+        body_top=BODY_TOP, body_top_no_lead=BODY_TOP_NO_LEAD), encoding="utf-8")
     write(font)
 
     js = (HERE / "extract.js").read_text(encoding="utf-8")
@@ -475,9 +808,18 @@ def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Pa
             write(None)
             page.goto(html_path.resolve().as_uri())
             page.evaluate("document.fonts.ready")
+        # recipe pages: measure every text block's real height, then place the page again from real sizes
+        recipe_ids = [p["id"] for p in source_deck["pages"] if p.get("recipe")]
+        if recipe_ids:
+            measured = {pid: page.evaluate(MEASURE_JS, pid) for pid in recipe_ids}
+            deck, _ = recipes.expand_deck(source_deck, facts, measured)
+            pages, fview = build_models(deck, facts, sources, chk, figview)
+            write(font)
+            page.goto(html_path.resolve().as_uri())
+            page.evaluate("document.fonts.ready")
         for i, p in enumerate(pages, 1):
-            for k in DENSITY:                          # tighten the page until nothing overflows
-                page.evaluate("([id, k]) => document.getElementById(id).style.setProperty('--k', k)", [p["id"], k])
+            for k in DENSITY:                          # largest body size at which nothing overflows
+                page.evaluate(SET_K_JS, [p["id"], k])
                 if page.evaluate(FIT_JS, p["id"]) == 0:
                     break
             density[p["id"]] = k
@@ -500,7 +842,7 @@ def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Pa
                 dpi = round(src["width"] / (g["w"] / SLIDE_DPI))
                 if dpi < FIGURE_MIN_DPI:
                     m["checks"]["figure_low_dpi"].append({"fact": g["id"], "dpi": dpi})
-            report["slides"].append({"id": p["id"], "density": k, **m["checks"]})
+            report["slides"].append({"id": p["id"], "density": k, "occupancy": m.pop("occupancy", 1), "hole": m.pop("hole", None), "metrics": m.pop("metrics", None), **m["checks"]})
             models.append(m)
         html_path.write_text(page.content(), encoding="utf-8")      # keep the fitted densities
         page.emulate_media(media="print")
@@ -519,7 +861,10 @@ def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Pa
         notes.append("\n".join(lines) if res["facts"] else "")
     pptx_path = out / "deck.pptx"
     figure_png = {fid: figview[f["figure"]]["path"] for fid, f in facts.items() if f.get("figure") in figview}
-    build_pptx(models, raster_png, notes, pptx_path, deck.get("title", ""), figure_png, font or PPT_FONT)
+    build_pptx(models, raster_png, notes, pptx_path, deck.get("title", ""), figure_png, font or PPT_FONT, tokens)
+    # Immutable preparation input for the image → native-vector route. Content,
+    # tables and supported connectors are locked before a visual worker sees them.
+    (out / "native_model.json").write_text(json.dumps({"models": models, "notes": notes, "font": font or PPT_FONT}, ensure_ascii=False), encoding="utf-8")
     pages_figures = [[{"id": g["id"], **{k: figview[facts[g["id"]]["figure"]][k] for k in ("sha256", "width", "height")}}
                       for g in m["figures"]] for m in models]
     rb = readback(pptx_path, [r["facts"] for r in chk["pages"]], fview, pages_figures)
@@ -534,6 +879,7 @@ def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Pa
         "overflow": sum(len(s["overflow"]) for s in report["slides"]),
         "out_of_bounds": sum(len(s["bounds"]) for s in report["slides"]),
         "overlap": sum(len(s["overlap"]) for s in report["slides"]),
+        "hierarchy": sum(len(s.get("hierarchy", [])) for s in report["slides"]),
         "authored_lint": sum(len(s["authored_lint"]) for s in report["slides"]),
         "pptx_missing_facts": sum(len(r["missing"]) for r in rb),
         "chart_geometry": sum(len(s["chart_geometry"]) for s in report["slides"]),
@@ -541,13 +887,24 @@ def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Pa
         "figure_distortion": sum(len(s["figure_distortion"]) for s in report["slides"]),
         "figure_low_dpi": sum(len(s["figure_low_dpi"]) for s in report["slides"]),
         "pptx_missing_figures": sum(len(r["missing_figures"]) for r in rb),
+        "sparse": sum(1 for sl, p in zip(report["slides"], pages) if sparse(sl, p) and not whitespace_reason(p)),
     }
     s = report["summary"]
-    report["hard_errors"] = s["untracked_text"] + s["fact_text_mismatch"] + s["overflow"] + s["out_of_bounds"] + s["overlap"] + s["authored_lint"] + s["pptx_missing_facts"] \
+    report["hard_errors"] = s["untracked_text"] + s["fact_text_mismatch"] + s["overflow"] + s["out_of_bounds"] + s["overlap"] + s["hierarchy"] + s["authored_lint"] + s["pptx_missing_facts"] \
         + s["figure_distortion"] + s["pptx_missing_figures"] + s["chart_geometry"]
     report["theme"] = theme_name
     report["font"] = font or PPT_FONT
-    report["warnings"] = [font_warning] if font_warning else []
+    # per page: the design note, the signals (fixed or justified by the page itself) and the semantic review list
+    for sl, p, res in zip(report["slides"], pages, chk["pages"]):
+        sl["design"], sl["review"], sl["signals"] = res.get("design") or {}, res.get("review") or [], list(res.get("signals") or [])
+        if sparse(sl, p):
+            sl["signals"].append({"signal": "whitespace", "detail": sparse_message(sl), "justified": whitespace_reason(p)})
+        sl["signals"] += metric_signals(sl, p)
+    report["appearance"] = appearance_check(out, len(pages))
+    report["warnings"] = ([font_warning] if font_warning else []) + (
+        [f"PPTX 画面与浏览器渲染差异较大的页：{'、'.join(map(str, report['appearance']['drifted']))}（请在 PowerPoint 中检查）"]
+        if report["appearance"].get("drifted") else []) + [
+        s["detail"] for sl in report["slides"] for s in sl["signals"] if s["signal"] != "repetition" and not s["justified"]]
     (out / "render_report.json").write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
     return report
 

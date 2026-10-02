@@ -129,7 +129,7 @@ def read_with_figures(store, wid):
             if row["id"] == "S05:img":
                 row["transcription"] = [{"id": "g1c1", "location": "图中图例", "text": "A组", "figure": FIG}]
         store.complete(wid, t["id"], t["lease_token"], result)
-    return store.get(wid)
+    return T.claim_all(store, wid)
 
 
 @pytest.fixture
@@ -138,7 +138,7 @@ def store(tmp_path):
 
 
 def to_figure_deck(store):
-    w = store.create("原件图验收", T.OUTLINE, {"audience": "规培医生", "target_pages": 10})
+    w = store.create("原件图验收", T.OUTLINE, {"audience": "规培医生", "target_pages": 10}, generation_route="CODE_NATIVE")
     for name, make in fx_.SOURCES.items():
         store.add_source(w["id"], name, make())
     w = store.add_source(w["id"], "figure.png", picture())

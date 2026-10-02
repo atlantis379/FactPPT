@@ -536,7 +536,7 @@ class Store:
         p = next((p for p in w["pages"] if p["id"] == t["binding"]), None)
         return bool(p) and content_approved(w) and p["contract_sha256"] == t["input_sha256"] and (p in w["pages"][:5] or style_approved(w))
 
-    def claim(self, workflow_id: str, worker: str, kind: str | None = None):
+    def claim(self, workflow_id: str, worker: str, kind: str | None = None, binding: str | None = None):
         require(bool(worker.strip()), "请填写执行端标识", 422)
         claimed = None
         with self.transaction(workflow_id, "TASK_CLAIM") as w:
@@ -545,7 +545,7 @@ class Store:
                     t["status"] = "PENDING" if t["attempts"] < 3 else "FAILED"
                     t["lease_token"] = None
                     t["error"] = "执行租约超时"
-                if t["status"] != "PENDING" or (kind and t["kind"] != kind): continue
+                if t["status"] != "PENDING" or (kind and t["kind"] != kind) or (binding is not None and t["binding"] != binding): continue
                 if not self.task_current(w, t):
                     t["status"] = "CANCELLED"
                     continue

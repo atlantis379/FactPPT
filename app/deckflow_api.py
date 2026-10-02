@@ -3,16 +3,17 @@ workflow stays on /api/fact; legacy semantic endpoints stay on the host app."""
 import json
 from typing import Any, Literal
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.deckflow import Store, WorkflowError, MAX_UPLOAD, KINDS, digest
+from app.deckflow import (Store, WorkflowError, MAX_UPLOAD, KINDS, all_units, all_claims, claim_origin, claim_text, digest,
+                          unsupported_points, message_lines, story_line, summary_review_current)
 from factdeck.render import THEMES
 
 router = APIRouter(prefix="/api/deck", tags=["FactDeck 主线"])
 store = Store()
-Kind = Literal["READ_SOURCE", "SECOND_READ", "SUMMARY", "FACTS", "DECK", "SEMANTIC_REVIEW"]
+Kind = Literal["READ_SOURCE", "SECOND_READ", "CLAIMS", "SUMMARY", "SUMMARY_REVIEW", "FACTS", "DECK", "SEMANTIC_REVIEW", "VISUAL_CRITIQUE", "VISUAL_DESIGN", "VISUAL_LAYOUT", "VISUAL_CLEAN", "VISUAL_VECTOR"]
 
 
 class Strict(BaseModel):
@@ -47,11 +48,23 @@ class Settings(Strict):
 
 class Queue(Strict):
     kind: Kind
+    sources: list[str] | None = None        # CLAIMS only: redo these sources
+    pages: list[str] | None = None          # visual revision only
+
+
+class VisualRevision(Strict):
+    page_id: str
+    kind: Literal["VISUAL_DESIGN", "VISUAL_LAYOUT", "VISUAL_CLEAN", "VISUAL_VECTOR"]
+
+
+class GenerationRequest(Strict):
+    first_pages: int | None = Field(default=None, ge=1, le=299, strict=True)
 
 
 class Claim(Strict):
     worker: str = Field(min_length=1, max_length=200)
     kind: Kind | None = None
+    binding: str | None = Field(default=None, min_length=1, max_length=200)
 
 
 class Complete(Strict):
@@ -142,6 +155,7 @@ def call(method, *args, **kwargs):
 @router.get("/health")
 def health():
     return {"product": "FactPPTv2", "workflow": "factdeck.v1", "mainline": True, "execution": "WORKER_COLLABORATION",
+            "visual_generation": {"default_route": "A_NATIVE_VECTOR", "executor": "CODEX_ADOBE_WORKER", "server_vendor_calls": False},
             "task_kinds": list(KINDS), "themes": list(THEMES), "projects": len(store.list())}
 
 
@@ -188,6 +202,11 @@ def source_file(workflow_id: str, source_id: str):
     return FileResponse(store.path(s["path"]), filename=s["filename"])
 
 
+@router.get("/workflows/{workflow_id}/sources/{source_id}/pages/{page_id}/image")
+def page_image(workflow_id: str, source_id: str, page_id: str):
+    return Response(call(store.page_image, workflow_id, source_id, page_id), media_type="image/png")
+
+
 @router.post("/workflows/{workflow_id}/brand/template")
 async def brand_template(workflow_id: str, file: UploadFile = File(...)):
     content = await file.read(MAX_UPLOAD + 1)
@@ -224,18 +243,28 @@ def figure_file(workflow_id: str, figure_id: str):
 
 @router.post("/workflows/{workflow_id}/tasks")
 def queue(workflow_id: str, body: Queue):
-    return call(store.queue, workflow_id, body.kind)
+    if body.sources and body.pages: raise HTTPException(422, "sources 与 pages 不能同时提交")
+    return call(store.queue, workflow_id, body.kind, body.pages or body.sources)
 
 
 @router.post("/workflows/{workflow_id}/tasks/claim")
 def claim(workflow_id: str, body: Claim):
-    task = call(store.claim, workflow_id, body.worker, body.kind)
+    task = call(store.claim, workflow_id, body.worker, body.kind, body.binding)
     return task if task else Response(status_code=204)
 
 
 @router.post("/workflows/{workflow_id}/tasks/{task_id}/complete")
-def complete(workflow_id: str, task_id: str, body: Complete):
-    return call(store.complete, workflow_id, task_id, body.lease_token, body.result)
+def complete(workflow_id: str, task_id: str, body: Complete, compact: bool = False):
+    result = call(store.complete, workflow_id, task_id, body.lease_token, body.result)
+    return completion_ack(result, task_id) if compact else result
+
+
+def completion_ack(result, task_id):
+    task = next(t for t in result["tasks"] if t["id"] == task_id)
+    return {"workflow_id": result["id"], "task_id": task_id,
+            "status": task["status"], "result_sha256": task.get("result_sha256"),
+            "stage": result.get("stage"),
+            "render_status": (result.get("generation") or {}).get("render", {}).get("status")}
 
 
 @router.post("/workflows/{workflow_id}/tasks/{task_id}/fail")
@@ -327,14 +356,84 @@ def license_figure(workflow_id: str, figure_id: str, body: FigureLicence):
     return call(store.license_figure, workflow_id, figure_id, body.model_dump())
 
 
+@router.post("/workflows/{workflow_id}/summary-review/issues/{issue_id}/dismiss")
+def dismiss_summary(workflow_id: str, issue_id: str, body: Dismissal):
+    return call(store.dismiss_summary_issue, workflow_id, issue_id, body.model_dump())
+
+
 @router.post("/workflows/{workflow_id}/semantic-review/issues/{issue_id}/dismiss")
 def dismiss(workflow_id: str, issue_id: str, body: Dismissal):
     return call(store.dismiss_issue, workflow_id, issue_id, body.model_dump())
 
 
 @router.post("/workflows/{workflow_id}/render")
-def render(workflow_id: str, draft: bool = False):
-    return call(store.render, workflow_id, draft)
+def render(workflow_id: str, background_tasks: BackgroundTasks, draft: bool = False):
+    result = call(store.render, workflow_id, draft)
+    if not draft and result.get("generation"): background_tasks.add_task(store.run_generation, workflow_id)
+    return result
+
+
+@router.post("/workflows/{workflow_id}/generation")
+def generate(workflow_id: str, background_tasks: BackgroundTasks, body: GenerationRequest | None = None):
+    result = call(store.start_generation, workflow_id, body.first_pages if body else None)
+    background_tasks.add_task(store.run_generation, workflow_id)
+    return result
+
+
+@router.get("/workflows/{workflow_id}/generation")
+def generation(workflow_id: str):
+    return call(store.get, workflow_id)["generation_status"]
+
+
+@router.post("/workflows/{workflow_id}/generation/revise")
+def revise_generation(workflow_id: str, body: VisualRevision):
+    return call(store.revise_generation, workflow_id, body.page_id, body.kind)
+
+
+@router.post("/workflows/{workflow_id}/tasks/{task_id}/asset")
+def visual_asset(workflow_id: str, task_id: str, background_tasks: BackgroundTasks,
+                 lease_token: str = Form(...), receipt: str = Form(...), file: UploadFile = File(...), compact: bool = False):
+    content = file.file.read(MAX_UPLOAD + 1)
+    if len(content) > MAX_UPLOAD: raise HTTPException(422, "文件超过40MB")
+    result = call(store.visual_asset, workflow_id, task_id, lease_token, content, call(json.loads, receipt))
+    background_tasks.add_task(store.run_generation, workflow_id)
+    return completion_ack(result, task_id) if compact else result
+
+
+@router.get("/workflows/{workflow_id}/generation/assets/{page_id}/{kind}")
+def visual_asset_file(workflow_id: str, page_id: str, kind: Literal["design", "clean", "vector"]):
+    w = call(store.get, workflow_id)
+    page = next((p for p in (w.get("generation") or {}).get("pages", []) if p["id"] == page_id), None)
+    asset = (page or {}).get("assets", {}).get(kind)
+    if not asset: raise HTTPException(404, "资产不存在")
+    path = store.path(asset["path"])
+    from app.fact57098 import sha
+    if sha(path.read_bytes()) != asset["sha256"]: raise HTTPException(409, "资产校验失败")
+    return FileResponse(path, media_type="image/svg+xml" if kind == "vector" else "image/png")
+
+
+def recover_generation_jobs(stop):
+    """Persistent code jobs survive restart; leases serialize multiple app workers."""
+    import time
+    while not stop.is_set():
+        try:
+            with store.connect() as db:
+                states = [json.loads(row[0]) for row in db.execute("SELECT state FROM workflows")]
+            for w in states:
+                if stop.is_set(): break
+                job = (w.get("generation") or {}).get("render", {})
+                if job.get("status") in {"PENDING", "WAITING_APPROVAL"} or (job.get("status") == "RUNNING" and job.get("lease_until", 0) < time.time()):
+                    store.run_generation(w["id"])
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception("A route render recovery failed")
+        stop.wait(15)
+
+
+@router.post("/workflows/{workflow_id}/backfill-structure")
+@router.post("/workflows/{workflow_id}/backfill-arrows")
+def backfill_structure(workflow_id: str):
+    return call(store.backfill_structure, workflow_id)
 
 
 @router.get("/workflows/{workflow_id}/render/{kind}/{filename}")
@@ -365,8 +464,63 @@ def draft(workflow_id: str):
         raise HTTPException(409, "尚无全文总结")
     loc = {p["id"]: f"{s['filename']} · {p['location']}" for s in w["sources"] for p in s["pages"]}
     lines = [f"# {w['title']}：内容确认稿", f"版本校验值：{digest(w['summary'])}", "", w["summary"]["overall_summary"]]
+    units = {u["id"]: u for u in all_units(w)}
+    claims = all_claims(w)
+    review = w.get("summary_review") if summary_review_current(w) else None
+    verdict = {p["point_id"]: p for r in (review or {}).get("sections", []) for p in r.get("points") or []}
+    MARK = {"ENTAILED": "", "PARTIAL": "（审查：部分支持）", "NOT_ENTAILED": "（审查：原文不支持）", "CONTRADICTED": "（审查：与原文矛盾）"}
     for s in w["summary"]["sections"]:
         lines += ["", "## " + s["title"], s["summary"], "来源：" + "；".join(loc.get(r, r) for r in s["source_page_ids"])]
+        lines += message_lines(w, s)                       # the storyboard: core sentence, logic, support and limits
+        for k in s.get("key_points") or []:                # each generalisation with the original text it rests on
+            lines += ["", f"- 要点：{k['point']}"]
+            if k.get("claim_ids"):
+                claims = all_claims(w)
+                lines += [f"  - 原文（{claims[c]['page_id']} {c.split('#')[1]}）：" + " ｜ ".join(" ".join(sp["quote"].split()) for sp in claims[c]["spans"])
+                          for c in k["claim_ids"] if c in claims]
+                continue
+            for uid_ in k["unit_ids"]:
+                u = units.get(uid_)
+                if u:
+                    flag = "（转录待确认）" if u.get("needs_confirmation") else ""
+                    lines.append(f"  - 原文{flag}（{u['source_id']} {u['location']}）：{' '.join(u['text'].split())}")
+        if s.get("point_coverage"):                        # the outline's points for this item, each with its source or its gap
+            lines += ["", "提纲要点："]
+            for r in s["point_coverage"]:
+                if r.get("unsupported") is not None:
+                    lines.append(f"- ✗ {r['point_id']} {r.get('point', '')}（无资料支撑：{r['unsupported']}）")
+                else:
+                    v = verdict.get(r["point_id"]) or {}
+                    if r.get("claim_ids"):               # the point with the original text it rests on, source by source
+                        if r.get("statement"):
+                            lines.append(f"- ✓ {r['point_id']} 提纲：{r.get('point', '')}{MARK.get(v.get('verdict'), '')}")
+                            lines.append(f"  - **资料实际说**：{r['statement']}")
+                        else:
+                            lines.append(f"- ✓ {r['point_id']} {r.get('point', '')}{MARK.get(v.get('verdict'), '')}")
+                        lines += [f"  - 原文（{claim_origin(w, claims[c])}）：{claim_text(claims[c])}" for c in r["claim_ids"] if c in claims]
+                    else:
+                        locs = "；".join(f"{units[x]['source_id']} {units[x]['location']}" for x in r["unit_ids"] if x in units)
+                        lines.append(f"- ✓ {r['point_id']} {r.get('point', '')}（{locs}）{MARK.get(v.get('verdict'), '')}")
+                    if v.get("issue"):
+                        lines.append(f"  - 审查意见：{v['issue']}")
+    differ = [(r["point_id"], r.get("point", ""), r["statement"]) for s in w["summary"]["sections"]
+              for r in s.get("point_coverage") or [] if r.get("statement")]
+    if differ:
+        lines += ["", "## 提纲措辞与资料不一致（请确认按资料讲述，或修改提纲）"]
+        lines += [f"- {pid}　提纲：{p}\n  - 资料：{st}" for pid, p, st in differ]
+    gaps = unsupported_points(w)
+    if gaps:
+        lines += ["", "## 无资料支撑的提纲要点（不上页，请确认）", *[f"- {k}：{v}" for k, v in gaps.items()]]
+    if review:
+        lines += ["", f"## 独立总结审查（{review['reviewer']}）"]
+        lines += [f"- {'阻断' if i['severity'] == 'BLOCKER' else '提示'} {i['ref']}：{i['problem']}"
+                  + (f"（已驳回：{review['dismissed'][i['id']]['reason']}）" if i["id"] in review["dismissed"] else "")
+                  for i in review["issues"]] or ["- 未报告问题"]
+    else:
+        lines += ["", "## 独立总结审查", "- 当前总结尚未经独立审查"]
+    story = story_line(w)
+    if any("「" in x for x in story):
+        lines += ["", "## 故事线（各提纲条目的核心句，按讲述顺序）", *story]
     lines += ["", "## 教学提纲覆盖", *[f"- {o['id']}：{o['text']}" for o in w["outline"]], "", "## 需求",
               json.dumps(w["requirements"], ensure_ascii=False), "", "## 待解决问题", json.dumps(w["summary"]["pending_issues"], ensure_ascii=False),
               "", "客户：____  操作人：____  确认方式：____  日期：____", "反馈：____"]

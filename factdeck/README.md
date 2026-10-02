@@ -5,6 +5,11 @@
 应用中的完整流程（阅读、总结、确认、审核、交付）见 `app/deckflow.py` 与
 [docs/FACTPPTV2.md](../docs/FACTPPTV2.md)。
 
+2026-10-01 已选定后续视觉方案 **A 原生矢量版**：完整设计图 → 去字 → 矢量化图形 →
+原生文字、表格和连接线填充，见 [生成方案](../docs/PPT_GENERATION_ROUTE.md)。A 已接入生产主线，
+`app/deck_generation.py` 自动串联 Codex＋Adobe 任务；下述 HTML 引擎负责内容锁准备与草稿。
+`visual_layout.py`、`native_vectors.py` 和 `visual_render.py` 负责通用拆解合同、原生重建与实际PowerPoint核对。
+
 ```
 原始资料 ──► 阅读页 / 可引用单元 ──► 事实库（逐字引文 + 位置） ──► 页面规格（只引用事实编号）
                │                          │                            │
@@ -23,7 +28,7 @@
 | `lexicon.py` + `config/factdeck_lexicon.json` | 关键项识别（数字+比较符号+单位、技术缩写、中文数量词、项目术语）、逐字节选判定、作者文字检查；不含任何特定疾病词表 |
 | `facts.py` | 事实核对：引文逐字存在；显示文字须为引文的逐字节选且未删去否定/限定词；多出关键项或改写需命名推导并人工确认；冲突检测与裁定 |
 | `deck.py` | 页面规格核对：版式结构与容量、作者文字、箭头支持、提纲覆盖、总结章节覆盖或省略原因、页数与需求 |
-| `render.py` + `extract.js` + `templates/deck.html.j2` | 14 种通用版式（含原件图 `figure`、主数值 `hero`、时间线 `timeline`、分格 `grid`、由事实数值绘制的柱状图 `chart`）、片段强调、客户模板配色、5 套配色；逐页自动收紧字号；Chromium 渲染 PNG/PDF；从 DOM 导出原生 PPTX；备注写来源追溯；PPTX 回读核对 |
+| `render.py` + `extract.js` + `templates/deck.html.j2` | 15 种通用版式（含原件图 `figure`、主数值 `hero`、时间线 `timeline`、分格 `grid`、由事实数值绘制的柱状图 `chart`、目录 `agenda`）、片段强调、客户模板配色、5 套配色；稀疏页放大正文、密集页收紧字号；Chromium 渲染 PNG/PDF；从 DOM 导出原生 PPTX；备注写来源追溯；PPTX 回读核对 |
 | `sources.py`, `cli_facts.py`, `__main__.py` | 文件夹项目的命令行入口 |
 
 ## 命令行
@@ -39,4 +44,4 @@
 - 程序核对拦不住“节选脱离语境”“并列暗示比较”等语义问题；由独立执行端的语义审查（`SEMANTIC_REVIEW`）和人工逐页审核把关。
 - 渲染字体优先使用微软雅黑，与 PPTX 一致；在非 Windows 机器上会回退到思源黑体，行宽已预留 3%，仍建议在 PowerPoint 中抽查。
 - 扫描版 PDF 需要逐页转录。
-- 不生成插画；原件中的图以“原件图片引用”进入页面（`docs/FIGURE_REFERENCE.md`；目前只支持原件内嵌图片）。
+- 生产引擎尚未自动执行已选定 A 路线的生图、去字和矢量化；原件证据图仍以“原件图片引用”进入页面（`docs/FIGURE_REFERENCE.md`；原件内嵌图片，以及由阅读执行端给框、程序渲染截取的 PDF 页面区域）。
