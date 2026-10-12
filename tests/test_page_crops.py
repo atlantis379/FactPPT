@@ -207,7 +207,7 @@ def test_compare_panel_figure_rules():
 
 
 def test_crop_and_embedded_figure_side_by_side_to_final_render(store):
-    w = store.create("并排原件图", T.OUTLINE, {"audience": "规培医生", "target_pages": 10})
+    w = store.create("并排原件图", T.OUTLINE, {"audience": "规培医生", "target_pages": 10}, generation_route="CODE_NATIVE")
     for name, make in fx_.SOURCES.items():
         store.add_source(w["id"], name, make())
     store.add_source(w["id"], "figure.png", picture())
@@ -249,9 +249,7 @@ def test_crop_and_embedded_figure_side_by_side_to_final_render(store):
     v = verified(w)
     kinds = sorted(i["kind"] for i in pending_items(w, v, checked(w, v)) if i["id"] == CROP)
     assert kinds == ["figure_licence", "figure_review", "figure_second_crop"]
-    store.queue(w["id"], "SEMANTIC_REVIEW")
-    t = store.claim(w["id"], "reviewer-B", "SEMANTIC_REVIEW")
-    store.complete(w["id"], t["id"], t["lease_token"], t["brief"]["result_contract"])
+    T.semantic_review(store, w["id"])
     store.resolve_conflict(w["id"], {"reviewer": "TEST-REVIEWER", "entity": "药物A", "attribute": "单价(元)", "fact_id": "price.a.ppt"})
     store.queue(w["id"], "SECOND_READ")
     while t := store.claim(w["id"], "reader-2", "SECOND_READ"):

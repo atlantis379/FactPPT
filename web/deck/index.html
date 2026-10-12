@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>FactDeck</title>
+  <title>FactDeck · 本机PPT工作台</title>
   <!-- UI template: Tabler (MIT). See /web/vendor/tabler/VERSIONS.txt and LICENSE files. -->
   <link rel="stylesheet" href="/web/vendor/tabler/tabler.min.css">
   <link rel="stylesheet" href="/web/vendor/tabler/icons/tabler-icons.min.css">
@@ -14,6 +14,7 @@
     <header class="navbar navbar-expand-md d-print-none">
       <div class="container-xl">
         <a class="navbar-brand" href="#/"><i class="ti ti-presentation me-2"></i>FactDeck</a>
+        <a class="nav-link me-auto" href="#/templates">学术模板库</a>
         <div class="navbar-nav flex-row order-md-last align-items-center gap-2">
           <span class="text-secondary small d-none d-md-inline">当前操作人</span>
           <input id="me" class="form-control form-control-sm" style="width:10rem" placeholder="姓名（记录用）">
@@ -27,12 +28,13 @@
       </div>
       <footer class="footer footer-transparent d-print-none">
         <div class="container-xl text-secondary small">
-          资料 → 总结 → 事实库 → 页面规格 → 代码渲染的原生 PPTX。确认与审核记录为本地登记，未做身份认证。
+          本机PPT工作台 · 上传资料 → 设置要求 → 内容复核 → 生成审核 → 下载交付。确认与审核记录保存在本机。
         </div>
       </footer>
     </div>
   </div>
   <script src="/web/vendor/tabler/tabler.min.js"></script>
-  <script src="/web/deck/app.js"></script>
+  <script src="/web/deck/workbench.js?v=20261011-template-page"></script>
+  <script src="/web/deck/app.js?v=20261011-content-proof"></script>
 </body>
 </html>

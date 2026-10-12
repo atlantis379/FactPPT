@@ -45,13 +45,15 @@ from factdeck.render import THEMES
 from factdeck.brand import from_template, BrandError
 from app.deck_generation import GenerationMixin, VISUAL_KINDS, ROUTE as VISUAL_ROUTE
 from app.deck_scope import check_spec, selected_spec, scope_of, context as scope_context
+from app import review_ledger as ledger
+from app import semantic_review as semrev
 
 TEMPLATE = "factdeck.v1"
 ENGINE_VERSION = "factdeck-render.1"
 MAX_UPLOAD = 40 * 1024 * 1024
 SAMPLE_PAGES = 5
 DEIDENTIFIED = ("NO_PATIENT_CONTENT", "DEIDENTIFIED", "IDENTIFIABLE")
-KINDS = ("READ_SOURCE", "SECOND_READ", "CLAIMS", "SUMMARY", "SUMMARY_REVIEW", "FACTS", "DECK", "SEMANTIC_REVIEW", "VISUAL_CRITIQUE") + VISUAL_KINDS
+KINDS = ("READ_SOURCE", "SECOND_READ", "CLAIMS", "SUMMARY", "SUMMARY_AMEND", "SUMMARY_REVIEW", "FACTS", "DECK", "SEMANTIC_REVIEW", "VISUAL_CRITIQUE") + VISUAL_KINDS
 REQUIREMENT_KEYS = {"audience", "purpose", "duration_minutes", "target_pages", "emphasis", "tone", "notes"}
 
 
@@ -74,6 +76,14 @@ def unsupported_points(w: dict) -> dict[str, str]:
 
 ROLES = ("core", "support", "limit")
 POINT_VERDICTS = ("ENTAILED", "PARTIAL", "NOT_ENTAILED", "CONTRADICTED")
+SUMMARY_REVIEW_SCHEMA = "summary_review.v2"
+
+
+def key_point_targets(w: dict, section: dict) -> list[dict]:
+    """Stable for the exact summary version, and never written into authored content."""
+    version = digest(w["summary"])
+    return [{**k, "target_id": f"{version}:{section['id']}:key{i}"}
+            for i, k in enumerate(section.get("key_points") or [], 1)]
 RELATION_NAMES = {"sequence": "先后", "branch": "条件分支", "any_of": "满足任一", "all_of": "均需满足", "compare": "对照",
                   "matrix": "对象×属性", "evidence": "结论←证据", "definition": "定义"}
 
@@ -261,7 +271,7 @@ def all_units(w: dict) -> list[dict]:
     for s in w["sources"]:
         for u in s["units"]:
             out.append(u)
-        for u in s["transcriptions"]:
+        for u in s["transcriptions"] + [p for p in w.get("transcription_proposals", []) if p["source_id"] == s["id"]]:
             u = dict(u)
             c = confirmed.get(u["id"])
             if c and c["decision"] == "CONFIRM":
@@ -381,19 +391,19 @@ def summary_current(w: dict) -> bool:
 
 
 def summary_review_input(w: dict) -> str:
-    return digest({"summary": digest(w["summary"]), "input": input_hash(w)})
+    return digest({"summary": digest(w["summary"]), "input": input_hash(w), "contract": SUMMARY_REVIEW_SCHEMA})
 
 
 def summary_review_current(w: dict) -> bool:
     r = w.get("summary_review")
-    return summary_current(w) and bool(r) and r["input_sha256"] == summary_review_input(w)
+    return summary_current(w) and bool(r) and r.get("schema_version") == SUMMARY_REVIEW_SCHEMA and r["input_sha256"] == summary_review_input(w)
 
 
 def open_summary_issues(w: dict) -> list[dict]:
+    """Blockers in the summary issue ledger not closed by an evidenced fix or a human ruling."""
     if not summary_review_current(w):
         return []
-    r = w["summary_review"]
-    return [i for i in r["issues"] if i["severity"] == "BLOCKER" and i["id"] not in r["dismissed"]]
+    return ledger.blocking(w, "summary")
 
 
 def content_approved(w: dict) -> bool:
@@ -486,6 +496,8 @@ def pending_items(w: dict, v: dict, chk: dict) -> list[dict]:
         u = by_unit.get(uid_)
         if u and u.get("needs_confirmation") and not any(i["kind"] == "transcription" and i["id"] == u["id"] for i in items):
             items.append({"kind": "transcription", "id": u["id"], "location": u["location"], "text": u["text"],
+                          "proposal_of":u.get("proposal_of"), "original_text":u.get("original_text"),
+                          "page_image_url":page_image_url(w, pages(w)[u["page_id"]]),
                           "second_read": u.get("second_read"), "reason": u.get("confirmation_reason", "尚无一致的第二次独立转录")})
     for fig in sorted({v["facts"][f]["figure"] for f in used if v["facts"][f].get("figure")}):
         st, g = states[fig], figs[fig]
@@ -541,15 +553,15 @@ def semantic_input(w: dict) -> str:
 
 
 def semantic_current(w: dict) -> bool:
-    r = w["semantic_review"]
-    return deck_current(w) and bool(r) and r["input_sha256"] == semantic_input(w)
+    """Both independent checklists (coverage/verbatim and semantics/relations) are done on the current version."""
+    return deck_current(w) and semrev.current(w)
 
 
 def open_issues(w: dict) -> list[dict]:
+    """Blockers in the semantic issue ledger, across all rounds, not closed by an evidenced fix or a human ruling."""
     if not semantic_current(w):
         return []
-    dismissed = w["semantic_review"]["dismissed"]
-    return [i for i in w["semantic_review"]["issues"] if i["severity"] == "BLOCKER" and i["id"] not in dismissed]
+    return ledger.blocking(w, "semantic")
 
 
 def render_input(w: dict, v: dict | None = None, include_visual: bool = True) -> str | None:
@@ -566,6 +578,8 @@ def render_input(w: dict, v: dict | None = None, include_visual: bool = True) ->
                    "sources": [{k: s[k] for k in ("id", "filename")} for s in w["sources"]],
                    "brand": ({"tokens": w["brand"]["tokens"], "font": w["brand"].get("font"), "logo": (w["brand"].get("logo") or {}).get("sha256")}
                              if w["theme"] == "brand" and w.get("brand") else None)}
+    if w.get('visual_template'):
+        payload['visual_template']=w['visual_template']
     if include_visual and w.get("generation"):
         from app.deck_generation import render_fingerprint
         payload["visual_generation"] = render_fingerprint(w)
@@ -617,8 +631,10 @@ def status(w: dict) -> tuple[str, list[str]]:
     if not fully_claimed(w): return "CLAIMS_REQUIRED", ["资料的论断清单尚未全部完成"]
     if not summary_current(w): return "SUMMARY_REQUIRED", ["需要当前版本的全文总结"]
     if not content_approved(w):
+        if any(t["kind"] == "SUMMARY_AMEND" and t["status"] in {"PENDING", "RUNNING"} for t in w["tasks"]):
+            return "SUMMARY_AMEND_RUNNING", ["答复已保存，执行端正在处理对应的来源与需求记录"]
         if not summary_review_current(w): return "SUMMARY_REVIEW_REQUIRED", ["总结需要独立审查"]
-        if open_summary_issues(w): return "SUMMARY_ISSUES", [f"总结审查有 {len(open_summary_issues(w))} 个阻断问题"]
+        if open_summary_issues(w): return "SUMMARY_ISSUES", [blocker_text("总结审查", open_summary_issues(w))]
         return "CONTENT_CONFIRMATION", ["客户尚未确认全文总结"]
     if not facts_current(w): return "FACTS_REQUIRED", ["需要根据已确认总结建立事实库"]
     if not deck_current(w): return "DECK_REQUIRED", ["需要根据需求编写页面规格"]
@@ -626,13 +642,23 @@ def status(w: dict) -> tuple[str, list[str]]:
     chk = checked(w, v)
     if chk["errors"]:
         return "DECK_REVISION", [f"页面规格有 {chk['errors']} 处错误"]
+    source_pending = []
+    if w["deck"].get("source_gate_version") == 1:
+        from factdeck.content_obligations import validate_deck
+        source_check = validate_deck(w, w["deck"]["result"], v, chk)
+        if source_check["errors"]:
+            return "DECK_REVISION", source_check["errors"]
+        source_pending = source_check["pending"]
     todo = []
     pend = pending_items(w, v, chk)
     if pend: todo.append(f"待人工确认 {len(pend)} 项（推导/冲突/转录/原件图）")
-    if not semantic_current(w): todo.append("需要独立语义审查")
-    elif open_issues(w): todo.append(f"语义审查有 {len(open_issues(w))} 个阻断问题")
+    if source_pending and not pend: todo.append(f"来源约束有 {len(source_pending)} 项待处理：" + "；".join(source_pending[:3]))
+    if not semantic_current(w):
+        missing = [semrev.CHECK_NAMES[c] for c in semrev.CHECKS if not semrev.check_current(w, c)]
+        todo.append("需要独立语义审查：" + "、".join(missing))
+    elif open_issues(w): todo.append(blocker_text("语义审查", open_issues(w)))
     if todo:
-        stage = "CONFIRMATIONS_REQUIRED" if pend else ("SEMANTIC_REVIEW_REQUIRED" if not semantic_current(w) else "SEMANTIC_ISSUES")
+        stage = "CONFIRMATIONS_REQUIRED" if pend or source_pending else ("SEMANTIC_REVIEW_REQUIRED" if not semantic_current(w) else "SEMANTIC_ISSUES")
         return stage, todo
     if not render_current(w, v):
         if w.get("generation"):
@@ -653,8 +679,43 @@ def status(w: dict) -> tuple[str, list[str]]:
     return "READY_TO_EXPORT", []
 
 
+def blocker_text(label: str, items: list[dict]) -> str:
+    human = sum(1 for i in items if i["status"] == "NEEDS_HUMAN")
+    return f"{label}有 {len(items)} 个阻断问题" + (f"（其中 {human} 个须人工裁定，页面修订不能关闭）" if human else "")
+
+
 def stage(w: dict) -> str:
     return status(w)[0]
+
+
+def context_warnings(w: dict, deck: dict, chk: dict, v: dict) -> list[str]:
+    """Excerpt shapes that repeatedly cost review rounds, reported to the page author before review: a list lead-in
+    without anything it introduces, and a quote opening with a connective whose preceding unit is not on this page
+    or the one before."""
+    from factdeck.context import signals, unshown_lead_ins
+    units = {u["id"]: u for u in all_units(w)}
+    nxt, prv = {}, {}
+    for s in w["sources"]:
+        seq = [u["id"] for u in s["units"]]
+        nxt.update(zip(seq, seq[1:]))
+        prv.update(zip(seq[1:], seq))
+    facts, out, before = v["facts"], [], set()
+    for res in chk["pages"]:
+        ids = res["facts"]
+        shown = {(facts.get(x) or {}).get("unit") for x in ids}
+        out += [f"{res['id']}：{fid} 是列表或下文的引导句，本页没有它引出的条目；请补齐条目或在页面说明只展示其中一部分"
+                for fid in unshown_lead_ins(ids, facts, units, nxt)]
+        for fid in ids:
+            f = facts.get(fid) or {}
+            u = units.get(f.get("unit"))
+            if f.get("figure") or not u:
+                continue
+            con = next((x for x in signals(f["quote"], f.get("display"), u["text"]) if x["kind"] == "leading_connective"), None)
+            same = any(x != fid and (facts.get(x) or {}).get("unit") == u["id"] for x in ids)
+            if con and not same and prv.get(u["id"]) not in shown | before:
+                out.append(f"{res['id']}：{fid} 以“{con['text']}”开头，它承接的前文不在本页或上一页")
+        before = shown
+    return out
 
 
 # ------------------------------------------------------------------ store
@@ -681,7 +742,8 @@ class Store(GenerationMixin, _BaseStore):
              "sources": [], "next_source_no": 1, "brand": None, "summary": None, "content_approval": None, "facts": None,
              "confirmations": {"derivations": {}, "resolutions": {}, "transcriptions": {}, "figures": {}, "figure_licenses": {}},
              "deck": None, "semantic_review": None, "render": None, "critique": None, "page_reviews": {}, "style_approval": None,
-             "approvals": [], "tasks": [], "deliveries": [], "generation_route": generation_route, "generation": None}
+             "approvals": [], "tasks": [], "deliveries": [], "generation_route": generation_route, "generation": None,
+             "source_evidence_policy": "verified-transcription.v1"}
         with self.connect() as db:
             db.execute("INSERT INTO workflows VALUES(?,?,?)", (w["id"], 1, json.dumps(w, ensure_ascii=False)))
             db.execute("INSERT INTO events(workflow_id,created_at,event,details) VALUES(?,?,?,?)", (w["id"], now(), "CREATE", digest(w)))
@@ -715,6 +777,12 @@ class Store(GenerationMixin, _BaseStore):
         w["stage"], w["open_items"] = status(w)
         w["approval_subjects"] = {"content": digest(w["summary"]) if summary_current(w) else None,
                                   "style": sample_hash(w) if render_current(w) else None}
+        for scope, key in (("summary", "summary_review"), ("semantic", "semantic_review")):
+            ledger.book(w, scope)
+            if w.get(key):                              # earlier screens read issues/dismissed; the ledger is the authority
+                w[key]["issues"], w[key]["dismissed"] = ledger.legacy_view(w, scope)
+        w["ledger_status"] = {scope: ledger.counts(w, scope) for scope in ("summary", "semantic")}
+        w["content_acknowledge"] = ledger.to_acknowledge(w, "summary") if summary_review_current(w) else []
         for t in w["tasks"]:
             t.pop("lease_token", None)
         return w
@@ -739,6 +807,9 @@ class Store(GenerationMixin, _BaseStore):
                 w["requirements"] = self._requirements(changes["requirements"])
             if "theme" in changes:
                 w["theme"] = self._theme(changes["theme"], w)
+            if "visual_template" in changes:
+                from app.academic_templates import snapshot
+                w['visual_template']=snapshot(self,w,changes['visual_template'])
             self.cancel_stale(w)
         return self.get(workflow_id)
 
@@ -1016,12 +1087,31 @@ class Store(GenerationMixin, _BaseStore):
         require(reviewer != (w.get("summary_meta") or {}).get("author"), "总结审查须由总结作者之外的执行端完成", 422)
         require(reviewer not in {(s.get("claims") or {}).get("reader") for s in w["sources"]}, "总结审查须由论断清单作者之外的执行端完成", 422)
         require(result.get("input_sha256") == summary_review_input(w), "审查对应的总结已过期")
-        rows = {r.get("section_id"): r for r in result.get("sections") or [] if isinstance(r, dict)}
-        issues = []
+        require(result.get("schema_version") == SUMMARY_REVIEW_SCHEMA, "总结审查需使用 summary_review.v2 完整覆盖合同", 422)
+
+        def unique_rows(value, field, expected, label):
+            require(isinstance(value, list) and all(isinstance(r, dict) for r in value), f"{label}需为列表", 422)
+            ids = [r.get(field) for r in value]
+            require(all(isinstance(i, str) for i in ids) and len(ids) == len(set(ids)) and set(ids) == set(expected),
+                    f"{label}需逐条审查全部目标（不多不少，ID不得重复）", 422)
+            return {r[field]: r for r in value}
+
+        rows = unique_rows(result.get("sections"), "section_id", [s["id"] for s in w["summary"]["sections"]], "章节")
+        ledger.book(w, "summary")                          # seed from an earlier review before this one replaces it
+        issues, ok = [], set()
+        evidence = {}
+        for sec in w["summary"]["sections"]:
+            for r in sec.get("point_coverage") or []:
+                evidence[r["point_id"]] = "、".join(r.get("claim_ids") or r.get("unit_ids") or [])
+            for k in key_point_targets(w, sec):
+                evidence[k["target_id"]] = "、".join(k.get("claim_ids") or k.get("unit_ids") or [])
 
         def issue(ref, severity, problem):
-            n = sum(1 for i in issues if i["ref"] == ref) + 1
-            issues.append({"id": f"{ref}#{n}", "ref": ref, "severity": severity, "problem": str(problem)[:2000]})
+            issues.append({"ref": ref, "severity": severity, "category": "CONTENT_ERROR", "source_ref": evidence.get(ref, ref),
+                           "evidence": "独立审查判定", "problem": str(problem)[:2000]})
+
+        def passed(ref):
+            ok.add(ref)
 
         for sec in w["summary"]["sections"]:
             r = rows.get(sec["id"])
@@ -1031,15 +1121,28 @@ class Store(GenerationMixin, _BaseStore):
             if v != "ENTAILED":
                 require(str(r.get("summary_issue", "")).strip(), f"章节 {sec['id']} 的总结文字未判为 ENTAILED 时需写明问题", 422)
                 issue(sec["id"], "NOTE" if v == "PARTIAL" else "BLOCKER", f"章节总结（{v}）：{r['summary_issue']}")
+            else:
+                passed(sec["id"])
             supported = [p["point_id"] for p in sec.get("point_coverage") or [] if p.get("unsupported") is None]
-            pts = {x.get("point_id"): x for x in r.get("points") or [] if isinstance(x, dict)}
-            require(sorted(pts) == sorted(supported), f"章节 {sec['id']} 需逐条审查全部有资料支撑的要点（不多不少）", 422)
+            pts = unique_rows(r.get("points"), "point_id", supported, f"章节 {sec['id']} 要点")
             for pid in supported:
                 x = pts[pid]
                 require(x.get("verdict") in POINT_VERDICTS, f"要点 {pid} 的结论须是 {' / '.join(POINT_VERDICTS)} 之一", 422)
                 if x["verdict"] != "ENTAILED":
                     require(str(x.get("issue", "")).strip(), f"要点 {pid} 未判为 ENTAILED 时需写明问题", 422)
                     issue(pid, "NOTE" if x["verdict"] == "PARTIAL" else "BLOCKER", f"{x['verdict']}：{x['issue']}")
+                else:
+                    passed(pid)
+            targets = key_point_targets(w, sec)
+            keys = unique_rows(r.get("key_points"), "target_id", [k["target_id"] for k in targets], f"章节 {sec['id']} key_points")
+            for target in targets:
+                x = keys[target["target_id"]]
+                require(x.get("verdict") in POINT_VERDICTS, "关键要点结论须使用四级判定", 422)
+                if x["verdict"] != "ENTAILED":
+                    require(str(x.get("issue", "")).strip(), "关键要点未判为 ENTAILED 时需写明问题", 422)
+                    issue(target["target_id"], "NOTE" if x["verdict"] == "PARTIAL" else "BLOCKER", f"{x['verdict']}：{x['issue']}")
+                else:
+                    passed(target["target_id"])
             m = sec.get("message")
             if m and m["core"].get("claim_id"):
                 c = r.get("core") or {}
@@ -1047,6 +1150,8 @@ class Store(GenerationMixin, _BaseStore):
                 if c["verdict"] == "UNSUPPORTED":
                     require(str(c.get("issue", "")).strip(), f"章节 {sec['id']} 的核心句判为 UNSUPPORTED 时需写明问题", 422)
                     issue(f"{sec['id']}.core", "BLOCKER", c["issue"])
+                else:
+                    passed(f"{sec['id']}.core")
             if m:
                 rels = r.get("relations") or []
                 require(isinstance(rels, list) and len(rels) == len(m.get("relations") or []), f"章节 {sec['id']} 需按顺序逐条审查全部要点关系", 422)
@@ -1056,13 +1161,25 @@ class Store(GenerationMixin, _BaseStore):
                     if x["verdict"] == "UNSUPPORTED":
                         require(str(x.get("issue", "")).strip(), f"章节 {sec['id']} 第{i}条关系判为 UNSUPPORTED 时需写明问题", 422)
                         issue(f"{sec['id']}.relation{i}", "BLOCKER", x["issue"])
+                    else:
+                        passed(f"{sec['id']}.relation{i}")
+        refs = set(evidence) | {s["id"] for s in w["summary"]["sections"]} | {o["id"] for o in w["outline"]} | {"pending_issues"}
+        refs |= {f"{s['id']}.core" for s in w["summary"]["sections"]}
+        refs |= {f"{s['id']}.relation{i}" for s in w["summary"]["sections"] for i in range(1, len((s.get("message") or {}).get("relations") or []) + 1)}
+        refs |= {p["id"] for s in w["sources"] for p in s["pages"]} | set(all_claims(w))
+        others = []
         for x in result.get("issues") or []:               # anything else: omissions, weight of a source, wording
             require(isinstance(x, dict) and x.get("severity") in {"BLOCKER", "NOTE"} and str(x.get("problem", "")).strip(),
                     "其他问题需给出严重程度（BLOCKER / NOTE）和说明", 422)
-            issue(str(x.get("ref") or "general"), x["severity"], x["problem"])
+            ref = str(x.get("ref") or "general").strip()
+            others.append({"category": "CONTENT_ERROR", "evidence": x["problem"], "suggestion": "修订总结或人工裁定",
+                           **x, "ref": ref if ref in refs else "general", "source_ref": x.get("source_ref") or ref})
+        rnd = ledger.record_round(w, "summary", "SUMMARY", reviewer=reviewer, input_sha256=summary_review_input(w),
+                                  dispositions=result.get("prior_issues") or [], new_issues=others, valid_refs=refs,
+                                  ok_refs=ok, problem_refs={i["ref"] for i in issues if i["severity"] == "BLOCKER"}, auto_issues=issues)
         self.snapshot(w, "summary_review", result)
-        w["summary_review"] = {"input_sha256": summary_review_input(w), "reviewer": reviewer, "at": now(),
-                               "sections": result["sections"], "issues": issues, "dismissed": {}}
+        w["summary_review"] = {"schema_version": SUMMARY_REVIEW_SCHEMA, "input_sha256": summary_review_input(w), "reviewer": reviewer, "at": now(),
+                               "sections": result["sections"], "round": rnd["round"], "issues": [], "dismissed": {}}
 
     def accept_summary(self, w: dict, result: dict, author: str = ""):
         self.source_integrity(w)
@@ -1229,6 +1346,9 @@ class Store(GenerationMixin, _BaseStore):
         F, D, T = fx.parse(result)
         fx.verify(F, D, all_units(w), {}, T, figure_states(w))
         accepted = [f for f in F if f.status == "ACCEPTED"]
+        uncertain = [f.id for f in accepted if not f.figure and f.needs_confirmation]
+        if w.get("source_evidence_policy") == "verified-transcription.v1":
+            require(not uncertain, "事实库引用了未核定的视觉转录；请先独立第二次读取或人工对照确认：" + "、".join(uncertain), 422)
         require(accepted, "没有一条事实通过核对：" + "；".join(f"{f.id}：{'；'.join(f.problems)}" for f in F[:5]), 422)
         self.snapshot(w, "facts", result)
         w["facts"] = {"result": copy.deepcopy(result), "result_sha256": digest(result), "input_sha256": facts_input(w),
@@ -1237,7 +1357,9 @@ class Store(GenerationMixin, _BaseStore):
     def accept_deck(self, w: dict, result: dict, author: str):
         require(facts_current(w), "请先建立当前版本的事实库")
         require(result.get("facts_sha256") == facts_sha(w), "页面规格对应的事实库已过期")
-        deck = {k: v for k, v in result.items() if k != "facts_sha256"}
+        self._transcription_proposals(w, result.get("transcription_proposals", []), author)
+        deck = {k: v for k, v in result.items() if k not in {"facts_sha256", "issue_responses"}}
+        responses = self._issue_responses(w, result.get("issue_responses"), [p.get("id") for p in deck.get("pages") or []])
         cut = deck.get("facts") or []
         require(isinstance(cut, list), "facts 需为列表", 422)
         store_ids = {f.get("id") for f in w["facts"]["result"]["facts"]}
@@ -1258,18 +1380,71 @@ class Store(GenerationMixin, _BaseStore):
             n=scope['page_count']
             require(deck['pages'][n:]==w['deck']['result']['pages'][n:], '本次范围之外的页面不得修改',422)
         chk = check_spec(deck, v["facts"], v["terms"], w["outline"], w["summary"]["sections"], w["requirements"], w.get("outline_parts"))
+        from factdeck.content_obligations import validate_deck
+        prevention = validate_deck(w, deck, v, chk)
         used = {fid for p in chk["pages"] for fid in p["facts"] + p["edge_facts"]}
         cut_problems = [f"切出的事实 {f['id']} 未通过核对：{'；'.join(v['facts'][f['id']]['problems'])}"
                         for f in cut if v["facts"][f["id"]]["status"] != "ACCEPTED"]
         cut_problems += [f"切出的事实 {f['id']} 没有在任何页面使用" for f in cut if f["id"] not in used]
-        if chk["errors"] or cut_problems:
-            problems = cut_problems + chk["deck_errors"] + [f"{p['id']}：{e}" for p in chk["pages"] for e in p["errors"]]
+        if chk["errors"] or cut_problems or prevention["errors"]:
+            problems = cut_problems + prevention["errors"] + chk["deck_errors"] + [f"{p['id']}：{e}" for p in chk["pages"] for e in p["errors"]]
             raise WorkflowError("页面规格未通过：" + "；".join(problems[:12]) + ("…" if len(problems) > 12 else ""), 422)
         if deck.get("theme"):
             w["theme"] = self._theme(deck["theme"], w)
         self.snapshot(w, "deck", result)
         w["deck"] = {"result": deck, "result_sha256": digest(deck), "input_sha256": deck_input(w), "author": author, "at": now(),
-                     "warnings": chk["warnings"], "coverage": chk["coverage"]}
+                     "source_gate_version": 1,
+                     "warnings": chk["warnings"] + context_warnings(w, deck, chk, v), "coverage": chk["coverage"],
+                     "source_pending": prevention["pending"],
+                     "issue_responses": responses}
+
+    def _transcription_proposals(self, w: dict, rows: list, author: str):
+        """Correction proposals are new, pending units; originals and human decisions are retained."""
+        require(isinstance(rows, list) and all(isinstance(r, dict) for r in rows), "transcription_proposals 需为列表", 422)
+        originals = {u["id"]:(s,u) for s in w["sources"] for u in s["units"] + s["transcriptions"]}
+        seen = set()
+        proposals = {p["id"]:p for p in w.get("transcription_proposals", [])}
+        for r in rows:
+            uid_ = r.get("source_unit_id")
+            require(uid_ in originals and uid_ not in seen, "更正提案须引用不重复的既有来源单元", 422)
+            seen.add(uid_)
+            s,u = originals[uid_]
+            require(r.get("source_sha256") == s["sha256"], "更正提案的来源版本已过期", 422)
+            text, reason = str(r.get("text", "")).strip(), str(r.get("reason", "")).strip()
+            require(text and reason and len(text) <= 12000, "更正提案须有文字和原图更正依据", 422)
+            pid = "correction:" + uid_
+            previous = proposals.get(pid)
+            if previous and previous["text"] != text:
+                w["confirmations"]["transcriptions"].pop(pid, None)
+                self.snapshot(w, "superseded_transcription_proposal", previous)
+            proposals[pid] = {"id":pid,"source_id":s["id"],"page_id":u["page_id"],"location":u["location"]+"（更正提案）",
+                "method":"visual_transcription","text":text,"reader":author,"at":now(),"needs_confirmation":True,
+                "proposal_of":uid_,"original_text":u["text"],"reason":reason,
+                "confirmation_reason":"更正提案尚未人工确认；保留原转录，需对照原图裁定"}
+        w["transcription_proposals"] = list(proposals.values())
+
+    @staticmethod
+    def _issue_responses(w: dict, rows, page_ids: list) -> dict:
+        """A revised deck answers every unresolved semantic issue: what changed where, why nothing changed, or
+        that it waits for a human ruling. The reviewer still decides whether an issue is fixed."""
+        need = {i["id"] for i in ledger.unresolved(w, "semantic")}
+        if not need:
+            return {}
+        rows = [] if rows is None else rows
+        require(isinstance(rows, list) and all(isinstance(r, dict) for r in rows), "issue_responses 需为列表", 422)
+        got = [r.get("issue_id") for r in rows]
+        require(len(got) == len(set(got)) and set(got) == need,
+                "修订版须逐条回应语义审查中全部未闭环的问题（issue_responses）：缺少 " + "、".join(sorted(need - set(got))), 422)
+        out = {}
+        for r in rows:
+            act, note = r.get("action"), str(r.get("note") or "").strip()
+            require(act in {"CHANGED", "NOT_CHANGED", "NEEDS_HUMAN"}, f"{r['issue_id']} 的 action 须是 CHANGED / NOT_CHANGED / NEEDS_HUMAN", 422)
+            pages = r.get("pages") or []
+            if act == "CHANGED":
+                require(isinstance(pages, list) and pages and set(pages) <= set(page_ids), f"{r['issue_id']} 标为已修改时须写出修改的页面编号", 422)
+            require(note, f"{r['issue_id']} 需说明修改内容或不修改的理由", 422)
+            out[r["issue_id"]] = {"action": act, "pages": list(pages), "note": note[:2000]}
+        return out
 
     def accept_critique(self, w: dict, result: dict, critic: str):
         """A visual critique of the current render: per page, the rubric verdicts and concrete fixes. It informs the
@@ -1292,33 +1467,22 @@ class Store(GenerationMixin, _BaseStore):
         w["critique"] = {"input_sha256": critique_input(w), "critic": critic, "at": now(), "pages": pages_out,
                          "revise": sorted(pid for pid, x in pages_out.items() if "REVISE" in x["rubric"].values())}
 
-    def accept_semantic(self, w: dict, result: dict, reviewer: str):
-        require(deck_current(w), "没有当前版本的页面规格")
-        require(reviewer != w["deck"]["author"] and reviewer != w["facts"]["author"], "语义审查须由编写事实库和页面之外的执行端完成", 422)
-        require(result.get("input_sha256") == semantic_input(w), "审查对应的页面或事实库已过期")
-        rows = result.get("pages")
-        deck_pages = [p["id"] for p in selected_spec(w["deck"]["result"])["pages"]]
-        require(isinstance(rows, list) and [r.get("page_id") for r in rows] == deck_pages, "需按顺序逐页给出审查结论", 422)
-        issues = []
-        for r in rows:
-            require(r.get("verdict") in {"SUPPORTED", "ISSUES"}, "每页结论需为SUPPORTED或ISSUES", 422)
-            items = r.get("issues") or []
-            require((r["verdict"] == "ISSUES") == bool(items), "有问题时需列出问题，没有问题时结论为SUPPORTED", 422)
-            for i, it in enumerate(items, 1):
-                require(it.get("severity") in {"BLOCKER", "NOTE"} and str(it.get("problem", "")).strip(), "问题需给出严重程度和说明", 422)
-                issues.append({"id": f"{r['page_id']}#{i}", "page_id": r["page_id"], "severity": it["severity"],
-                               "ref": str(it.get("ref", "")), "problem": str(it["problem"])[:2000]})
-        coverage = result.get("coverage") or []
-        for c in coverage:
-            if c.get("missing") and str(c.get("problem", "")).strip():
-                issues.append({"id": f"coverage#{c.get('section_id')}", "page_id": None, "severity": c.get("severity", "BLOCKER"),
-                               "ref": str(c.get("section_id", "")), "problem": str(c["problem"])[:2000]})
+    def accept_semantic(self, w: dict, result: dict, reviewer: str, check: str | None = None):
+        """One of the two independent checklists; the issue ledger carries every earlier problem forward."""
+        semrev.accept(w, result, reviewer, check or result.get("check"))
         self.snapshot(w, "semantic_review", result)
-        w["semantic_review"] = {"input_sha256": semantic_input(w), "reviewer": reviewer, "at": now(), "issues": issues, "dismissed": {}}
 
     # ---- tasks
     def brief(self, w: dict, kind: str, binding: str | None) -> dict:
         req = {"requirements": w["requirements"], "outline": w["outline"], "context": w["context"]}
+        if kind == "SUMMARY_AMEND":
+            return {"kind": kind, "mode": "pending_responses_only", "input_sha256": self.fingerprint(w, kind, None),
+                    "baseline_summary": copy.deepcopy(w["summary"]), "responses": w["summary_pending_responses"],
+                    "rules": ["仅处理人工答复对应的待确认事项和来源限制；不得重新编写要点或改变任何临床事实、引用、覆盖。",
+                              "用户陈述保留其人工确认身份，不伪造成原PDF中的事实或已验证授权。",
+                              "只有有明确答复的事项可以从pending_issues移除；UNKNOWN保持待确认。",
+                              "完成后系统自动排队独立复核；停在人工内容确认。"],
+                    "result_contract": copy.deepcopy(w["summary"])}
         if kind == "READ_SOURCE":
             s = next(s for s in w["sources"] if s["id"] == binding)
             return {"kind": kind, "source": {k: s[k] for k in ("id", "filename", "sha256", "kind")},
@@ -1399,7 +1563,7 @@ class Store(GenerationMixin, _BaseStore):
             for sec in w["summary"]["sections"]:
                 m = sec.get("message") or {}
                 view.append({"section_id": sec["id"], "title": sec["title"], "summary": sec["summary"],
-                             "key_points": [{"point": k["point"], **evidence(k)} for k in sec.get("key_points") or []],
+                             "key_points": [{"target_id": k["target_id"], "point": k["point"], **evidence(k)} for k in key_point_targets(w, sec)],
                              "points": [{"point_id": r["point_id"], "point": r.get("point", ""), **({"statement": r["statement"]} if r.get("statement") else {}),
                                          "role": (m.get("roles") or {}).get(r["point_id"]),
                                          "unmatched_tokens": r.get("unmatched_tokens", []), **evidence(r)}
@@ -1422,15 +1586,25 @@ class Store(GenerationMixin, _BaseStore):
                               "核心句（core）：是否确是该条目原文中的重点，SUPPORTED / UNSUPPORTED。"
                               "关系（relations）：该关系是否被所附原文支持，manual 为 true 的是作者判断，须特别核对，SUPPORTED / UNSUPPORTED。",
                               "章节总结文字（summary）同样按四级判断（summary_verdict）。",
-                              "其他问题（遗漏的重要论断、资料性质未交代、限定要点未标 limit 等）写入 issues，严重的标 BLOCKER。不得给出医学放行结论。"],
-                    "result_contract": {"input_sha256": summary_review_input(w), "issues": [],
+                              "key_points 的每条主要归纳也必须独立给出四级 verdict 和 issue，使用原样 target_id；不得以章节结论代替逐条审核。",
+                              "其他问题（遗漏的重要论断、资料性质未交代、限定要点未标 limit 等）写入 issues：severity、category"
+                              "（CONTENT_ERROR 内容错误 / EVIDENCE_MISSING 来源证据缺失 / EXPRESSION_AMBIGUITY 表达歧义 / HUMAN_DECISION 人工决策）、ref、source_ref、problem、suggestion。不得给出医学放行结论。",
+                              "先回看 prior_issues（此前全部未闭环问题及历史）：逐条处置 FIXED（evidence_refs 写当前版本的要点/目标编号，evidence 说明所见修订）、"
+                              "OPEN、NEEDS_HUMAN（须用户裁定，修订总结不能解决）或 RETAINED（证据不足而保留）。与本轮逐条判定矛盾的处置会被拒绝；"
+                              "仍有问题的要点不要另起新问题，程序会并入原问题编号。"],
+                    "prior_issues": [ledger.view(i) for i in ledger.unresolved(w, "summary")],
+                    "result_contract": {"schema_version": SUMMARY_REVIEW_SCHEMA, "input_sha256": summary_review_input(w), "issues": [],
+                                        "prior_issues": [{"issue_id": i["id"], "status": "", "evidence": "", "evidence_refs": []}
+                                                         for i in ledger.unresolved(w, "summary")],
                                         "sections": [{"section_id": v["section_id"], "summary_verdict": "ENTAILED", "summary_issue": "",
                                                       "points": [{"point_id": p["point_id"], "verdict": "ENTAILED", "issue": ""} for p in v["points"]],
+                                                      "key_points": [{"target_id": p["target_id"], "verdict": "ENTAILED", "issue": ""} for p in v["key_points"]],
                                                       **({"core": {"verdict": "SUPPORTED", "issue": ""}} if isinstance(v.get("core"), dict) and "claim" in v["core"] else {}),
                                                       **({"relations": [{"verdict": "SUPPORTED", "issue": ""} for _ in v["relations"]]} if "relations" in v else {})}
                                                      for v in view]}}
         if kind == "SUMMARY":
             return {"kind": kind, **req, "input_sha256": input_hash(w),
+                    "review_issues": [ledger.view(i) for i in ledger.unresolved(w, "summary")],
                     "sources": [{"id": s["id"], "filename": s["filename"], "pages": [{**{k: p[k] for k in ("id", "location", "text")}, "reading": p["reading"],
                                                                                      "units": [{k: u[k] for k in ("id", "text")} | ({"signals": u["signals"]} if u.get("signals") else {})
                                                                                                for u in s["units"] if u["page_id"] == p["id"]],
@@ -1497,7 +1671,9 @@ class Store(GenerationMixin, _BaseStore):
                          "derivation": "", "note": "", "section_ids": []}], "derivations": []}}
         if kind == "DECK":
             v = verified(w, [])
+            from factdeck.content_obligations import build_obligations
             return {"kind": kind, **req, "summary": w["summary"], "theme": w["theme"], "themes": list(THEMES) + (["brand"] if w.get("brand") else []),
+                    "content_obligations": build_obligations(w, (w.get("deck") or {}).get("result"), verified(w)),
                     "facts": [{k: f[k] for k in ("id", "unit", "display", "quote", "location", "source_id", "section_ids", "needs_confirmation", "figure", "caption")}
                               for f in v["facts"].values() if f["status"] == "ACCEPTED"],
                     "units": [{k: u[k] for k in ("id", "source_id", "location", "text")} | {"needs_confirmation": u.get("needs_confirmation", False)}
@@ -1507,6 +1683,7 @@ class Store(GenerationMixin, _BaseStore):
                     "recipes": {k: {"use_for": use, "slots_example": ex} for k, (_, use, ex) in RECIPES.items()},
                     "visual_critique": ({pid: x for pid, x in w["critique"]["pages"].items() if "REVISE" in x["rubric"].values()}
                                         if w.get("critique") else {}),
+                    "review_issues": [ledger.view(i) for i in ledger.unresolved(w, "semantic")],
                     "outline_parts": w.get("outline_parts") or [], "unsupported_points": unsupported_points(w),
                     "relation_layouts": {k: sorted(v) for k, v in RELATION_LAYOUTS.items()},
                     "outline_rules": (["提纲带要点时，课件按提纲组织：每个部分以章节页（divider）开头，页面顺序与提纲条目顺序一致；"
@@ -1519,6 +1696,11 @@ class Store(GenerationMixin, _BaseStore):
                                        "对象×属性用 table，结论←证据用 hero/cards）；标为 limit 的要点必须在标注它的页面上显示其原文事实，不能在排版时丢掉。"]
                                       if structured(w) else []),
                     "rules": ["按需求（受众、目的、时长、目标页数、重点）组织页面；一页一个认知单元，内容多就拆页。",
+                              "源头约束：content_bindings将主事实与适用范围/条件/限制/脚注的逐字事实绑定，同页显示全部依赖；不明关系留待人工。"
+                              "content_obligations的实际使用主事实及lead_in/leading_connective强信号必须逐项回应context_responses；"
+                              "COVERED引用同页或明确允许相邻页的真实可见事实；EXCERPT须给出明确上页节选marker及理由；NEEDS_HUMAN不得用于绕过已锁定条件。"
+                              "更正原视觉转录须提交transcription_proposals({source_unit_id,source_sha256,text,reason})，"
+                              "代码创建correction:原unit_id待人工单元，保留原转录。只可制作待确认页面，不能据此确认或正式生成。",
                               "页面上的实质内容只能是 {\"fact\": id}；作者文字 {\"text\": ...} 只做组织和命名，不得包含数字、比较、药名/专有名称、评价或方向性措辞。",
                               "每页标注 outline_ids 与 section_ids；全部提纲条目都要有页面；未上页的总结章节写入 omissions 并给出原因。",
                               "先设计页面，再定每个格子放什么：事实库的颗粒度不合适时（整句要拆成标签与数值、节点、表格单元、对照面板的各项），"
@@ -1545,8 +1727,15 @@ class Store(GenerationMixin, _BaseStore):
                               "chart：柱状图，chart.bars 为 2–8 根柱，每根 {label, value: {\"fact\": id}}，orientation 可为 vertical/horizontal。"
                               "柱长由程序从 value 事实的文字中读出数字计算：每条 value 事实须恰好含一个数字，不能有比较符号、区间或负号，各柱单位一致；从 0 起画，不画刻度数字。"
                               "不同研究或人群的数值不应放进同一图表暗示可比；来自多份资料时程序会提示，由语义审查判断。",
-                              "强调：任一事实引用可写 {\"fact\": id, \"emph\": [片段]}，片段须按顺序逐字出现在该事实的显示文字中，最多 3 段，只改变字重和颜色。"],
+                              "强调：任一事实引用可写 {\"fact\": id, \"emph\": [片段]}，片段须按顺序逐字出现在该事实的显示文字中，最多 3 段，只改变字重和颜色。",
+                              "review_issues 是语义审查台账中全部未闭环的问题（含历史）：修订时一次处理全部，而不是只改最新一轮提到的页面；"
+                              "在 issue_responses 中逐条回应：CHANGED（pages 写修改的页面，note 写改了什么）、NOT_CHANGED（note 写理由）、"
+                              "NEEDS_HUMAN（页面修订无法解决，例如原文未明确的关系、待人工确认的转录或纳入范围；note 写需要用户决定什么）。是否修复由独立复核判定。",
+                              "同类问题全套排查：引导句（以“：”“以下”结尾）要和它引出的全部条目一起出现；以“然而/但/因此”等开头的节选要带上前文；"
+                              "节选之后原文还有条件、例外或停止规则时一并呈现。程序在提交时给出这类提示（warnings）。"],
                     "result_contract": {"facts_sha256": facts_sha(w), "title": w["title"], "theme": w["theme"], "glossary": [], "omissions": [], "facts": [],
+                                        **({"issue_responses": [{"issue_id": i["id"], "action": "", "pages": [], "note": ""}
+                                                                for i in ledger.unresolved(w, "semantic")]} if ledger.unresolved(w, "semantic") else {}),
                                         "pages": [{"id": "cover", "layout": "cover", "title": {"text": ""}, "outline_ids": [], "section_ids": []}]
                                         + ([{"id": "p1", "layout": "bullets", "title": {"text": ""}, "items": [], "outline_ids": [],
                                              "point_ids": [], "section_ids": []}] if structured(w) else [])}}
@@ -1561,30 +1750,12 @@ class Store(GenerationMixin, _BaseStore):
                               "只评版面，不评医学内容；不得放行页面——逐页审核仍由人完成。"],
                     "result_contract": {"input_sha256": critique_input(w), "pages": [
                         {"page_id": p["id"], "png_sha256": p["sha256"], "rubric": {k: "PASS" for k in RUBRIC}, "fixes": []} for p in r["pages"]]}}
-        # SEMANTIC_REVIEW
-        v = verified(w)
-        by_unit = {u["id"]: u for u in all_units(w)}
-        chk = checked(w, v)
-        view = []
-        scoped, _, scoped_sections, _, _, scope = scope_context(w['deck']['result'], w['outline'], w['summary']['sections'], w['requirements'], w.get('outline_parts'))
-        for page, res in zip(scoped["pages"], chk["pages"]):
-            view.append({"page": page, "facts": [semantic_fact(w, v, by_unit, fid) for fid in res["facts"]],
-                         "edge_facts": [semantic_fact(w, v, by_unit, fid) for fid in res["edge_facts"]]})
-        return {"kind": "SEMANTIC_REVIEW", **req, "input_sha256": semantic_input(w), "summary": w["summary"], "pages": view,
-                "coverage": w["deck"]["coverage"], "scope": scope,
-                "rules": ["逐页判断：页面整体表达的意思是否被所引原文支持。重点检查：节选是否丢掉了人群、条件、时间、否定或不确定性（见 dropped_from_quote）；",
-                          "carved_by_deck 的事实是页面作者从原文切出的片段：对照 unit_text 检查切分是否断章取义、标签与数值是否配对正确；"
-                          "并列或对比是否暗示原文没有的比较或因果；箭头方向与原文是否一致（edge_facts 为不上页、只支撑箭头的原件箭头转录）；作者文字（标题、导语、标签）是否带出原文没有的判断；",
-                          "对照总结，是否漏掉了需求或提纲要求讲到的重要内容。严重问题标 BLOCKER，一般建议标 NOTE。不得给出医学放行结论。",
-                          "有原件图的页面须打开图片（url）查看：页面文字是否说出了图外的结论，图与相邻文字放在一起是否暗示原文没有的比较或因果。",
-                          "图表页：各柱数值是否来自可以直接比较的人群、终点和时间点；强调片段是否改变了原句的重点。",
-                          "对照总结各章的 message：页面焦点（focus）是否就是原文的重点；页面呈现的关系（先后、分支、满足任一/均需满足、对照）"
-                          "是否与原文一致，manual 为 true 的关系是作者判断而非原件结构，须特别核对；limit 要点的原文是否完整上页。"],
-                "result_contract": {"input_sha256": semantic_input(w), "pages": [{"page_id": p["id"], "verdict": "SUPPORTED", "issues": []}
-                                                                                   for p in scoped["pages"]],
-                                    "coverage": [{"section_id": s["id"], "missing": False, "problem": ""} for s in scoped_sections]}}
+        # SEMANTIC_REVIEW: one of the two checklists (binding COVERAGE / RELATIONS)
+        return semrev.brief(w, binding, req)
 
     def fingerprint(self, w: dict, kind: str, binding: str | None) -> str:
+        if kind == "SUMMARY_AMEND":
+            return digest({"summary": w["summary"], "responses": w.get("summary_pending_responses"), "input": input_hash(w)})
         if kind in VISUAL_KINDS:
             return self.generation_fingerprint(w, kind, binding)
         if kind == "READ_SOURCE":
@@ -1597,7 +1768,9 @@ class Store(GenerationMixin, _BaseStore):
             return digest(fp)
         if kind == "CLAIMS":
             return claims_input(next(s for s in w["sources"] if s["id"] == binding))
-        return {"SUMMARY": input_hash, "SUMMARY_REVIEW": summary_review_input, "FACTS": facts_input, "DECK": deck_input, "SEMANTIC_REVIEW": semantic_input,
+        if kind == "SEMANTIC_REVIEW":
+            return semrev.task_fingerprint(w, binding)
+        return {"SUMMARY": input_hash, "SUMMARY_REVIEW": summary_review_input, "FACTS": facts_input, "DECK": deck_input,
                 "VISUAL_CRITIQUE": critique_input}[kind](w)
 
     def queue(self, workflow_id: str, kind: str, page_ids=None):
@@ -1624,6 +1797,9 @@ class Store(GenerationMixin, _BaseStore):
             elif kind == "SUMMARY":
                 require(fully_claimed(w), "请先完成全部资料阅读和论断清单")
                 bindings = [None]
+            elif kind == "SUMMARY_AMEND":
+                require(summary_current(w) and w.get("summary_pending_responses", {}).get("subject_sha256") == digest(w["summary"]), "需先保存当前版本的人工答复")
+                bindings = [None]
             elif kind == "SUMMARY_REVIEW":
                 require(summary_current(w), "请先完成当前版本的总结")
                 bindings = [None]
@@ -1638,7 +1814,11 @@ class Store(GenerationMixin, _BaseStore):
                 bindings = [None]
             else:
                 require(deck_current(w), "请先完成页面规格")
-                bindings = [None]
+                require(not checked(w)["errors"], "页面规格有程序核对错误，请先修订再安排语义审查")
+                wanted = [c for c in (page_ids or semrev.CHECKS)]
+                require(set(wanted) <= set(semrev.CHECKS), "语义审查的检查表为 COVERAGE / RELATIONS", 422)
+                bindings = [c for c in wanted if not semrev.check_current(w, c)]
+                require(bindings, "两张语义检查表均为当前版本")
             for b in bindings:
                 fp = self.fingerprint(w, kind, b)
                 if any(t["kind"] == kind and t["binding"] == b and t["input_sha256"] == fp and t["status"] in {"PENDING", "RUNNING"} for t in w["tasks"]):
@@ -1647,6 +1827,23 @@ class Store(GenerationMixin, _BaseStore):
                                    "created_at": now(), "worker": None, "lease_token": None, "lease_until": 0, "error": None,
                                    "brief": self.brief(w, kind, b)})
         return self.get(workflow_id)
+
+    def eligible(self, w: dict, t: dict, worker: str) -> bool:
+        """Independent tasks are not handed to an identity whose result would be refused for independence."""
+        try:
+            if t["kind"] == "SEMANTIC_REVIEW":
+                if worker in {(w.get("deck") or {}).get("author"), (w.get("facts") or {}).get("author")}:
+                    return False
+                other = [c for c in semrev.CHECKS if c != t["binding"]]
+                done = [w["semantic_checks"][c]["reviewer"] for c in other if semrev.check_current(w, c)]
+                running = [x["worker"] for x in w["tasks"] if x["kind"] == "SEMANTIC_REVIEW" and x["status"] == "RUNNING"
+                           and x["binding"] in other]
+                return worker not in done + running
+            if t["kind"] == "SUMMARY_REVIEW":
+                return worker not in {(w.get("summary_meta") or {}).get("author")} | {(s.get("claims") or {}).get("reader") for s in w["sources"]}
+        except (KeyError, TypeError):
+            return True
+        return True
 
     def task_current(self, w: dict, t: dict) -> bool:
         try:
@@ -1661,7 +1858,7 @@ class Store(GenerationMixin, _BaseStore):
             if t["kind"] == "SUMMARY_REVIEW" and not summary_current(w): return False
             if t["kind"] == "FACTS" and not content_approved(w): return False
             if t["kind"] == "DECK" and not facts_current(w): return False
-            if t["kind"] == "SEMANTIC_REVIEW" and not deck_current(w): return False
+            if t["kind"] == "SEMANTIC_REVIEW" and (not deck_current(w) or t["binding"] not in semrev.CHECKS): return False
             if t["kind"] == "VISUAL_CRITIQUE" and not render_current(w): return False
             return self.fingerprint(w, t["kind"], t["binding"]) == t["input_sha256"]
         except (StopIteration, KeyError, TypeError, WorkflowError):
@@ -1679,15 +1876,52 @@ class Store(GenerationMixin, _BaseStore):
              "SECOND_READ": lambda: self.second_read(w, t["binding"], result, t["worker"]),
              "CLAIMS": lambda: self.accept_claims(w, t["binding"], result, t["worker"]),
              "SUMMARY": lambda: self.accept_summary(w, result, t["worker"]),
+             "SUMMARY_AMEND": lambda: self.accept_summary_amend(w, result, t["worker"]),
              "SUMMARY_REVIEW": lambda: self.accept_summary_review(w, result, t["worker"]),
              "FACTS": lambda: self.accept_facts(w, result, t["worker"]),
              "DECK": lambda: self.accept_deck(w, result, t["worker"]),
-             "SEMANTIC_REVIEW": lambda: self.accept_semantic(w, result, t["worker"]),
+             "SEMANTIC_REVIEW": lambda: self.accept_semantic(w, result, t["worker"], t["binding"]),
              "VISUAL_CRITIQUE": lambda: self.accept_critique(w, result, t["worker"])}[t["kind"]]()
             t.update(status="COMPLETE", completed_at=now(), lease_token=None, result_sha256=digest(result))
             t["result_path"] = self.snapshot(w, "task_result", result)
             self.cancel_stale(w)
+            if t["kind"] == "READ_SOURCE" and w.get("source_evidence_policy") == "verified-transcription.v1":
+                s = next(s for s in w["sources"] if s["id"] == t["binding"])
+                if needs_second_read(s):
+                    binding = s["id"]
+                    fp = self.fingerprint(w, "SECOND_READ", binding)
+                    if not any(x["kind"] == "SECOND_READ" and x["binding"] == binding and x["input_sha256"] == fp and x["status"] in {"PENDING","RUNNING","COMPLETE"} for x in w["tasks"]):
+                        w["tasks"].append({"id":uid("task"),"kind":"SECOND_READ","binding":binding,"input_sha256":fp,
+                            "status":"PENDING","attempts":0,"created_at":now(),"worker":None,"lease_token":None,
+                            "lease_until":0,"error":None,"brief":self.brief(w,"SECOND_READ",binding)})
+            if t["kind"] == "SUMMARY_AMEND":
+                self.enqueue_once(w, "SUMMARY_REVIEW")
         return self.get(workflow_id)
+
+    def enqueue_once(self, w: dict, kind: str):
+        fp = self.fingerprint(w, kind, None)
+        if any(t["kind"] == kind and t["input_sha256"] == fp and t["status"] in {"PENDING", "RUNNING", "COMPLETE"} for t in w["tasks"]):
+            return
+        w["tasks"].append({"id": uid("task"), "kind": kind, "binding": None, "input_sha256": fp,
+                           "status": "PENDING", "attempts": 0, "created_at": now(), "worker": None,
+                           "lease_token": None, "lease_until": 0, "error": None, "brief": self.brief(w, kind, None)})
+
+    def accept_summary_amend(self, w: dict, result: dict, author: str):
+        original = w["summary"]
+        responses = w.get("summary_pending_responses", {})
+        require(responses.get("subject_sha256") == digest(original), "人工答复对应的总结已过期")
+        before, after = copy.deepcopy(original), copy.deepcopy(result)
+        for item in (before, after):
+            item.pop("overall_summary", None)
+            item.pop("pending_issues", None)
+            for section in item.get("sections", []): section.pop("summary", None)
+        require(before == after, "局部修订不得更改要点、引用、覆盖或其他锁定字段", 422)
+        required = [a["issue"] for a in responses["answers"] if a["answer"] == "UNKNOWN"]
+        require(all(i in result.get("pending_issues", []) for i in required), "尚不确定的事项必须保留待确认", 422)
+        require(all(i in original["pending_issues"] for i in result.get("pending_issues", [])), "局部修订不能新增无关待确认事项", 422)
+        w["summary_amendment"] = {"baseline_summary": copy.deepcopy(original), "baseline_review": copy.deepcopy(w.get("summary_review")),
+                                  "responses": copy.deepcopy(responses), "at": now()}
+        self.accept_summary(w, result, author)
 
     def author(self, workflow_id: str, kind: str, result: dict, operator: str):
         """Operator edits (summary / facts / deck) outside the task queue."""
@@ -1700,6 +1934,30 @@ class Store(GenerationMixin, _BaseStore):
         return self.get(workflow_id)
 
     # ---- human decisions
+    def record_summary_responses(self, workflow_id: str, record: dict):
+        """Record version-bound human answers; only reviewed summary edits resolve issues."""
+        require(str(record.get("operator", "")).strip(), "请填写操作人姓名", 422)
+        with self.transaction(workflow_id, "SUMMARY_PENDING_RESPONSES") as w:
+            require(summary_current(w), "总结已过期，请刷新后处理")
+            require(record.get("subject_sha256") == digest(w["summary"]), "总结版本已变化，请刷新后重新回答")
+            pending = w["summary"]["pending_issues"]
+            answers = record.get("answers", [])
+            require(pending and len(answers) == len(pending) and {a.get("index") for a in answers} == set(range(len(pending))),
+                    "请逐项回答全部待确认事项", 422)
+            for answer in answers:
+                require(answer.get("answer") in {"AVAILABLE", "UNAVAILABLE", "UNKNOWN"}, "答复选项无效", 422)
+                require(answer["answer"] != "AVAILABLE" or str(answer.get("note", "")).strip(), "已有依据时，请填写文件名或依据说明", 422)
+            rec = {"subject_sha256": record["subject_sha256"], "operator": record["operator"].strip(),
+                   "at": now(), "answers": [{**a, "issue": pending[a["index"]]} for a in answers]}
+            previous = w.get("summary_pending_responses")
+            if previous and all(previous.get(k) == rec[k] for k in ("subject_sha256", "operator", "answers")):
+                rec = previous
+            w["summary_pending_responses"] = rec
+            self.snapshot(w, "summary_pending_responses", rec)
+            self.cancel_stale(w)
+            self.enqueue_once(w, "SUMMARY_AMEND")
+        return self.get(workflow_id)
+
     def approval(self, workflow_id: str, kind: str, record: dict):
         require(kind in {"content", "style"}, "确认类型无效", 422)
         require(all(str(record.get(k, "")).strip() for k in ("customer", "operator", "method")), "需记录客户、操作人和确认方式", 422)
@@ -1709,7 +1967,10 @@ class Store(GenerationMixin, _BaseStore):
                 require(fully_read(w) and summary_current(w), "请先完成全文阅读和当前版本总结")
                 require(not w["summary"]["pending_issues"], "总结中的待解决问题需先处理")
                 require(summary_review_current(w), "总结须先经独立审查")
-                require(not open_summary_issues(w), "总结审查的阻断问题需先修订总结或由审核人书面驳回")
+                require(not open_summary_issues(w), "总结审查的阻断问题需先修订总结或由审核人书面裁定")
+                notes = ledger.to_acknowledge(w, "summary")
+                require(sorted(record.get("acknowledged_issues") or []) == notes,
+                        "确认前须逐项查看并确认已知悉尚未闭环的提示：" + "、".join(notes), 422)
                 expected = digest(w["summary"])
             else:
                 require(render_current(w) and all(reviewed(w, p["id"]) for p in w["render"]["pages"][:SAMPLE_PAGES]), "前5页须完成逐页审核后才能确认风格")
@@ -1717,6 +1978,7 @@ class Store(GenerationMixin, _BaseStore):
             require(record.get("subject_sha256") == expected, "确认稿已更新，请刷新后重新核对")
             a = {"id": uid("approval"), "kind": kind, "at": now(), "subject_sha256": expected, "customer": record["customer"],
                  "operator": record["operator"], "method": record["method"], "feedback": str(record.get("feedback", "")),
+                 "acknowledged_issues": sorted(record.get("acknowledged_issues") or []),
                  "identity_assurance": "LOCAL_RECORDED_NOT_AUTHENTICATED"}
             w[kind + "_approval"] = a
             w["approvals"].append(a)
@@ -1753,7 +2015,7 @@ class Store(GenerationMixin, _BaseStore):
         require(str(record.get("reviewer", "")).strip() and str(record.get("text", "")).strip(), "需填写审核人和对照原件确认后的文字", 422)
         require(record.get("original_checked") is True, "请对照原件核对后再确认", 422)
         with self.transaction(workflow_id, "CONFIRM_TRANSCRIPTION") as w:
-            u = next((u for s in w["sources"] for u in s["transcriptions"] if u["id"] == unit_id), None)
+            u = next((u for u in [u for s in w["sources"] for u in s["transcriptions"]] + w.get("transcription_proposals", []) if u["id"] == unit_id), None)
             require(u, "转录单元不存在", 404)
             rec = {"decision": "CONFIRM", "text": record["text"], "reviewer": record["reviewer"], "at": now(),
                    "changed": canon(record["text"]) != canon(u["text"]), "identity_assurance": "LOCAL_RECORDED_NOT_AUTHENTICATED"}
@@ -1819,21 +2081,16 @@ class Store(GenerationMixin, _BaseStore):
             require(file.is_file() and sha(file.read_bytes()) == g["sha256"], "图文件缺失或已被修改，请重新导入资料")
 
     def dismiss_issue(self, workflow_id: str, issue_id: str, record: dict):
-        require(str(record.get("reviewer", "")).strip() and str(record.get("reason", "")).strip(), "需填写审核人和理由", 422)
+        """A person's written ruling on a semantic-ledger issue: unfounded, or a decision (include/exclude, relation)."""
         with self.transaction(workflow_id, "DISMISS_ISSUE") as w:
             require(semantic_current(w), "没有当前的语义审查")
-            require(any(i["id"] == issue_id for i in w["semantic_review"]["issues"]), "问题不存在", 404)
-            w["semantic_review"]["dismissed"][issue_id] = {"reviewer": record["reviewer"], "reason": record["reason"], "at": now(),
-                                                           "identity_assurance": "LOCAL_RECORDED_NOT_AUTHENTICATED"}
+            ledger.rule(w, "semantic", issue_id, record, semantic_input(w))
         return self.get(workflow_id)
 
     def dismiss_summary_issue(self, workflow_id: str, issue_id: str, record: dict):
-        require(str(record.get("reviewer", "")).strip() and str(record.get("reason", "")).strip(), "需填写审核人和理由", 422)
         with self.transaction(workflow_id, "DISMISS_SUMMARY_ISSUE") as w:
             require(summary_review_current(w), "没有当前的总结审查")
-            require(any(i["id"] == issue_id for i in w["summary_review"]["issues"]), "问题不存在", 404)
-            w["summary_review"]["dismissed"][issue_id] = {"reviewer": record["reviewer"], "reason": record["reason"], "at": now(),
-                                                          "identity_assurance": "LOCAL_RECORDED_NOT_AUTHENTICATED"}
+            ledger.rule(w, "summary", issue_id, record, summary_review_input(w))
         return self.get(workflow_id)
 
     # ---- render / review / export
@@ -1945,7 +2202,9 @@ class Store(GenerationMixin, _BaseStore):
                                 "used": sorted({fid for p in checked(w, v)["pages"] for fid in p["facts"] + p["edge_facts"]})},
                       "confirmations": w["confirmations"], "deck": {"author": w["deck"]["author"], "result_sha256": w["deck"]["result_sha256"],
                                                                     "coverage": w["deck"]["coverage"], "warnings": w["deck"]["warnings"]},
-                      "semantic_review": w["semantic_review"], "render": {k: r[k] for k in ("input_sha256", "summary", "files", "at")},
+                      "semantic_review": w["semantic_review"], "semantic_checks": {c: {k: x.get(k) for k in ("reviewer", "at", "round", "counts", "unchecked", "regression", "viewed_source_pages")}
+                                                                                 for c, x in (w.get("semantic_checks") or {}).items()},
+                      "issue_ledger": w.get("issue_ledger"), "render": {k: r[k] for k in ("input_sha256", "summary", "files", "at")},
                       "pages": [{"id": p["id"], "png_sha256": p["sha256"], "review": w["page_reviews"][p["id"]]} for p in r["pages"]],
                       "figures": figure_inventory(w, v),
                       "visual_generation": r.get("visual_provenance"), "office": r.get("office"),

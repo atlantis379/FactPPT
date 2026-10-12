@@ -8,12 +8,12 @@ from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.deckflow import (Store, WorkflowError, MAX_UPLOAD, KINDS, all_units, all_claims, claim_origin, claim_text, digest,
-                          unsupported_points, message_lines, story_line, summary_review_current)
+                          unsupported_points, message_lines, story_line, summary_review_current, key_point_targets)
 from factdeck.render import THEMES
 
 router = APIRouter(prefix="/api/deck", tags=["FactDeck 主线"])
 store = Store()
-Kind = Literal["READ_SOURCE", "SECOND_READ", "CLAIMS", "SUMMARY", "SUMMARY_REVIEW", "FACTS", "DECK", "SEMANTIC_REVIEW", "VISUAL_CRITIQUE", "VISUAL_DESIGN", "VISUAL_LAYOUT", "VISUAL_CLEAN", "VISUAL_VECTOR"]
+Kind = Literal["READ_SOURCE", "SECOND_READ", "CLAIMS", "SUMMARY", "SUMMARY_AMEND", "SUMMARY_REVIEW", "FACTS", "DECK", "SEMANTIC_REVIEW", "VISUAL_CRITIQUE", "VISUAL_DESIGN", "VISUAL_LAYOUT", "VISUAL_CLEAN", "VISUAL_VECTOR"]
 
 
 class Strict(BaseModel):
@@ -44,12 +44,14 @@ class Settings(Strict):
     requirements: Requirements | None = None
     theme: str | None = None
     context: dict[str, Any] | None = None
+    visual_template: str | None = None
 
 
 class Queue(Strict):
     kind: Kind
     sources: list[str] | None = None        # CLAIMS only: redo these sources
     pages: list[str] | None = None          # visual revision only
+    checks: list[Literal["COVERAGE", "RELATIONS"]] | None = None   # SEMANTIC_REVIEW only: queue these checklists
 
 
 class VisualRevision(Strict):
@@ -92,6 +94,19 @@ class Approval(Strict):
     method: str = Field(min_length=1, max_length=200)
     feedback: str = Field(default="", max_length=10000)
     subject_sha256: str
+    acknowledged_issues: list[str] = Field(default_factory=list, max_length=2000)
+
+
+class PendingAnswer(Strict):
+    index: int = Field(ge=0)
+    answer: Literal["AVAILABLE", "UNAVAILABLE", "UNKNOWN"]
+    note: str = Field(default="", max_length=4000)
+
+
+class PendingResponses(Strict):
+    operator: str = Field(min_length=1, max_length=200)
+    subject_sha256: str
+    answers: list[PendingAnswer]
 
 
 class Decision(Strict):
@@ -156,7 +171,27 @@ def call(method, *args, **kwargs):
 def health():
     return {"product": "FactPPTv2", "workflow": "factdeck.v1", "mainline": True, "execution": "WORKER_COLLABORATION",
             "visual_generation": {"default_route": "A_NATIVE_VECTOR", "executor": "CODEX_ADOBE_WORKER", "server_vendor_calls": False},
-            "task_kinds": list(KINDS), "themes": list(THEMES), "projects": len(store.list())}
+            "task_kinds": list(KINDS), "themes": list(THEMES), "theme_palettes": THEMES,
+            "projects": len(store.list())}
+
+
+@router.get("/templates")
+def academic_template_list():
+    from app.academic_templates import list_templates
+    return list_templates()
+
+
+@router.get("/templates/{template_id}/{filename}")
+def academic_template_asset(template_id: str, filename: str):
+    from app.academic_templates import asset
+    return FileResponse(call(asset,template_id,filename))
+
+
+@router.get("/workflows/{workflow_id}/visual-template")
+def selected_visual_template(workflow_id: str):
+    selected=call(store.get,workflow_id).get('visual_template')
+    if not selected:raise HTTPException(404,'尚未选择学术模板')
+    return FileResponse(store.path(selected['design_path']),media_type='image/png')
 
 
 @router.get("/workflows")
@@ -180,6 +215,13 @@ def settings(workflow_id: str, body: Settings):
     if body.requirements is not None:
         changes["requirements"] = body.requirements.model_dump(exclude_none=True)
     return call(store.settings, workflow_id, changes)
+
+
+@router.get("/workflows/{workflow_id}/progress")
+def workbench_progress(workflow_id: str):
+    w = call(store.get, workflow_id)
+    return {"id": w["id"], "stage": w["stage"], "updated_at": w["updated_at"],
+            "tasks": [{k: t[k] for k in ("id", "status", "attempts")} for t in w["tasks"]]}
 
 
 @router.post("/workflows/{workflow_id}/sources")
@@ -242,9 +284,10 @@ def figure_file(workflow_id: str, figure_id: str):
 
 
 @router.post("/workflows/{workflow_id}/tasks")
-def queue(workflow_id: str, body: Queue):
-    if body.sources and body.pages: raise HTTPException(422, "sources 与 pages 不能同时提交")
-    return call(store.queue, workflow_id, body.kind, body.pages or body.sources)
+def queue(workflow_id: str, body: Queue, compact: bool = False):
+    if sum(bool(x) for x in (body.sources, body.pages, body.checks)) > 1: raise HTTPException(422, "sources、pages、checks 只能提交其一")
+    result = call(store.queue, workflow_id, body.kind, body.pages or body.sources or body.checks)
+    return workflow_ack(result, body.kind) if compact else result
 
 
 @router.post("/workflows/{workflow_id}/tasks/claim")
@@ -264,12 +307,20 @@ def completion_ack(result, task_id):
     return {"workflow_id": result["id"], "task_id": task_id,
             "status": task["status"], "result_sha256": task.get("result_sha256"),
             "stage": result.get("stage"),
-            "render_status": (result.get("generation") or {}).get("render", {}).get("status")}
+            "render_status": ((result.get("generation") or {}).get("render") or {}).get("status")}
+
+
+def workflow_ack(result, kind=None):
+    return {"workflow_id": result["id"], "stage": result.get("stage"),
+            "tasks": [{k: t.get(k) for k in ("id", "kind", "binding", "status")}
+                      for t in result.get("tasks", []) if t.get("status") in {"PENDING", "RUNNING", "FAILED"}
+                      and (kind is None or t.get("kind") == kind)]}
 
 
 @router.post("/workflows/{workflow_id}/tasks/{task_id}/fail")
-def fail(workflow_id: str, task_id: str, body: Failure):
-    return call(store.fail, workflow_id, task_id, body.lease_token, body.error)
+def fail(workflow_id: str, task_id: str, body: Failure, compact: bool = False):
+    result = call(store.fail, workflow_id, task_id, body.lease_token, body.error)
+    return completion_ack(result, task_id) if compact else result
 
 
 @router.post("/workflows/{workflow_id}/tasks/{task_id}/renew")
@@ -280,6 +331,11 @@ def renew(workflow_id: str, task_id: str, body: Lease):
 @router.put("/workflows/{workflow_id}/summary")
 def put_summary(workflow_id: str, body: Authored):
     return call(store.author, workflow_id, "SUMMARY", body.result, body.operator)
+
+
+@router.post("/workflows/{workflow_id}/summary/pending-responses")
+def pending_responses(workflow_id: str, body: PendingResponses):
+    return call(store.record_summary_responses, workflow_id, body.model_dump())
 
 
 @router.put("/workflows/{workflow_id}/facts")
@@ -382,7 +438,7 @@ def generate(workflow_id: str, background_tasks: BackgroundTasks, body: Generati
 
 @router.get("/workflows/{workflow_id}/generation")
 def generation(workflow_id: str):
-    return call(store.get, workflow_id)["generation_status"]
+    return call(store.generation_view, workflow_id)
 
 
 @router.post("/workflows/{workflow_id}/generation/revise")
@@ -468,12 +524,16 @@ def draft(workflow_id: str):
     claims = all_claims(w)
     review = w.get("summary_review") if summary_review_current(w) else None
     verdict = {p["point_id"]: p for r in (review or {}).get("sections", []) for p in r.get("points") or []}
+    key_verdict = {p["target_id"]: p for r in (review or {}).get("sections", []) for p in r.get("key_points") or []}
     MARK = {"ENTAILED": "", "PARTIAL": "（审查：部分支持）", "NOT_ENTAILED": "（审查：原文不支持）", "CONTRADICTED": "（审查：与原文矛盾）"}
     for s in w["summary"]["sections"]:
         lines += ["", "## " + s["title"], s["summary"], "来源：" + "；".join(loc.get(r, r) for r in s["source_page_ids"])]
         lines += message_lines(w, s)                       # the storyboard: core sentence, logic, support and limits
-        for k in s.get("key_points") or []:                # each generalisation with the original text it rests on
-            lines += ["", f"- 要点：{k['point']}"]
+        for k in key_point_targets(w, s):                 # each generalisation with its own review
+            v = key_verdict.get(k["target_id"]) or {}
+            lines += ["", f"- 要点：{k['point']}{MARK.get(v.get('verdict'), '')}"]
+            if v.get("issue"):
+                lines.append("  - 审查意见：" + v["issue"])
             if k.get("claim_ids"):
                 claims = all_claims(w)
                 lines += [f"  - 原文（{claims[c]['page_id']} {c.split('#')[1]}）：" + " ｜ ".join(" ".join(sp["quote"].split()) for sp in claims[c]["spans"])
@@ -512,9 +572,14 @@ def draft(workflow_id: str):
     if gaps:
         lines += ["", "## 无资料支撑的提纲要点（不上页，请确认）", *[f"- {k}：{v}" for k, v in gaps.items()]]
     if review:
-        lines += ["", f"## 独立总结审查（{review['reviewer']}）"]
-        lines += [f"- {'阻断' if i['severity'] == 'BLOCKER' else '提示'} {i['ref']}：{i['problem']}"
-                  + (f"（已驳回：{review['dismissed'][i['id']]['reason']}）" if i["id"] in review["dismissed"] else "")
+        from app.review_ledger import STATUS_NAMES
+        human = [i for i in review["issues"] if i["status"] == "NEEDS_HUMAN"]
+        if human:
+            lines += ["", "## ⚠ 须由您裁定的事项（审核无法通过修订解决）"]
+            lines += [f"- {i['id']} {i['ref']}：{i['problem']}" for i in human]
+        lines += ["", f"## 独立总结审查（{review['reviewer']}，问题台账共 {len(review['issues'])} 条，含历次审查）"]
+        lines += [f"- {i['id']} {'阻断' if i['severity'] == 'BLOCKER' else '提示'} [{STATUS_NAMES[i['status']]}] {i['ref']}：{i['problem']}"
+                  + (f"（裁定：{review['dismissed'][i['id']]['reason']}）" if i["id"] in review["dismissed"] else "")
                   for i in review["issues"]] or ["- 未报告问题"]
     else:
         lines += ["", "## 独立总结审查", "- 当前总结尚未经独立审查"]

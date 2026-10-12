@@ -136,13 +136,14 @@ def test_points_cite_claims_and_code_derives_units_and_unbacked_numbers(store):
 
 def test_summary_review_is_independent_complete_and_gates_confirmation(store):
     w = _summarised(store)
-    for worker, match in (("author-A", "总结作者"), ("claims-1", "论断清单作者")):
-        store.queue(w["id"], "SUMMARY_REVIEW")
-        t = store.claim(w["id"], worker, "SUMMARY_REVIEW")
-        with pytest.raises(WorkflowError, match=match):
-            store.complete(w["id"], t["id"], t["lease_token"], t["brief"]["result_contract"])
-        store.fail(w["id"], t["id"], t["lease_token"], "测试：换审查人")
     store.queue(w["id"], "SUMMARY_REVIEW")
+    for worker in ("author-A", "claims-1"):               # authors are never handed the review
+        assert store.claim(w["id"], worker, "SUMMARY_REVIEW") is None
+    with store.transaction(w["id"], "TEST_DIRECT") as ww:  # and a result from them is refused all the same
+        brief = store.brief(ww, "SUMMARY_REVIEW", None)
+        for worker, match in (("author-A", "总结作者"), ("claims-1", "论断清单作者")):
+            with pytest.raises(WorkflowError, match=match):
+                store.accept_summary_review(ww, brief["result_contract"], worker)
     t = store.claim(w["id"], "reviewer-S", "SUMMARY_REVIEW")
     assert t, "review task"
     r = copy.deepcopy(t["brief"]["result_contract"])
@@ -197,7 +198,7 @@ def test_confirmation_draft_shows_the_review(store, monkeypatch):
     store.dismiss_summary_issue(w["id"], w["summary_review"]["issues"][0]["id"], {"reviewer": "R", "reason": "测试驳回"})
     text = TestClient(app).get(f"/api/deck/workflows/{w['id']}/confirmation-draft").text
     assert "（审查：原文不支持）" in text and "审查意见：原文只说相关（测试）" in text
-    assert f"阻断 {pid}：NOT_ENTAILED：原文只说相关（测试）（已驳回：测试驳回）" in text
+    assert f"阻断 [已人工裁定] {pid}：NOT_ENTAILED：原文只说相关（测试）（裁定：测试驳回）" in text
 
 
 def test_unbacked_tokens_ignore_citation_marks_line_breaks_and_unit_words():

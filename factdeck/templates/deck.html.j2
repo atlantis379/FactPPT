@@ -249,6 +249,7 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
   <div class="t" data-t>{{ node(p.title) }}</div>
   <div class="bar" data-shape></div>
   {% if p.subtitle %}<div class="s" data-t>{{ node(p.subtitle) }}</div>{% endif %}
+  {% if p.get('items') %}<div class="s" data-t{% if p.subtitle %} style="top:510px"{% endif %}>{% for it in p.get('items') %}{{ node(it) }}{% if not loop.last %}<br>{% endif %}{% endfor %}</div>{% endif %}
   <div class="meta" data-t data-chrome>{{ p.chrome_meta }}</div>
   {% else %}
   <div class="t" data-t><span class="no" data-chrome>{{ "%02d"|format(p.divider_no) }}</span><span>{{ node(p.title) }}</span></div>

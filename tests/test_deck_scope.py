@@ -52,11 +52,11 @@ def test_scope_preserves_full_spec_and_reports_excluded_coverage(tmp_path):
     assert c['scope']['complete_deck'] is False
     assert set(c['scope']['outside_scope_points']) == {'outline_2.1', 'outline_3.1'}
     assert {r['point_id'] for r in c['coverage']['points']} == {'outline_1.1'}
-    brief = store.brief(w, 'SEMANTIC_REVIEW', None)
+    brief = store.brief(w, 'SEMANTIC_REVIEW', 'COVERAGE')
     assert [r['page_id'] for r in brief['result_contract']['pages']] == ['cover', 'part1', 'overview', 'criteria']
     assert brief['scope']['complete_deck'] is False
     with pytest.raises(WorkflowError, match='之外'):
-        store.accept_semantic(w, brief['result_contract'], 'author-A')
+        store.accept_semantic(w, brief['result_contract'], 'author-A', 'COVERAGE')
     with pytest.raises(WorkflowError, match='整套交付'):
         store.export(w['id'])
 
@@ -75,9 +75,8 @@ def test_prefix_needs_explicit_request_and_semantic_review(tmp_path, monkeypatch
         store.start_generation(w['id'])
     with pytest.raises(WorkflowError, match='独立语义'):
         store.start_generation(w['id'], 4)
-    brief = store.brief(w, 'SEMANTIC_REVIEW', None)
-    with store.transaction(w['id'], 'TEST_REVIEW') as ww:
-        store.accept_semantic(ww, brief['result_contract'], 'reviewer-B')
+    import test_deckflow as T
+    T.semantic_review(store, w['id'])
     def prepare(deck, facts, sources, out, *args, **kwargs):
         assert len(deck['pages']) == 4
         out.mkdir(parents=True, exist_ok=True)

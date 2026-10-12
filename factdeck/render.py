@@ -496,7 +496,7 @@ def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path
     from pptx import Presentation
     from pptx.util import Emu
     from pptx.enum.shapes import MSO_SHAPE, MSO_CONNECTOR
-    from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE
+    from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, PP_ALIGN
     from pptx.oxml.ns import qn
 
     prs = Presentation()
@@ -582,10 +582,13 @@ def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path
                         cell.fill.background()
                     pt, pr, pb, pl = cd["pad"]
                     cell.margin_top, cell.margin_right, cell.margin_bottom, cell.margin_left = E(pt), E(pr), E(pb), E(pl)
-                    cell.vertical_anchor = MSO_ANCHOR.TOP if ri else MSO_ANCHOR.MIDDLE
+                    cell.vertical_anchor = {"top": MSO_ANCHOR.TOP, "middle": MSO_ANCHOR.MIDDLE, "bottom": MSO_ANCHOR.BOTTOM}.get(cd.get("anchor"), MSO_ANCHOR.TOP if ri else MSO_ANCHOR.MIDDLE)
                     tf = cell.text_frame
                     tf.word_wrap = True
                     _fill_paras(tf, cd["paras"] or [[{"text": "", "size": 14, "bold": False, "color": None}]], cd["lineHeight"], font=font)
+                    if cd.get("align"):
+                        for para in tf.paragraphs:
+                            para.alignment = {"left": PP_ALIGN.LEFT, "center": PP_ALIGN.CENTER, "right": PP_ALIGN.RIGHT}[cd["align"]]
                     tcPr = cell._tc.get_or_add_tcPr()
                     for index,side in enumerate(("a:lnL", "a:lnR", "a:lnT", "a:lnB")):
                         for existing in list(tcPr.findall(qn(side))): tcPr.remove(existing)
@@ -655,8 +658,15 @@ def readback(pptx_path: Path, pages_facts: list[list[str]], fview: dict, pages_f
                 texts.append(sh.text_frame.text)
             if getattr(sh, "has_table", False) and sh.has_table:
                 texts += [c.text for row in sh.table.rows for c in row.cells]
-        blob = canon("\n".join(texts))
-        missing = [fid for fid in fids if not fview[fid].get("figure") and canon(fview[fid]["text"]) not in blob]
+        # python-pptx exposes DrawingML's escaped control characters literally.
+        # Decode once: _x005F_x0001_ represents the literal text _x0001_,
+        # while _x0001_ represents the original control character.
+        raw_text = "\n".join(texts)
+        blob = canon(raw_text)
+        decoded_blob = canon(re.sub(r"_x([0-9A-Fa-f]{4})_", lambda m: chr(int(m.group(1), 16)), raw_text))
+        missing = [fid for fid in fids if not fview[fid].get("figure")
+                   and canon(fview[fid]["text"]) not in blob
+                   and canon(fview[fid]["text"]) not in decoded_blob]
         notes = slide.notes_slide.notes_text_frame.text if slide.has_notes_slide else ""
         results.append({"facts": len(fids), "missing": missing, "missing_figures": missing_figures, "notes_chars": len(notes)})
     return results

@@ -19,5 +19,11 @@
  "numbered_separators": ["、", ".", "．", "）", ")", "："],
  "claim_qualifiers": ["可能", "或许", "也许", "约", "近", "大约", "左右", "至少", "至多", "以上", "以下", "以内", "超过", "不超过", "仅", "只", "部分",
                       "多数", "少数", "一般", "通常", "常", "建议", "考虑", "推荐", "可", "应", "需", "不", "未", "无", "非", "尚", "暂",
-                      "相关", "提示", "显著", "事后分析", "亚组", "真实世界", "单组", "观察性", "回顾性"]
+                      "相关", "提示", "显著", "事后分析", "亚组", "真实世界", "单组", "观察性", "回顾性"],
+ "context_signals": {
+  "_comment": "Excerpt shapes that often lose their context: a quote introducing a list, or one opening with a word that points at an earlier statement. They raise deck warnings and review prompts only; nothing is rejected on a match.",
+  "lead_in_endings": ["：", ":", "如下", "以下", "下列", "following", "as follows", "include", "includes", "including"],
+  "leading_connectives": ["然而", "但是", "但", "不过", "因此", "所以", "因而", "此外", "另外", "同时", "相反", "尽管", "虽然",
+                          "However", "But", "Therefore", "Thus", "Hence", "In contrast", "Nevertheless", "Moreover", "Although", "Despite"]
+ }
 }

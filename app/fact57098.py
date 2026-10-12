@@ -546,6 +546,7 @@ class Store:
                     t["lease_token"] = None
                     t["error"] = "执行租约超时"
                 if t["status"] != "PENDING" or (kind and t["kind"] != kind) or (binding is not None and t["binding"] != binding): continue
+                if not self.eligible(w, t, worker): continue
                 if not self.task_current(w, t):
                     t["status"] = "CANCELLED"
                     continue
@@ -556,6 +557,10 @@ class Store:
                 claimed = copy.deepcopy(t)
                 break
         return claimed
+
+    def eligible(self, w: dict, t: dict, worker: str) -> bool:
+        """Whether this worker identity may take the task (independence rules live in the subclass)."""
+        return True
 
     def leased(self, w: dict, task_id: str, token: str) -> dict:
         t = next((t for t in w["tasks"] if t["id"] == task_id), None)

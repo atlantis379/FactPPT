@@ -94,7 +94,8 @@ def approve(store, w, kind):
     if kind == "content" and w["stage"] == "SUMMARY_REVIEW_REQUIRED":
         w = review_summary(store, w["id"])
     return store.approval(w["id"], kind, {"customer": "TEST-CUSTOMER", "operator": "TEST-OPERATOR",
-                                          "method": "AUTOMATED_PROTOCOL_TEST_NOT_REAL_APPROVAL", "subject_sha256": w["approval_subjects"][kind]})
+                                          "method": "AUTOMATED_PROTOCOL_TEST_NOT_REAL_APPROVAL", "subject_sha256": w["approval_subjects"][kind],
+                                          **({"acknowledged_issues": w["content_acknowledge"]} if kind == "content" else {})})
 
 
 def facts_result(w):
@@ -113,6 +114,10 @@ def deck_result(w):
 
 def to_deck(store):
     w = store.create("示例病X（程序验收）", OUTLINE, {"audience": "规培医生", "target_pages": 9, "purpose": "程序验收"}, generation_route="CODE_NATIVE")
+    # This fixture exercises the retained legacy order: facts/deck before second read.
+    # New-source-policy rejection is tested separately in test_source_prevention_integration.
+    with store.transaction(w["id"], "LEGACY_PROTOCOL_TEST_FIXTURE") as saved:
+        saved.pop("source_evidence_policy", None)
     for name, make in fx_.SOURCES.items():
         store.add_source(w["id"], name, make())
     w = read_all(store, w["id"])
@@ -232,37 +237,64 @@ def test_deck_may_carve_verbatim_facts_for_its_slots(store):
     assert shown["risk.age"]["carved_by_deck"] and shown["risk.age"]["unit_text"].startswith("高风险人群")
 
 
+def all_clear(t, edit=None):
+    """An all-clear checklist result filled from the contract (test record, not a real review)."""
+    r = copy.deepcopy(t["brief"]["result_contract"])
+    for key in ("source_pages", "teaching_items"):
+        for row in r.get(key) or []:
+            if not row["status"]:
+                row.update(status="EXCLUDED", reason="测试：本页不讲")
+    for row in r.get("relations") or []:
+        row["verdict"] = row["verdict"] or "SUPPORTED"
+    for row in r.get("prior_issues") or []:
+        row.update(status="FIXED", evidence="测试：已对照修订页", evidence_refs=[t["brief"]["pages"][0]["page"]["id"]])
+    r["viewed_source_pages"] = list(t["brief"]["must_view_source_pages"])
+    if edit:
+        edit(r)
+    return r
+
+
+def semantic_review(store, wid, workers=("reviewer-B", "reviewer-C"), edit=None):
+    """Both independent checklists, all clear unless `edit` changes a result (edit(check, result))."""
+    store.queue(wid, "SEMANTIC_REVIEW")
+    w = None
+    for worker in workers:
+        t = store.claim(wid, worker, "SEMANTIC_REVIEW")
+        if not t:
+            break
+        w = store.complete(wid, t["id"], t["lease_token"], all_clear(t, (lambda r, c=t["binding"]: edit(c, r)) if edit else None))
+    return w or store.get(wid)
+
+
 def test_semantic_review_must_be_independent_and_blocks_on_issues(store):
     w = to_deck(store)
-    brief_pages = None
-
-    def review(t, verdicts=None):
-        nonlocal brief_pages
-        r = copy.deepcopy(t["brief"]["result_contract"])
-        brief_pages = t["brief"]["pages"]
-        if verdicts:
-            r["pages"][2] = {"page_id": r["pages"][2]["page_id"], "verdict": "ISSUES",
-                             "issues": [{"severity": "BLOCKER", "ref": "x.prev", "problem": "节选未说明患病率的统计人群"}]}
-        return r
-
     store.queue(w["id"], "SEMANTIC_REVIEW")
-    t = store.claim(w["id"], "author-A", "SEMANTIC_REVIEW")
-    with pytest.raises(WorkflowError, match="执行端"):
-        store.complete(w["id"], t["id"], t["lease_token"], review(t))
-    store.fail(w["id"], t["id"], t["lease_token"], "wrong worker")
+    assert store.claim(w["id"], "author-A", "SEMANTIC_REVIEW") is None      # the author is never handed the review
     t = store.claim(w["id"], "reviewer-B", "SEMANTIC_REVIEW")
-    w = store.complete(w["id"], t["id"], t["lease_token"], review(t, True))
-    assert any(f["dropped_from_quote"] == "" for p in brief_pages for f in p["facts"])
+    assert t["binding"] == "COVERAGE" and t["brief"]["regression"]["mode"] == "FULL"
+    assert any(f["dropped_from_quote"] == "" for p in t["brief"]["pages"] for f in p["facts"])
+    page = t["brief"]["pages"][2]["page"]["id"]
+
+    def flag(r):
+        r["pages"][2] = {"page_id": page, "verdict": "ISSUES", "issues": [{
+            "severity": "BLOCKER", "category": "CONTENT_ERROR", "ref": "x.prev", "source_ref": "overview.txt 第1段",
+            "evidence": "页面只显示患病率", "problem": "节选未说明患病率的统计人群", "suggestion": "补出人群"}]}
+    w = store.complete(w["id"], t["id"], t["lease_token"], all_clear(t, flag))
+    assert store.claim(w["id"], "reviewer-B", "SEMANTIC_REVIEW") is None    # the second checklist needs another identity
+    t = store.claim(w["id"], "reviewer-C", "SEMANTIC_REVIEW")
+    assert t["binding"] == "RELATIONS" and any(r["kind"] == "grouping" for r in t["brief"]["relations"])
+    w = store.complete(w["id"], t["id"], t["lease_token"], all_clear(t))
     assert "语义审查有 1 个阻断问题" in " ".join(w["open_items"])
-    w = store.dismiss_issue(w["id"], "overview#1", {"reviewer": "TEST-REVIEWER", "reason": "来源原文即为成人患病率，页面已写明成人"})
+    issue = w["issue_ledger"]["semantic"]["issues"][0]
+    assert issue["id"] == "SEM-0001" and issue["ref"] == "x.prev" and issue["check"] == "COVERAGE"
+    w = store.dismiss_issue(w["id"], "SEM-0001", {"reviewer": "TEST-REVIEWER", "reason": "来源原文即为成人患病率，页面已写明成人"})
     assert "语义审查" not in " ".join(w["open_items"])
+    assert w["semantic_review"]["dismissed"]["SEM-0001"]["reviewer"] == "TEST-REVIEWER"
 
 
 def finish_gates(store, w):
-    store.queue(w["id"], "SEMANTIC_REVIEW")
-    t = store.claim(w["id"], "reviewer-B", "SEMANTIC_REVIEW")
-    w = store.complete(w["id"], t["id"], t["lease_token"], t["brief"]["result_contract"])
-    assert w["stage"] == "CONFIRMATIONS_REQUIRED"
+    w = semantic_review(store, w["id"])
+    assert w["stage"] == "CONFIRMATIONS_REQUIRED", w["open_items"]
     with pytest.raises(WorkflowError, match="正式渲染前"):
         store.render(w["id"])
     w = store.resolve_conflict(w["id"], {"reviewer": "TEST-REVIEWER", "entity": "药物A", "attribute": "单价(元)", "fact_id": "price.a.ppt"})
@@ -388,7 +420,8 @@ def test_home_serves_the_tabler_ui_and_its_assets():
     home = c.get("/")
     assert home.status_code == 200 and "FactDeck" in home.text
     assets = re.findall(r'(?:href|src)="(/web/[^"]+)"', home.text)
-    assert "/web/vendor/tabler/tabler.min.css" in assets and "/web/deck/app.js" in assets
+    paths = [a.split("?")[0] for a in assets]               # scripts carry a cache-busting version
+    assert "/web/vendor/tabler/tabler.min.css" in paths and "/web/deck/app.js" in paths
     for path in assets:
         assert c.get(path).status_code == 200, path
 

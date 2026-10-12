@@ -12,7 +12,7 @@ from pathlib import Path
 from lxml import etree
 
 
-def trace_svg(data: bytes, components=()):
+def trace_svg(data: bytes, components=(), preserve_order=False, target_size=(1280,720)):
     from fontTools.svgLib.path import parse_path
     from fontTools.pens.recordingPen import RecordingPen
     from fontTools.pens.transformPen import TransformPen
@@ -37,7 +37,9 @@ def trace_svg(data: bytes, components=()):
         view = [0, 0, float(root.get("width", "0").removesuffix("px")), float(root.get("height", "0").removesuffix("px"))]
     if len(view) != 4 or not all(math.isfinite(v) for v in view) or min(view[2:]) <= 0:
         raise ValueError("SVG 需要有效 viewBox 或宽高")
-    if abs(view[2] / view[3] / (1280 / 720) - 1) > .02:
+    if len(target_size)!=2 or not all(math.isfinite(n) and n>0 for n in target_size):
+        raise ValueError('无效的矢量目标尺寸')
+    if abs(view[2] / view[3] / (target_size[0] / target_size[1]) - 1) > .02:
         raise ValueError("SVG 宽高比须与 16:9 页面一致")
 
     def styles(el, inherited):
@@ -93,7 +95,7 @@ def trace_svg(data: bytes, components=()):
             out = out.transform(t)
         return out
 
-    scale = Transform(1280/view[2], 0, 0, 720/view[3], -view[0]*1280/view[2], -view[1]*720/view[3])
+    scale = Transform(target_size[0]/view[2], 0, 0, target_size[1]/view[3], -view[0]*target_size[0]/view[2], -view[1]*target_size[1]/view[3])
     buckets = {}; count = 0; total = 0; omitted = 0
     def walk(el, parent, inherited):
         nonlocal count, total, omitted
@@ -129,13 +131,13 @@ def trace_svg(data: bytes, components=()):
             xs = [v for row in coords for v in row[::2]]; ys = [v for row in coords for v in row[1::2]]
             x, y = (min(xs)+max(xs))/2, (min(ys)+max(ys))/2
             group = next((g["name"] for g in components if g["x"] <= x <= g["x"]+g["w"] and g["y"] <= y <= g["y"]+g["h"]), "视觉组件")
-            key = (group, fill, stroke, width, opacity)
+            key = (group, fill, stroke, width, opacity, count if preserve_order else None)
             buckets.setdefault(key, {"commands":[], "fill":fill, "stroke":stroke, "width":width, "opacity":opacity, "group":group, "name":group})["commands"].extend(commands)
         for child in el: walk(child, tr, st)
     walk(root, scale, {})
     if not buckets: raise ValueError("SVG 没有可导出的矢量路径")
     return list(buckets.values()), {"raw_paths":count, "native_paths":len(buckets), "commands":total, "paper_paths_omitted":omitted,
-                                   "differences":["近白纸张颗粒省略；颜色按4级量化；组件按指定区域归组。", "同色路径合并，交叠色面的绘制顺序可能轻微变化。"] + (["线性渐变使用平均色近似。"] if gradients else [])}
+                                   "differences":["近白纸张颗粒省略；颜色按4级量化；组件按指定区域归组。", "保留原始路径的绘制顺序。" if preserve_order else "同色路径合并，交叠色面的绘制顺序可能轻微变化。"] + (["线性渐变使用平均色近似。"] if gradients else [])}
 
 
 def add_native_vectors(pptx_path: Path, vector_models):

@@ -23,6 +23,19 @@ VERSION="factdeck.visual-a.1"
 NATIVE_RENDER_VERSION="factdeck.visual-native-export.5"
 ASSET_KIND={"VISUAL_DESIGN":"design","VISUAL_CLEAN":"clean","VISUAL_VECTOR":"vector"}
 
+def effective_visual_standard(w):
+    registry=Path(__file__).resolve().parents[1]/'config/visual_standard_bindings.json'
+    if not registry.is_file():return None
+    binding=json.loads(registry.read_text(encoding='utf-8')).get(w['id'])
+    if not binding:return None
+    if binding.get('template_id')!=(w.get('visual_template') or {}).get('id'):return None
+    root=registry.parents[1];path=(root/binding['standard_path']).resolve()
+    require(path.is_relative_to(root.resolve()) and path.is_file(),'视觉标准文件不可用')
+    require(sha(path.read_bytes())==binding['standard_sha256'],'视觉标准绑定已变化')
+    standard=json.loads(path.read_text(encoding='utf-8'))
+    require(standard.get('frozen') is True and standard.get('final_native_visual_approval') is True,'视觉标准尚未确认')
+    return {'version':standard['version'],'sha256':binding['standard_sha256'],'model':standard['model'],'policy':binding['policy']}
+
 
 def base_input(w):
     from app.deckflow import render_input
@@ -36,7 +49,9 @@ def current(w):
 
 def ready(w):
     from app.deckflow import semantic_current, open_issues
-    return current(w) and semantic_current(w) and not open_issues(w) and all(p.get("layout") and set(p["assets"])=={"design","clean","vector"} for p in w["generation"]["pages"])
+    g=w.get('generation')
+    if not g or not all(p.get('layout') and set(p['assets'])=={'design','clean','vector'} for p in g['pages']):return False
+    return current(w) and semantic_current(w) and not open_issues(w)
 
 
 def render_fingerprint(w):
@@ -72,6 +87,12 @@ def view(w):
 
 
 class GenerationMixin:
+    def generation_view(self,workflow_id):
+        # Status polling needs generation data, not summary-ledger projections.
+        with self.connect() as db:
+            row=db.execute('SELECT state FROM workflows WHERE id=?',(workflow_id,)).fetchone()
+        require(row,'项目不存在',404)
+        return view(json.loads(row[0]))
     def generation_fingerprint(self,w,kind,page_id):
         require(current(w),"生成输入已过期，请重新启动生成")
         g=w["generation"]; p=next(p for p in g["pages"] if p["id"]==page_id)
@@ -79,7 +100,7 @@ class GenerationMixin:
         refs={k:p["assets"][k]["sha256"] for k in needed}
         if kind=="VISUAL_DESIGN" and p is not g["pages"][0]: refs["style_reference"]=g["pages"][0]["assets"]["design"]["sha256"]
         return digest({"version":VERSION,"generation":g["id"],"input":g["input_sha256"],"page":p["id"],"revision":p.get("revision",0),"kind":kind,"lock":p["lock"],"references":refs,
-                       "layout":p.get("layout") if kind in {"VISUAL_CLEAN","VISUAL_VECTOR"} else None})
+                       "layout":p.get("layout") if kind in {"VISUAL_CLEAN","VISUAL_VECTOR"} else None, **({'visual_standard':effective_visual_standard(w)} if effective_visual_standard(w) else {})})
 
     def generation_brief(self,w,kind,page_id):
         g=w["generation"]; p=next(p for p in g["pages"] if p["id"]==page_id)
@@ -100,6 +121,10 @@ class GenerationMixin:
             return common
         if kind=="VISUAL_DESIGN":
             style="遵循已选客户模板的配色令牌和字体；保留品牌视觉约定。" if w["theme"]=="brand" else "米白底、炭黑正文、低饱和墨蓝重点。不要高亮电蓝。"
+            if w.get('visual_template'):
+                template=w['visual_template']
+                refs['academic_template']={'sha256':template['design_sha256'],'url':f'/api/deck/workflows/{w["id"]}/visual-template'}
+                style='参照已选学术模板'+template['name']+'的实际六页设计稿，按内容形态选择匹配构图；使用其配色与图形语言。占位文字不作为事实，不照搬示例流程。'+json.dumps(template['palette'],ensure_ascii=False)
             prompt="生成一页带全部文字的完整演示文稿设计稿，16:9。"+style+"清楚网格、阅读顺序和克制装饰。参考首张设计稿统一整套视觉。所有锁定文字、表格、限定条件与来源完整呈现；不要编造图形表达的新数值或关系。此图片用于后续拆解重建原生PPT，文字区留出可读容量。\n"
             prompt+=json.dumps({"design":p["lock"]["design"],"palette":g["palette"],"text":text_lock,"tables":tables,"native_objects":common["locked_objects"]},ensure_ascii=False)
         elif kind=="VISUAL_CLEAN":
@@ -111,6 +136,10 @@ class GenerationMixin:
                 prompt+="本页没有待重建的原生表格。卡片容器不是表格，禁止删除卡片。完整保留所有卡片的底色、外框和标题色带，圆形图标底座与非文字图标轮廓，标题装饰短线、肺部插画和页底波纹。只清除其中的文字与数字，不改变这些非文字装饰与容器的布局。"
             prompt+="移除原件证据图与品牌标志的重绘，保留这些对象的占位留白，最终使用实际原件填回。补齐去字区域的背景。不要新增含义或符号。请逐页看实际输出确认无残字。\n"+json.dumps({"native_regions":p["layout"]["components"],"native_table_regions":[{k:t[k] for k in ('x','y','w','h')} for t in native_tables],"locked_boxes":contract(p["layout"]["model"])["slots"]},ensure_ascii=False)
         else: prompt="使用 Adobe image_vectorize 对实际去字 PNG 进行矢量化，提交实际 SVG，不得以图片、手写替代SVG或整页截图伪装工具输出。"
+        standard=effective_visual_standard(w)
+        if standard and kind in {'VISUAL_DESIGN','VISUAL_CLEAN'}:
+            prompt+='\n已由用户确认的视觉标准：'+json.dumps(standard,ensure_ascii=False)
+        if standard:common['visual_standard']=standard
         common["prompt"]=prompt
         common["receipt_contract"]={"contract_sha256":common["input_sha256"],"asset_sha256":"实际文件SHA256","tool":"image_gen" if kind!="VISUAL_VECTOR" else "adobe_image_vectorize",
                                     "tool_call_id":"实际调用标识","prompt":prompt,"input_assets":{k:v["sha256"] for k,v in refs.items()},"elapsed_seconds":0,
@@ -188,6 +217,17 @@ class GenerationMixin:
         generation={"id":gid,"version":VERSION,"input_sha256":key,"route":ROUTE,"created_at":now(),"font":lock["font"],"palette":PALETTE if w["theme"]!="brand" else self.render_theme(w)["tokens"],
                     "preparation_seconds":round(time.perf_counter()-start,3),"preparation_path":rel,"pages":[],"figures":[],"logos":[],"render":{"status":"WAITING_ASSETS","attempts":0,"error":None}}
         generation['scope']=chk.get('scope')
+        if w.get('visual_template'):
+            colors=w['visual_template']['palette']
+            generation['palette']={**PALETTE,'primary':'#'+colors['accent'],'paper':'#'+colors['background'],'ink':'#'+colors['ink'],'table_header':'#'+colors['accent']}
+            replacements={PALETTE['primary'][1:].upper():colors['accent'],PALETTE['table_header'][1:].upper():colors['accent'],PALETTE['ink'][1:].upper():colors['ink'],PALETTE['paper'][1:].upper():colors['background']}
+            def selected_colors(obj):
+                if isinstance(obj,dict):
+                    if 'hex' in obj and obj['hex'].lstrip('#').upper() in replacements:obj['hex']=replacements[obj['hex'].lstrip('#').upper()]
+                    for val in obj.values():selected_colors(val)
+                elif isinstance(obj,list):
+                    for val in obj:selected_colors(val)
+            selected_colors(lock['models'])
         for p,m,n in zip(spec["pages"],lock["models"],lock["notes"]):
             # The compatibility template's text-free cover decoration is replaced
             # by the actual A artwork. It is not source content or a native overlay.

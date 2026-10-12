@@ -164,7 +164,9 @@ def to_figure_deck(store):
     store.queue(w["id"], "SEMANTIC_REVIEW")
     t = store.claim(w["id"], "reviewer-B", "SEMANTIC_REVIEW")
     assert any(f.get("figure_url") for p in t["brief"]["pages"] for f in p["facts"])
-    store.complete(w["id"], t["id"], t["lease_token"], t["brief"]["result_contract"])
+    assert t["brief"]["must_view_source_pages"]                      # the figure's source page must be looked at
+    store.complete(w["id"], t["id"], t["lease_token"], T.all_clear(t))
+    T.semantic_review(store, w["id"], workers=("reviewer-C",))
     w = store.resolve_conflict(w["id"], {"reviewer": "TEST-REVIEWER", "entity": "药物A", "attribute": "单价(元)", "fact_id": "price.a.ppt"})
     store.queue(w["id"], "SECOND_READ")
     while t := store.claim(w["id"], "reader-2", "SECOND_READ"):

@@ -104,7 +104,8 @@ def document(models, vectors, font, figure_files=None):
             for a in s.get("accents",[]): items.append(f'<div style="position:absolute;{box(a)}background:{color(a["color"])}"></div>')
         for ln in m["lines"]:
             points=" ".join(f"{x},{y}" for x,y in ln["points"])
-            items.append(f'<svg style="position:absolute;inset:0" width="1280" height="720"><defs><marker id="arrow{i}_{len(items)}" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7" fill="#{ln["color"]}"/></marker></defs><polyline points="{points}" fill="none" stroke="#{ln["color"]}" stroke-width="{ln["w"]}" marker-end="url(#arrow{i}_{len(items)})"/></svg>')
+            arrow_end=f' marker-end="url(#arrow{i}_{len(items)})"' if ln.get('arrow',True) else ''
+            items.append(f'<svg style="position:absolute;inset:0" width="1280" height="720"><defs><marker id="arrow{i}_{len(items)}" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7" fill="#{ln["color"]}"/></marker></defs><polyline points="{points}" fill="none" stroke="#{ln["color"]}" stroke-width="{ln["w"]}"{arrow_end}/></svg>')
         for g in m.get("figures",[])+m.get("rasters",[]): items.append(f'<img style="position:absolute;{box(g)}" src="{html.escape((figure_files or {})[g["id"]])}">')
         for t in m["tables"]:
             rows=[]
@@ -115,7 +116,7 @@ def document(models, vectors, font, figure_files=None):
                     runs=[r for p in c['paras'] for r in p]
                     size=max((r['size'] for r in runs),default=16)
                     cell_font=html.escape(next((r.get('font',font) for r in runs),font),quote=True)
-                    cells.append(f'<td style="padding:{pad};width:{c["w"]}px;height:{row["h"]}px;background:{color(c.get("fill"))};font-family:{cell_font};font-size:{size}px;line-height:{c["lineHeight"]}px;white-space:pre-line;vertical-align:top;border-bottom:1px solid {color(c.get("border"))}">{paras(c)}</td>')
+                    cells.append(f'<td style="padding:{pad};width:{c["w"]}px;height:{row["h"]}px;background:{color(c.get("fill"))};font-family:{cell_font};font-size:{size}px;line-height:{c["lineHeight"]}px;white-space:pre-line;text-align:{c.get("align","left")};vertical-align:{"middle" if c.get("anchor")=="middle" else "bottom" if c.get("anchor")=="bottom" else "top"};border-bottom:1px solid {color(c.get("border"))}">{paras(c)}</td>')
                 rows.append(f'<tr data-lock-row-height="{row["h"]}">'+"".join(cells)+'</tr>')
             items.append(f'<table data-qa-table data-lock-width="{t["w"]}" data-lock-height="{t["h"]}" style="position:absolute;table-layout:fixed;border-collapse:collapse;{box(t)}">'+"".join(rows)+'</table>')
         for t in m["texts"]:
@@ -147,7 +148,7 @@ def clear_font_width_headroom(model,text,extra,components=()):
     return True
 
 
-def office_render(folder: Path, count: int, models=None, components=None):
+def office_render(folder: Path, count: int, models=None, components=None, template_export=False):
     import pythoncom
     import win32com.client
     from pypdf import PdfReader
@@ -197,11 +198,20 @@ def office_render(folder: Path, count: int, models=None, components=None):
                     (folder/'office_text_errors.json').write_text(json.dumps(text_checks,ensure_ascii=False,indent=2),encoding='utf8')
                     raise ValueError(f'PowerPoint 第{i}页存在实际文字溢出：'+json.dumps(errors,ensure_ascii=False))
             if adjustments:ppt.SaveCopyAs(str(adjusted_file.resolve()),24)
+            if template_export:ppt.SaveCopyAs(str((folder/'template.potx').resolve()),26)
             ppt.SaveAs(str((folder/"deck.pdf").resolve()),32)
             for i in range(1,count+1):
                 slide=ppt.Slides(i);slide.Export(str((folder/f"slide{i:02d}.png").resolve()),"PNG",2560,1440)
                 groups=[slide.Shapes(j) for j in range(1,slide.Shapes.Count+1) if slide.Shapes(j).Type==6]
                 candidates=[(g,g.GroupItems(j)) for g in groups for j in range(1,g.GroupItems.Count+1) if g.GroupItems(j).Type==5 and g.GroupItems(j).Nodes.Count>0]
+                if not candidates and template_export:
+                    tables=[slide.Shapes(j) for j in range(1,slide.Shapes.Count+1) if slide.Shapes(j).HasTable]
+                    if not tables:raise ValueError(f'模板第{i}页没有矢量图形或原生表格')
+                    cell=tables[0].Table.Cell(2,1).Shape.TextFrame.TextRange
+                    old=str(cell.Text);cell.Text='原生表格编辑检查';editable=str(cell.Text)=='原生表格编辑检查';cell.Text=old
+                    if not editable:raise ValueError('原生表格编辑检查失败')
+                    checks.append({'page':i,'artwork_absent':True,'native_table_edit':True,'group_move':None,'fill_recolor':None,'contour_edit':None})
+                    continue
                 if not candidates: raise ValueError(f"第{i}页没有可验证的原生矢量路径")
                 group,shape=max(candidates,key=lambda pair:pair[1].Nodes.Count)
                 old=group.Left; group.Left=old+3; moved=abs(group.Left-old-3)<.2; group.Left=old
@@ -229,7 +239,7 @@ def render(generation, out: Path, asset_path, title=""):
     models=[]; notes=[]; vectors=[]; stats=[]; pages=generation["pages"]
     for p in pages:
         models.append(copy.deepcopy(p["layout"]["model"])); notes.append(p["lock"]["notes"])
-        vec,stat=trace_svg(asset_path(p["assets"]["vector"]["path"]).read_bytes(),p["layout"]["components"])
+        vec,stat=trace_svg(asset_path(p["assets"]["vector"]["path"]).read_bytes(),p["layout"]["components"],preserve_order=p['layout'].get('preserve_vector_order',False))
         vectors.append(vec); stats.append(stat)
     figures={}; figure_files={}; logos={}
     for f in generation.get("figures",[]):
