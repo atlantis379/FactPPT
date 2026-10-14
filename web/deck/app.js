@@ -498,17 +498,45 @@ function confirmationFlow(w, state) {
   const {review, repairPanel, canApprove, approved, subject, blockerCount}=state;
   const pending=w.summary.pending_issues, receipt=w.summary_pending_responses;
   const saved=receipt && receipt.subject_sha256===subject;
+  const sourceForRef = (ref) => {
+    const m=String(ref).match(/^(S\d+):p(\d+)(?:#k(\d+))?$/); if(!m)return null;
+    const [,sid,pageNo,claimNo]=m, source=w.sources.find(x=>x.id===sid), page=source?.pages.find(x=>x.id===`${sid}:p${pageNo}`);
+    if(!source||!page)return {ref};
+    const claim=claimNo?(source.claims?.items||[]).find(x=>x.id===`${sid}:p${pageNo}#k${claimNo}`):null;
+    const units=[...source.units,...source.transcriptions].filter(x=>x.page_id===page.id);
+    return {ref,sid,page,claim,units};
+  };
+  const issueSourceRefs = (text) => {
+    const refs=[];
+    for(const match of text.matchAll(/(S\d+):p(\d+)(?:#k(\d+))?((?:(?:\/|[与和及])p\d+(?:#k\d+)?)*)/g)){
+      refs.push(`${match[1]}:p${match[2]}${match[3]?`#k${match[3]}`:""}`);
+      for(const suffix of match[4].matchAll(/(?:\/|[与和及])p(\d+)(?:#k(\d+))?/g)) refs.push(`${match[1]}:p${suffix[1]}${suffix[2]?`#k${suffix[2]}`:""}`);
+    }
+    return [...new Set(refs)];
+  };
+  const sourceEvidence = (item) => {
+    const text=typeof item==="string"?item:JSON.stringify(item);
+    const refs=issueSourceRefs(text);
+    if(!refs.length)return `<div class="small text-warning mt-2">该事项没有可识别的来源页码；请先在确认稿中核对来源位置。</div>`;
+    return `<div class="mt-2"><div class="small fw-bold mb-1">对应来源与原文</div>${refs.map(ref=>{
+      const evidence=sourceForRef(ref); if(!evidence?.page)return `<div class="small text-danger">${esc(ref)}：当前项目中找不到对应原始页。</div>`;
+      const quote=evidence.claim?.spans?.map(span=>span.quote).join("；");
+      const transcript=quote||evidence.units.map(unit=>unit.text).join("\n\n")||evidence.page.text||"该页没有可显示的文字转录，请查看原页图。";
+      const label=quote?"论断原文片段":"该来源页的文字转录";
+      return `<details class="border rounded p-2 mb-2"><summary>${esc(ref)} · ${esc(evidence.page.location)}${quote?" · 精确论断片段":" · 查看页面原文"}</summary><div class="small mt-2"><b>${label}：</b><div class="quote mt-1">${esc(transcript)}</div><button type="button" class="btn btn-sm btn-link px-0" data-source-page="${esc(evidence.page.id)}">在原始资料栏打开本页</button></div></details>`;
+    }).join("")}</div>`;
+  };
   const waiting=["SUMMARY_AMEND_RUNNING","SUMMARY_REVIEW_REQUIRED"].includes(w.stage);
   const title=w.stage==="SUMMARY_AMEND_RUNNING"?"答复已提交，执行端处理已排队":approved?"内容已确认":blockerCount?"先修订审核问题":waiting?"等待独立审核":pending.length?`先回答 ${pending.length} 项待确认事项`:"请复核并确认内容";
   const explanation=w.stage==="SUMMARY_AMEND_RUNNING"?"系统已排好局部修订任务，仅处理本次答复对应的事项。执行端提交后自动进入独立复核，通过后开放最终确认。":approved?"本版本确认已记录，可以进入下一阶段。":blockerCount?"执行端需要先修订这些问题。你可以查看具体意见并安排处理。":waiting?"独立执行端完成审核后，才会开放内容确认。":pending.length?"内容独立审核已通过。请在下面逐项选择你掌握的情况；保存答复后，由执行端处理来源记录并复核，再开放最终确认。":"阅读确认稿，核对要求和内容后，在下方填写确认信息并提交。";
   const answers=pending.length?`<form id="pending-answers" class="card-body">${pending.map((item,i)=>{
     const previous=saved?receipt.answers.find(answer=>answer.index===i):null;
-    return `<fieldset class="confirmation-question mb-3"><legend class="fs-4 mb-2">待确认事项 ${i+1}</legend><p>${esc(typeof item==="string"?item:JSON.stringify(item))}</p><label class="form-label" for="pending-choice-${i}">你掌握的情况</label><select id="pending-choice-${i}" name="answer_${i}" class="form-select mb-2" required><option value="">请选择</option>${[["AVAILABLE","已有相关文件或明确依据"],["UNAVAILABLE","目前没有相关文件或依据"],["UNKNOWN","我还不能确定，需要进一步核对"]].map(([value,label])=>`<option value="${value}" ${previous?.answer===value?"selected":""}>${label}</option>`).join("")}</select><label class="form-label" for="pending-note-${i}">依据或补充说明</label><textarea id="pending-note-${i}" name="note_${i}" class="form-control" rows="2" placeholder="如有文件，请说明文件名，并在“上传资料”中补充；没有或不确定也可如实说明。">${esc(previous?.note||"")}</textarea></fieldset>`;
+    return `<fieldset class="confirmation-question mb-3"><legend class="fs-4 mb-2">待确认事项 ${i+1}</legend><p>${esc(typeof item==="string"?item:JSON.stringify(item))}</p>${sourceEvidence(item)}<label class="form-label mt-3" for="pending-choice-${i}">你掌握的情况</label><select id="pending-choice-${i}" name="answer_${i}" class="form-select mb-2" required><option value="">请选择</option>${[["AVAILABLE","已有相关文件或明确依据"],["UNAVAILABLE","目前没有相关文件或依据"],["UNKNOWN","我还不能确定，需要进一步核对"]].map(([value,label])=>`<option value="${value}" ${previous?.answer===value?"selected":""}>${label}</option>`).join("")}</select><label class="form-label" for="pending-note-${i}">依据或补充说明</label><textarea id="pending-note-${i}" name="note_${i}" class="form-control" rows="2" placeholder="如有文件，请说明文件名，并在“上传资料”中补充；没有或不确定也可如实说明。">${esc(previous?.note||"")}</textarea></fieldset>`;
   }).join("")}<div class="mb-3"><label class="form-label required" for="pending-operator">你的姓名（记录用）</label><input id="pending-operator" name="operator" class="form-control" value="${esc($("#me").value)}" required maxlength="200"></div><button class="btn btn-primary">${saved?"更新答复":"保存答复"}</button><div class="form-hint mt-2">保存答复会留下记录。最终内容确认须在执行端处理及独立复核后提交。</div></form>`:"";
   const prompt=`请处理项目 ${w.id} 当前版本已保存的 summary_pending_responses。依据人工答复和原资料更新来源限制与待确认事项，记录处理依据，安排独立复核；停在人工内容确认。未确定的事项保留，不自动确认或生成PPT。`;
   const followUp=saved?`<div class="card-body border-bottom"><div class="alert alert-success">答复已保存：${esc(receipt.operator)} · ${time(receipt.at)}。下一步由执行端处理。</div><details><summary>如何让执行端继续处理？</summary><p class="mt-2">将下面这段发送到当前Codex对话。网页尚不能自动启动执行端。</p><textarea class="form-control" rows="4" readonly aria-label="执行端处理请求">${esc(prompt)}</textarea></details></div>`:"";
   const finalForm=approved?`<div class="card-body text-success">已由 ${esc(w.content_approval.customer)} 确认，${time(w.content_approval.at)}。</div>`:canApprove?approvalForm("approve-content",subject,"确认本版本内容"): `<div class="card-body"><button class="btn btn-success" disabled>确认本版本内容</button><div class="mt-2 text-secondary">${blockerCount?"先完成审核问题修订及复核。":waiting?"独立审核尚未完成。":pending.length?"先处理上方待确认事项，再由执行端更新记录并复核。":"请完成当前版本的前置条件。"}</div></div>`;
-  return `<div id="confirmation-flow">${card(title,`<div class="card-body"><p class="mb-3">${explanation}</p><div class="confirmation-steps"><span class="badge bg-${pending.length?"blue":"green"}-lt">1. 回答待确认事项</span><span class="badge bg-${waiting||blockerCount?"blue":"secondary"}-lt">2. 执行端处理与复核</span><span class="badge bg-${canApprove?"blue":approved?"green":"secondary"}-lt">3. 确认内容</span></div></div>`)}${pending.length?card("第一步：回答待确认事项",followUp+answers):""}${repairPanel}${card("复核本版本内容",`<div class="card-body"><p>核对受众、授课时长、覆盖范围，以及要点和来源限制。</p><div class="btn-list"><a class="btn" href="#/w/${esc(w.id)}/summary">查看原文与总结</a><a class="btn" href="${url("/confirmation-draft")}" target="_blank">打开内容确认稿</a></div></div>`)}${card("最终确认",finalForm)}<details class="card mb-3"><summary class="card-body fw-bold">查看独立审核明细与高级修订</summary><div id="summary-review-issues">${review}</div>${summaryEditor(w)}</details></div>`;
+  return `<div id="confirmation-flow">${card(title,`<div class="card-body"><p class="mb-3">${explanation}</p><div class="confirmation-steps"><span class="badge bg-${pending.length?"blue":"green"}-lt">1. 回答待确认事项</span><span class="badge bg-${waiting||blockerCount?"blue":"secondary"}-lt">2. 执行端处理与复核</span><span class="badge bg-${canApprove?"blue":approved?"green":"secondary"}-lt">3. 确认内容</span></div></div>`)}<div class="row g-3 align-items-start"><div class="col-lg-5">${sourceEvidencePanel(w)}</div><div class="col-lg-7">${pending.length?card("第一步：回答待确认事项",followUp+answers):""}${repairPanel}${card("复核本版本内容",`<div class="card-body"><p>核对受众、授课时长、覆盖范围，以及要点和来源限制。</p><div class="btn-list"><a class="btn" href="#/w/${esc(w.id)}/summary">查看原文与总结</a><a class="btn" href="${url("/confirmation-draft")}" target="_blank">打开内容确认稿</a></div></div>`)}${card("最终确认",finalForm)}<details class="card mb-3"><summary class="card-body fw-bold">查看独立审核明细与高级修订</summary><div id="summary-review-issues">${review}</div>${summaryEditor(w)}</details></div></div></div>`;
 }
 function bindConfirmationFlow(w,subject) {
   const form=$("#pending-answers");if(!form)return;

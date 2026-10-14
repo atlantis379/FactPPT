@@ -23,6 +23,8 @@ CATEGORIES = {"CONTENT_ERROR": "内容错误", "EVIDENCE_MISSING": "来源证据
               "EXPRESSION_AMBIGUITY": "页面表达歧义", "HUMAN_DECISION": "人工决策"}
 DISPOSITIONS = ("FIXED", "OPEN", "NEEDS_HUMAN", "RETAINED")
 UNRESOLVED = {"OPEN", "NEEDS_HUMAN", "RETAINED"}
+# A revision cannot supply missing source evidence or make a human decision: such issues start with a person.
+HUMAN_CATEGORIES = {"HUMAN_DECISION", "EVIDENCE_MISSING"}
 CLOSED = {"FIXED", "HUMAN_RULED"}
 STATUS_NAMES = {"OPEN": "仍未解决", "NEEDS_HUMAN": "待人工确认", "RETAINED": "依据不足而保留",
                 "FIXED": "已修复（经独立复核）", "HUMAN_RULED": "已人工裁定"}
@@ -170,7 +172,7 @@ def record_round(w: dict, scope: str, check: str, *, reviewer: str, input_sha256
             old = next((i for i in b['issues'] if i['id'] == x['existing_issue_id']), None)
             require(old and old['id'] in staying and old['check'] == check,
                     'existing_issue_id 须指向本检查表本轮已处置且尚未闭环的问题', 422)
-            _move(old, 'NEEDS_HUMAN' if cat == 'HUMAN_DECISION' else 'OPEN', rnd,
+            _move(old, 'NEEDS_HUMAN' if cat in HUMAN_CATEGORIES else 'OPEN', rnd,
                   fields['evidence'], [ref], continued_on=ref)
             if sev == 'BLOCKER':
                 old['severity'] = 'BLOCKER'
@@ -180,13 +182,13 @@ def record_round(w: dict, scope: str, check: str, *, reviewer: str, input_sha256
             old = next((i for i in b["issues"] if i["id"] == x["reopens"]), None)
             require(old and old["status"] == "FIXED" and old["check"] == check, f"reopens 只能指向本检查表中已标为修复的问题：{x['reopens']}", 422)
             old.update({k: v for k, v in fields.items() if k != "check"})
-            _move(old, "NEEDS_HUMAN" if cat == "HUMAN_DECISION" else "OPEN", rnd, fields["evidence"], [], reopened=True)
+            _move(old, "NEEDS_HUMAN" if cat in HUMAN_CATEGORIES else "OPEN", rnd, fields["evidence"], [], reopened=True)
             rnd["reopened"].append(old["id"])
             continue
-        rnd["new"].append(_new(b, scope, fields, rnd, "NEEDS_HUMAN" if cat == "HUMAN_DECISION" else "OPEN")["id"])
+        rnd["new"].append(_new(b, scope, fields, rnd, "NEEDS_HUMAN" if cat in HUMAN_CATEGORIES else "OPEN")["id"])
     for x in auto_issues:
         same = next((i for i in b["issues"] if i["id"] in staying and i["ref"] == x["ref"] and i["check"] == check), None)
-        status = "NEEDS_HUMAN" if x["category"] == "HUMAN_DECISION" else "OPEN"
+        status = "NEEDS_HUMAN" if x["category"] in HUMAN_CATEGORIES else "OPEN"
         if same:
             if x["severity"] == "BLOCKER":
                 same["severity"] = "BLOCKER"

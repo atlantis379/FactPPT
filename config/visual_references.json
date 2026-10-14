@@ -1,0 +1,18 @@
+{
+  "_comment": "Per-project reference images for content-page illustrations, supplied by the user. They show how to draw content logic as simplified diagrams; their text, items and specific content are never copied. Checked by sha256.",
+  "deck_5a725e2d98854c81abd3": {
+    "content": [
+      {
+        "name": "project_reference_01",
+        "path": "output/textbook_batch02/samples/d29d8f3d-d5b6-47c1-98ea-e5468dc98e3e.png",
+        "sha256": "e089116920bf0d9641efe996eac54dd547c9f87be142c7f3a0f078f2e19743a0"
+      },
+      {
+        "name": "project_reference_02",
+        "path": "output/textbook_batch02/samples/dbecad89-6e25-435b-bbe3-b321ac1a4f50.png",
+        "sha256": "8c0921475f636cef5be81bd85c31abf2ffc6910e5413fe6a927a4a612b18db3e"
+      }
+    ],
+    "supplied": "2026-10-13 user samples (output/textbook_batch02/samples)"
+  }
+}

@@ -47,13 +47,17 @@ from app.deck_generation import GenerationMixin, VISUAL_KINDS, ROUTE as VISUAL_R
 from app.deck_scope import check_spec, selected_spec, scope_of, context as scope_context
 from app import review_ledger as ledger
 from app import semantic_review as semrev
+from app import structure_stage
 
 TEMPLATE = "factdeck.v1"
 ENGINE_VERSION = "factdeck-render.1"
 MAX_UPLOAD = 40 * 1024 * 1024
 SAMPLE_PAGES = 5
 DEIDENTIFIED = ("NO_PATIENT_CONTENT", "DEIDENTIFIED", "IDENTIFIABLE")
-KINDS = ("READ_SOURCE", "SECOND_READ", "CLAIMS", "SUMMARY", "SUMMARY_AMEND", "SUMMARY_REVIEW", "FACTS", "DECK", "SEMANTIC_REVIEW", "VISUAL_CRITIQUE") + VISUAL_KINDS
+# Content-rule version. A project keeps the version it started with; when the rules change mid-project, new content
+# tasks wait until someone adopts the new version explicitly (recorded), so rules never change under a running review.
+CONTENT_RULES_VERSION = "content-rules.2026-10-13"
+KINDS = ("READ_SOURCE", "SECOND_READ", "CLAIMS", "STRUCTURE", "STRUCTURE_REVIEW", "SUMMARY", "SUMMARY_AMEND", "SUMMARY_REVIEW", "FACTS", "DECK", "SEMANTIC_REVIEW", "VISUAL_CRITIQUE") + VISUAL_KINDS
 REQUIREMENT_KEYS = {"audience", "purpose", "duration_minutes", "target_pages", "emphasis", "tone", "notes"}
 
 
@@ -94,6 +98,10 @@ def relation_candidates_of(w: dict) -> dict[str, dict]:
 
 
 BASIS_NAMES = {"arrow": "原件箭头", "table": "原件表格", "numbered": "原件编号", "connective": "原文连接词"}
+# Every candidate relation on a chapter's pages is adopted or declined with one of these reasons.
+CANDIDATE_REJECT_REASONS = {"not_between_points": "不是要点之间的关系（版面排列、编号或引用顺序）",
+                            "outside_section": "涉及的内容不属于本章要点", "duplicate": "与本章已采纳的关系重复",
+                            "unsupported_points": "所涉要点无资料支撑或未纳入本章"}
 
 
 def relation_text(r: dict, names: dict[str, str]) -> str:
@@ -152,9 +160,13 @@ def message_lines(w: dict, s: dict) -> list[str]:
 
 def story_line(w: dict) -> list[str]:
     """Every outline item's core sentence in order: the talk's line of argument on one page."""
+    if w.get("structure_first") and structure_stage.structure_current(w):
+        return structure_stage.story(w)
     out = []
-    for s in (w.get("summary") or {}).get("sections") or []:
-        if s.get("outline_id"):
+    summary = w.get("summary") or {}
+    mapped = {sid for m in summary.get("outline_coverage") or [] for sid in m.get("section_ids") or []}
+    for s in summary.get("sections") or []:
+        if s.get("outline_id") or s.get("id") in mapped:
             m = s.get("message")
             text = (f"「{m['core']['quote']}」" if m["core"].get("claim_id") else f"（无核心句：{m['core'].get('none', '')}）") if m else "（无资料支撑）"
             out.append(f"{len(out) + 1}. {s['title']}：{text}")
@@ -378,12 +390,15 @@ def claim_view(k: dict) -> dict:
             **({"source_kind": k["source_kind"]} if k.get("source_kind") else {})}
 
 
-def input_hash(w: dict) -> str:
-    return digest({"sources": [{"sha256": s["sha256"], "readings": [p["reading"] for p in s["pages"]],
-                                "transcriptions": [{k: u[k] for k in ("id", "location", "text")} for u in s["transcriptions"]],
-                                "claims": (s.get("claims") or {}).get("result_sha256")}
-                               for s in w["sources"]],
-                   "outline": w["outline"], "context": w["context"]})
+def input_hash(w: dict, structure: bool = True) -> str:
+    base = {"sources": [{"sha256": s["sha256"], "readings": [p["reading"] for p in s["pages"]],
+                         "transcriptions": [{k: u[k] for k in ("id", "location", "text")} for u in s["transcriptions"]],
+                         "claims": (s.get("claims") or {}).get("result_sha256")}
+                        for s in w["sources"]],
+            "outline": w["outline"], "context": w["context"]}
+    if structure and w.get("structure_first"):           # the summary is written inside the confirmed structure
+        base["structure"] = digest(w["structure"]["result"]) if w.get("structure") else None
+    return digest(base)
 
 
 def summary_current(w: dict) -> bool:
@@ -629,6 +644,8 @@ def status(w: dict) -> tuple[str, list[str]]:
     """(stage, open items) — the first unmet gate and everything still open."""
     if not fully_read(w): return "READING_REQUIRED", ["资料尚未全部阅读"]
     if not fully_claimed(w): return "CLAIMS_REQUIRED", ["资料的论断清单尚未全部完成"]
+    gate = structure_stage.gate(w)
+    if gate: return gate
     if not summary_current(w): return "SUMMARY_REQUIRED", ["需要当前版本的全文总结"]
     if not content_approved(w):
         if any(t["kind"] == "SUMMARY_AMEND" and t["status"] in {"PENDING", "RUNNING"} for t in w["tasks"]):
@@ -743,7 +760,7 @@ class Store(GenerationMixin, _BaseStore):
              "confirmations": {"derivations": {}, "resolutions": {}, "transcriptions": {}, "figures": {}, "figure_licenses": {}},
              "deck": None, "semantic_review": None, "render": None, "critique": None, "page_reviews": {}, "style_approval": None,
              "approvals": [], "tasks": [], "deliveries": [], "generation_route": generation_route, "generation": None,
-             "source_evidence_policy": "verified-transcription.v1"}
+             "source_evidence_policy": "verified-transcription.v1", "rules_version": CONTENT_RULES_VERSION, "rules_history": []}
         with self.connect() as db:
             db.execute("INSERT INTO workflows VALUES(?,?,?)", (w["id"], 1, json.dumps(w, ensure_ascii=False)))
             db.execute("INSERT INTO events(workflow_id,created_at,event,details) VALUES(?,?,?,?)", (w["id"], now(), "CREATE", digest(w)))
@@ -775,7 +792,8 @@ class Store(GenerationMixin, _BaseStore):
         if w.get("generation"):
             w["generation"]["render"].pop("lease_token", None)
         w["stage"], w["open_items"] = status(w)
-        w["approval_subjects"] = {"content": digest(w["summary"]) if summary_current(w) else None,
+        w["approval_subjects"] = {"structure": digest(w["structure"]["result"]) if structure_stage.structure_current(w) else None,
+                                  "content": digest(w["summary"]) if summary_current(w) else None,
                                   "style": sample_hash(w) if render_current(w) else None}
         for scope, key in (("summary", "summary_review"), ("semantic", "semantic_review")):
             ledger.book(w, scope)
@@ -803,6 +821,15 @@ class Store(GenerationMixin, _BaseStore):
                 w["outline"], w["outline_parts"] = parse_structured_outline(changes["outline"])
             if "context" in changes:
                 w["context"] = changes["context"]
+            if "structure_first" in changes:
+                require(isinstance(changes["structure_first"], bool), "structure_first 须为布尔值", 422)
+                require(not (changes["structure_first"] and structured(w)),
+                        "提纲带要点时章节由提纲逐条组织，不能同时启用“先定整体结构”；请改用不带要点的提纲", 422)
+                if bool(w.get("structure_first")) != changes["structure_first"]:
+                    # the summary, content confirmation and everything downstream become stale: keep the record
+                    w.setdefault("settings_history", []).append({"structure_first": changes["structure_first"], "at": now(),
+                                                                 "had_summary": bool(w.get("summary"))})
+                w["structure_first"] = changes["structure_first"]
             if "requirements" in changes:
                 w["requirements"] = self._requirements(changes["requirements"])
             if "theme" in changes:
@@ -878,7 +905,7 @@ class Store(GenerationMixin, _BaseStore):
                         n += 1
                 if n:
                     marked[s["id"]] = n
-                s["relations"] = relation_candidates(s["units"])
+                s["relations"] = relation_candidates(s["units"] + s.get("transcriptions", []))
             self.snapshot(w, "structure_backfill", {"added": added, "marked": marked, "skipped": skipped})
         return {"added": added, "marked": marked, "skipped": skipped,
                 "relations": {s["id"]: len(s.get("relations") or []) for s in self.get(workflow_id)["sources"]}}
@@ -942,6 +969,17 @@ class Store(GenerationMixin, _BaseStore):
             self.cancel_stale(w)
         return self.get(workflow_id)
 
+    def adopt_rules(self, workflow_id: str, operator: str, reason: str):
+        """Move a project to the current content rules, explicitly and on record."""
+        require(bool(str(operator).strip()) and len(str(reason).strip()) >= 4, "采纳新规则须写明操作人和原因", 422)
+        with self.transaction(workflow_id, "ADOPT_CONTENT_RULES") as w:
+            old = w.get("rules_version", "legacy")
+            require(old != CONTENT_RULES_VERSION, "本项目已按当前内容规则运行", 409)
+            w.setdefault("rules_history", []).append({"from": old, "to": CONTENT_RULES_VERSION, "operator": str(operator).strip(),
+                                                      "reason": str(reason).strip(), "at": now()})
+            w["rules_version"] = CONTENT_RULES_VERSION
+        return self.get(workflow_id)
+
     def cancel_stale(self, w: dict):
         for t in w["tasks"]:
             if t["status"] in {"PENDING", "RUNNING"} and not self.task_current(w, t):
@@ -997,6 +1035,8 @@ class Store(GenerationMixin, _BaseStore):
                                "transcribed_cells": len(cells), "figures": fig_notes}
         source["transcriptions"] = transcriptions
         source["figures"] = embedded(source) + [g for g, _ in crops]
+        # transcribed diagram arrows ("start→end" cells) are structure too: candidates cover units and transcriptions
+        source["relations"] = relation_candidates(source["units"] + transcriptions)
         for u in transcriptions:
             w["confirmations"]["transcriptions"].pop(u["id"], None)
 
@@ -1202,7 +1242,13 @@ class Store(GenerationMixin, _BaseStore):
             points = s.get("key_points")
             require(isinstance(points, list), f"章节 {s['id']} 需提供 key_points 列表", 422)
             substantive = any(known[r]["reading"]["classification"] == "SUBSTANTIVE" for r in refs)
-            require(points or not substantive or (structured(w) and s.get("outline_id")),
+            # An approved course arc may explicitly assign substantive evidence to
+            # reference-only reading. summary_checks below still restricts these
+            # empty sections to the trailing reference pages of that same arc.
+            reference_only = bool(w.get("structure_first") and structure_stage.approved(w) and
+                                  set(refs) <= {p for r in w["structure"]["result"].get("reference_only", [])
+                                                for p in r["source_page_ids"]})
+            require(points or not substantive or reference_only or (structured(w) and s.get("outline_id")),
                     f"章节 {s['id']} 引用了正文页，需至少一条关键依据（key_points）", 422)
             for k in points:
                 require(isinstance(k, dict) and len(str(k.get("point", "")).strip()) >= 4, f"章节 {s['id']} 的关键依据需写明归纳（point）", 422)
@@ -1210,6 +1256,15 @@ class Store(GenerationMixin, _BaseStore):
         require(set(known) <= covered, "全文总结未覆盖全部资料页面（含参考文献与空白说明）", 422)
         if structured(w):
             result["outline_coverage"] = self._point_coverage(w, sections, unit_page)
+        else:
+            # An outline without points: each chapter's key points are its points. Ids are assigned by order.
+            for s in sections:
+                rows = []
+                for i, k in enumerate(s.get("key_points") or [], 1):
+                    k["id"] = f"{s['id']}.k{i}"
+                    rows.append({"point_id": k["id"], "unit_ids": k.get("unit_ids") or [], "claim_ids": k.get("claim_ids") or []})
+                Store._message(w, s, rows, unit_page)
+        structure_stage.summary_checks(w, sections)
         mapping = result.get("outline_coverage", [])
         outline_ids = {o["id"] for o in w["outline"]}
         require(isinstance(mapping, list) and len(mapping) == len(outline_ids) and {m.get("outline_id") for m in mapping} == outline_ids,
@@ -1325,6 +1380,23 @@ class Store(GenerationMixin, _BaseStore):
                 require(r.get("claim_ids"), f"{where}没有来自原件的候选，需列出支撑它的论断（claim_ids）", 422)
             cite(w, r, s["source_page_ids"], where, unit_page)
             r["manual"] = not cid
+        pages_ = set(s["source_page_ids"])
+        mine = sorted(cid for cid, c in cands.items() if any(unit_page.get(u) in pages_ for u in c.get("unit_ids") or []))
+        decisions = m.get("candidate_decisions")
+        require(isinstance(decisions, list) and all(isinstance(x, dict) for x in decisions),
+                f"章节 {sid} 需逐条处理本章页面上的候选关系（candidate_decisions）", 422)
+        got = {x.get("candidate"): x for x in decisions}
+        missing = [c for c in mine if c not in got]
+        require(not missing, f"章节 {sid} 未处理的候选关系：{'、'.join(missing[:12])}{' 等' if len(missing) > 12 else ''}（共 {len(missing)} 条）", 422)
+        require(len(got) == len(decisions) and set(got) <= set(mine), f"章节 {sid} 的 candidate_decisions 只列本章页面上的候选，且不重复", 422)
+        adopted = {r.get("from_candidate") for r in rels if r.get("from_candidate")}
+        for cid, x in got.items():
+            if x.get("decision") == "ADOPTED":
+                require(cid in adopted, f"章节 {sid} 采纳的候选 {cid} 须在 relations 中以 from_candidate 出现", 422)
+            else:
+                require(x.get("decision") == "REJECTED" and x.get("reason") in CANDIDATE_REJECT_REASONS,
+                        f"章节 {sid} 的候选 {cid} 须为 ADOPTED，或 REJECTED 并给出原因（{' / '.join(CANDIDATE_REJECT_REASONS)}）", 422)
+                require(cid not in adopted, f"章节 {sid} 的候选 {cid} 既被采纳又被拒绝", 422)
         m["warnings"] = ([f"章节 {sid} 没有列出要点关系，页面会排成并列清单"] if not rels else []) + \
                         [f"章节 {sid} 的第{i}条关系没有来自原件的候选，客户确认时标为人工判断" for i, r in enumerate(rels, 1) if r["manual"]]
 
@@ -1475,6 +1547,19 @@ class Store(GenerationMixin, _BaseStore):
     # ---- tasks
     def brief(self, w: dict, kind: str, binding: str | None) -> dict:
         req = {"requirements": w["requirements"], "outline": w["outline"], "context": w["context"]}
+        if kind == "STRUCTURE":
+            return {**req, **structure_stage.brief(w)}
+        if kind == "SUMMARY" and binding is None and w.get("structure_first") and structure_stage.approved(w):
+            b = self.brief(w, kind, "within-structure")
+            st = w["structure"]["result"]
+            b["structure"] = {"course_question": st["course_question"], "story": structure_stage.story(w), "sections": st["sections"],
+                              "links": st["links"], "reference_only": st.get("reference_only") or []}
+            b["rules"].append("已确认的课程结构（structure）决定总结的组织：章节与结构的部分一一对应、同序，章节 id 与部分 id 相同，"
+                              "资料页与该部分一致，message.core 即该部分确认的核心句；要点只写回答该部分问题所需的内容，"
+                              "数量与该部分的页数分配相称。标为参考的资料页放在最后的章节中，不写要点。")
+            return b
+        if kind == "STRUCTURE_REVIEW":
+            return {**req, **structure_stage.review_brief(w)}
         if kind == "SUMMARY_AMEND":
             return {"kind": kind, "mode": "pending_responses_only", "input_sha256": self.fingerprint(w, kind, None),
                     "baseline_summary": copy.deepcopy(w["summary"]), "responses": w["summary_pending_responses"],
@@ -1596,11 +1681,11 @@ class Store(GenerationMixin, _BaseStore):
                     "result_contract": {"schema_version": SUMMARY_REVIEW_SCHEMA, "input_sha256": summary_review_input(w), "issues": [],
                                         "prior_issues": [{"issue_id": i["id"], "status": "", "evidence": "", "evidence_refs": []}
                                                          for i in ledger.unresolved(w, "summary")],
-                                        "sections": [{"section_id": v["section_id"], "summary_verdict": "ENTAILED", "summary_issue": "",
-                                                      "points": [{"point_id": p["point_id"], "verdict": "ENTAILED", "issue": ""} for p in v["points"]],
-                                                      "key_points": [{"target_id": p["target_id"], "verdict": "ENTAILED", "issue": ""} for p in v["key_points"]],
-                                                      **({"core": {"verdict": "SUPPORTED", "issue": ""}} if isinstance(v.get("core"), dict) and "claim" in v["core"] else {}),
-                                                      **({"relations": [{"verdict": "SUPPORTED", "issue": ""} for _ in v["relations"]]} if "relations" in v else {})}
+                                        "sections": [{"section_id": v["section_id"], "summary_verdict": "", "summary_issue": "",
+                                                      "points": [{"point_id": p["point_id"], "verdict": "", "issue": ""} for p in v["points"]],
+                                                      "key_points": [{"target_id": p["target_id"], "verdict": "", "issue": ""} for p in v["key_points"]],
+                                                      **({"core": {"verdict": "", "issue": ""}} if isinstance(v.get("core"), dict) and "claim" in v["core"] else {}),
+                                                      **({"relations": [{"verdict": "", "issue": ""} for _ in v["relations"]]} if "relations" in v else {})}
                                                      for v in view]}}
         if kind == "SUMMARY":
             return {"kind": kind, **req, "input_sha256": input_hash(w),
@@ -1615,6 +1700,7 @@ class Store(GenerationMixin, _BaseStore):
                                  "transcriptions": [{k: u[k] for k in ("id", "location", "text")} for u in s["transcriptions"]],
                                  "relation_candidates": s.get("relations") or []} for s in w["sources"]],
                     "relation_types": RELATION_NAMES, "claim_types": CLAIM_TYPES, "source_kinds": SOURCE_KINDS,
+                    "candidate_reject_reasons": CANDIDATE_REJECT_REASONS,
                     "rules": ["全文综合总结；不得新增资料以外的事实。", "所有资料页面都要被章节引用；教学提纲全部映射到章节。",
                               "保留人群、剂量、阈值、时间、证据等级和限制条件；不确定或冲突之处列入 pending_issues。",
                               "依据是论断清单（pages[].claims）：每条论断是原文片段加类型和适用范围，qualifiers 是其中的限定词，numbers 是关键数字，"
@@ -1629,26 +1715,31 @@ class Store(GenerationMixin, _BaseStore):
                                  "在该要点写 statement（资料实际说）：只用所引论断的内容，保留限定词、人群、定义和研究设计；"
                                  "确认稿会并列提纲写法与资料写法，由客户决定。不得改写 point。"
                                  "提纲中的数字和结论不是事实来源，要点与原文不一致时以原文为准并列入 pending_issues。"
-                                 "未纳入任何提纲条目的资料页，放入最后一章“未纳入提纲的资料内容”（不带 outline_id）。",
-                                 "每个提纲条目的章节写信息结构 message（要点全部无资料支撑时不写）："
-                                 "core 为本条目最重要的一句：{claim_id}，须是核心要点所列的论断之一，程序取其原文；"
-                                 "优先选原件作者标出的句子（units 的 signals：title 为页标题，emphasis 为加粗、标色或放大的片段），"
-                                 "不得自拟结论。roles 为每条有资料支撑的要点标 core / support / limit，恰好一条 core；"
-                                 "局限、例外、禁忌、适用范围和注意事项标 limit，它们必须上页。"
-                                 "relations 列出要点之间的关系 {type, items, from_candidate?, unit_ids?, claim_ids?}，type 取自 relation_types；"
-                                 "优先采用 relation_candidates（来自原件的箭头、表格、编号和连接词），写明候选编号，unit_ids 取候选中的单元；"
-                                 "原件没有候选而你判断存在的关系也可以写，须列出支撑它的 claim_ids（在本章页面内），客户确认时会标为人工判断。"
-                                 "没有关系时写空列表，页面会排成并列清单。"] if structured(w) else [])],
+                                 "未纳入任何提纲条目的资料页，放入最后一章“未纳入提纲的资料内容”（不带 outline_id）。"
+                                 ] if structured(w) else []),
+                              "每章写信息结构 message（该章没有有资料支撑的要点时不写）。要点：有提纲要点时为提纲要点（point_id）；"
+                              "提纲没有要点时为本章 key_points，编号按顺序为 <章节id>.k1、<章节id>.k2……（程序按顺序赋号）。"
+                              "core 为本章最重要的一句：{claim_id}，须是核心要点所列的论断之一，程序取其原文；"
+                              "优先选原件作者标出的句子（units 的 signals：title 为页标题，emphasis 为加粗、标色或放大的片段），"
+                              "不得自拟结论。roles 为每条要点标 core / support / limit，恰好一条 core；"
+                              "局限、例外、禁忌、适用范围和注意事项标 limit，它们必须上页。"
+                              "relations 列出要点之间的关系 {type, items, from_candidate?, unit_ids?, claim_ids?}，type 取自 relation_types，items 为要点编号；"
+                              "优先采用 relation_candidates（来自原件的箭头、表格、编号和连接词），写明候选编号，unit_ids 取候选中的单元；"
+                              "原件没有候选而你判断存在的关系也可以写，须列出支撑它的 claim_ids（在本章页面内），客户确认时会标为人工判断。",
+                              "candidate_decisions：本章 source_page_ids 页面上的每条候选关系都要处理："
+                              "{candidate, decision: ADOPTED}（须在 relations 中以 from_candidate 出现），"
+                              "或 {candidate, decision: REJECTED, reason}，reason 取自 candidate_reject_reasons。"],
                     "result_contract": {"schema_version": "full_source_summary.v3", "input_sha256": input_hash(w), "overall_summary": "",
                                         "sections": ([{"id": f"s{i}", "outline_id": o["id"], "title": o["text"], "summary": "", "source_page_ids": [],
                                                        "key_points": [{"point": "", "claim_ids": []}],
                                                        "point_coverage": [{"point_id": p["id"], "point": p["text"], "claim_ids": []} for p in o["points"]],
-                                                       "message": {"core": {"claim_id": ""}, "roles": {p["id"]: "support" for p in o["points"]},
-                                                                   "relations": [{"type": "sequence", "items": [], "claim_ids": [], "from_candidate": ""}]}}
+                                                       "message": {"core": {"claim_id": ""}, "roles": {p["id"]: "" for p in o["points"]},
+                                                                   "relations": [], "candidate_decisions": []}}
                                                       for i, o in enumerate(w["outline"], 1)]
                                                      + [{"id": f"s{len(w['outline']) + 1}", "title": "未纳入提纲的资料内容", "summary": "", "source_page_ids": [],
                                                          "key_points": []}]) if structured(w) else
-                                        [{"id": "s1", "title": "", "summary": "", "source_page_ids": [], "key_points": [{"point": "", "claim_ids": []}]}],
+                                        [{"id": "s1", "title": "", "summary": "", "source_page_ids": [], "key_points": [{"point": "", "claim_ids": []}],
+                                          "message": {"core": {"claim_id": ""}, "roles": {"s1.k1": ""}, "relations": [], "candidate_decisions": []}}],
                                         "outline_coverage": [{"outline_id": o["id"], "section_ids": []} for o in w["outline"]], "pending_issues": []}}
         if kind == "FACTS":
             return {"kind": kind, **req, "summary": w["summary"],
@@ -1770,7 +1861,8 @@ class Store(GenerationMixin, _BaseStore):
             return claims_input(next(s for s in w["sources"] if s["id"] == binding))
         if kind == "SEMANTIC_REVIEW":
             return semrev.task_fingerprint(w, binding)
-        return {"SUMMARY": input_hash, "SUMMARY_REVIEW": summary_review_input, "FACTS": facts_input, "DECK": deck_input,
+        return {"STRUCTURE": structure_stage.structure_input, "STRUCTURE_REVIEW": structure_stage.review_input,
+                "SUMMARY": input_hash, "SUMMARY_REVIEW": summary_review_input, "FACTS": facts_input, "DECK": deck_input,
                 "VISUAL_CRITIQUE": critique_input}[kind](w)
 
     def queue(self, workflow_id: str, kind: str, page_ids=None):
@@ -1778,6 +1870,9 @@ class Store(GenerationMixin, _BaseStore):
         if kind in VISUAL_KINDS:
             require(page_ids and len(page_ids) == 1, "请用生成入口自动排队；修订须指定一个页面", 422)
             return self.revise_generation(workflow_id, page_ids[0], kind)
+        version = self.get(workflow_id).get("rules_version", "legacy")
+        require(version == CONTENT_RULES_VERSION,
+                f"本项目按内容规则 {version} 运行，当前代码为 {CONTENT_RULES_VERSION}：须先明确采纳新规则（adopt-rules），记录后再排任务", 409)
         with self.transaction(workflow_id, "QUEUE_" + kind) as w:
             if kind == "READ_SOURCE":
                 require(w["sources"], "请先导入资料")
@@ -1794,8 +1889,16 @@ class Store(GenerationMixin, _BaseStore):
                 else:
                     bindings = [s["id"] for s in w["sources"] if not claims_current(s)]
                 require(bindings, "全部资料的论断清单均为当前版本")
+            elif kind == "STRUCTURE":
+                require(w.get("structure_first"), "本项目未启用“先定整体结构”（设置 structure_first）")
+                require(fully_claimed(w), "请先完成全部资料阅读和论断清单")
+                bindings = [None]
+            elif kind == "STRUCTURE_REVIEW":
+                require(structure_stage.structure_current(w), "请先完成当前版本的课程结构")
+                bindings = [None]
             elif kind == "SUMMARY":
                 require(fully_claimed(w), "请先完成全部资料阅读和论断清单")
+                require(not w.get("structure_first") or structure_stage.approved(w), "请先完成课程整体结构的独立审查与客户确认")
                 bindings = [None]
             elif kind == "SUMMARY_AMEND":
                 require(summary_current(w) and w.get("summary_pending_responses", {}).get("subject_sha256") == digest(w["summary"]), "需先保存当前版本的人工答复")
@@ -1841,6 +1944,11 @@ class Store(GenerationMixin, _BaseStore):
                 return worker not in done + running
             if t["kind"] == "SUMMARY_REVIEW":
                 return worker not in {(w.get("summary_meta") or {}).get("author")} | {(s.get("claims") or {}).get("reader") for s in w["sources"]}
+            if t["kind"] == "STRUCTURE_REVIEW":
+                return worker not in {(w.get("structure") or {}).get("author")} | {(s.get("claims") or {}).get("reader") for s in w["sources"]}
+            if t["kind"] == "VISUAL_BLIND_READ":     # never the author of the plan or the clean image it reads
+                page = next(p for p in w["generation"]["pages"] if p["id"] == t["binding"])
+                return worker not in {(page["assets"].get(k) or {}).get("receipt", {}).get("worker") for k in ("design", "clean")}
         except (KeyError, TypeError):
             return True
         return True
@@ -1854,7 +1962,10 @@ class Store(GenerationMixin, _BaseStore):
             if t["kind"] in {"READ_SOURCE", "SECOND_READ", "CLAIMS"} and not any(s["id"] == t["binding"] for s in w["sources"]):
                 return False
             if t["kind"] == "CLAIMS" and not fully_read(w): return False
+            if t["kind"] == "STRUCTURE" and not (w.get("structure_first") and fully_claimed(w)): return False
+            if t["kind"] == "STRUCTURE_REVIEW" and not structure_stage.structure_current(w): return False
             if t["kind"] == "SUMMARY" and not fully_claimed(w): return False
+            if t["kind"] == "SUMMARY" and w.get("structure_first") and not structure_stage.approved(w): return False
             if t["kind"] == "SUMMARY_REVIEW" and not summary_current(w): return False
             if t["kind"] == "FACTS" and not content_approved(w): return False
             if t["kind"] == "DECK" and not facts_current(w): return False
@@ -1869,12 +1980,16 @@ class Store(GenerationMixin, _BaseStore):
         require(task, "任务不存在", 404)
         if task["kind"] == "VISUAL_LAYOUT":
             return self.complete_layout(workflow_id, task_id, token, result)
+        if task["kind"] == "VISUAL_BLIND_READ":
+            return self.complete_blind_read(workflow_id, task_id, token, result)
         require(task["kind"] not in VISUAL_KINDS, "生图、去字、矢量化任务须提交实际文件与调用回执", 422)
         with self.transaction(workflow_id, "TASK_COMPLETE") as w:
             t = self.leased(w, task_id, token)
             {"READ_SOURCE": lambda: self.reading(w, t["binding"], result, t["worker"]),
              "SECOND_READ": lambda: self.second_read(w, t["binding"], result, t["worker"]),
              "CLAIMS": lambda: self.accept_claims(w, t["binding"], result, t["worker"]),
+             "STRUCTURE": lambda: (structure_stage.accept(w, result, t["worker"]), self.snapshot(w, "structure", result)),
+             "STRUCTURE_REVIEW": lambda: (structure_stage.accept_review(w, result, t["worker"]), self.snapshot(w, "structure_review", result)),
              "SUMMARY": lambda: self.accept_summary(w, result, t["worker"]),
              "SUMMARY_AMEND": lambda: self.accept_summary_amend(w, result, t["worker"]),
              "SUMMARY_REVIEW": lambda: self.accept_summary_review(w, result, t["worker"]),
@@ -1959,11 +2074,16 @@ class Store(GenerationMixin, _BaseStore):
         return self.get(workflow_id)
 
     def approval(self, workflow_id: str, kind: str, record: dict):
-        require(kind in {"content", "style"}, "确认类型无效", 422)
+        require(kind in {"structure", "content", "style"}, "确认类型无效", 422)
         require(all(str(record.get(k, "")).strip() for k in ("customer", "operator", "method")), "需记录客户、操作人和确认方式", 422)
         with self.transaction(workflow_id, f"APPROVE_{kind.upper()}") as w:
             self.source_integrity(w)
-            if kind == "content":
+            if kind == "structure":
+                require(w.get("structure_first") and structure_stage.structure_current(w), "没有当前版本的课程结构")
+                require(structure_stage.review_current(w), "课程结构须先经独立审查")
+                require(not structure_stage.review_blockers(w), "结构审查的问题需先修订结构")
+                expected = digest(w["structure"]["result"])
+            elif kind == "content":
                 require(fully_read(w) and summary_current(w), "请先完成全文阅读和当前版本总结")
                 require(not w["summary"]["pending_issues"], "总结中的待解决问题需先处理")
                 require(summary_review_current(w), "总结须先经独立审查")
@@ -2020,6 +2140,11 @@ class Store(GenerationMixin, _BaseStore):
             rec = {"decision": "CONFIRM", "text": record["text"], "reviewer": record["reviewer"], "at": now(),
                    "changed": canon(record["text"]) != canon(u["text"]), "identity_assurance": "LOCAL_RECORDED_NOT_AUTHENTICATED"}
             w["confirmations"]["transcriptions"][unit_id] = rec
+            if rec["changed"]:     # a corrected arrow cell changes the source's diagram candidates
+                sid = unit_id.split(":")[0]
+                src = next((x for x in w["sources"] if x["id"] == sid), None)
+                if src is not None:
+                    src["relations"] = relation_candidates([x for x in all_units(w) if x["id"].split(":")[0] == sid])
             self.snapshot(w, "transcription_confirmation", {"unit_id": unit_id, **rec})
         return self.get(workflow_id)
 

@@ -1,0 +1,73 @@
+{
+  "_comment": "General illustration standard for A-route content pages (visual-grammar.5). The planning unit is one relation the passage states plus its terms; the picture must make the terms recognisable and show the relation by spatial arrangement. Everything drawn is on a closed list bound to the passage's words or to a whitelisted derivation; nothing else is drawn. No subject vocabulary here: connective words are language words; person words live in factdeck_lexicon.json person_terms.",
+  "version": "visual-grammar.5",
+  "goal": "把这段原文陈述的一个关系画出来：让关系中的各项能被认出，并用空间排布（分支、对位、先后、包含、刻度、前后）表达它们之间的关系。只有图标是装饰，只有色块是空图，两者都不算。",
+  "relations": {
+    "entity": {"terms": [1, 3], "encoding": "画原文点名的事物本身（简化示意），突出原文说到的特征"},
+    "categories": {"terms": [2, 5], "encoding": "一个总项分出几个并列分支，各分支同尺寸同画法"},
+    "any_or_all": {"terms": [2, 6], "encoding": "几个条件并列；“满足任一”用并联汇合，“均需满足”用串联或同框"},
+    "sequence": {"terms": [2, 6], "encoding": "按原文先后排成一行，方向由原生连接线表达"},
+    "branch": {"terms": [2, 4], "encoding": "一个条件分出原文所说的去向"},
+    "condition_action": {"terms": [2, 3], "encoding": "左为原文所说的条件或情形，右为原文所说的做法"},
+    "cause_effect": {"terms": [2, 3], "encoding": "左为原因（或同一事物的未变化基线），右为原文所说的结果"},
+    "change": {"terms": [1, 2], "encoding": "同一事物的前后两态，表达原文所说的变化方向（定性，不画数值曲线）"},
+    "contrast": {"terms": [2, 3], "encoding": "两幅结构相同的示意左右对位，只把原文所说的差异画出来"},
+    "correspondence": {"terms": [2, 2], "encoding": "两方形状互补或对位排列，表达原文所说的匹配或对应"},
+    "scope": {"terms": [2, 4], "encoding": "该事物的示意覆盖或连接到原文点名的一组对象"},
+    "containment": {"terms": [2, 5], "encoding": "整体中嵌套或突出原文点名的组成部分"},
+    "threshold": {"terms": [2, 3], "encoding": "一条刻度或分界，标出原文的阈值位置与两侧含义（数值只用原文的）"},
+    "proportion": {"terms": [1, 2], "encoding": "用份额、填充或分区画出原文的比例数值"},
+    "time_frame": {"terms": [2, 3], "encoding": "沿时间方向排开原文所说的现在与将来；“将来”“可能”用虚线或淡化"},
+    "purpose_means": {"terms": [2, 3], "encoding": "做法指向它的目的，目的在右或上"}
+  },
+  "connectives": {
+    "categories": ["分为", "两类", "三类", "几类", "两种", "类型", "包括", "types of", "kinds of", "two classes"],
+    "any_or_all": ["任一", "任意一", "至少一项", "至少1项", "均需满足", "同时满足", "全部满足", "和/或", "any of", "all of", "and/or"],
+    "sequence": ["首先", "其次", "然后", "随后", "之后", "最后", "随时间推移", "then", "after", "followed by", "over time"],
+    "branch": ["如果", "若", "否则", "一旦", "if", "otherwise", "unless"],
+    "condition_action": ["当", "对于", "应进行", "应考虑", "均应", "when", "should be"],
+    "cause_effect": ["由于", "导致", "因为", "所以", "引起", "造成", "因此", "due to", "leads to", "lead to", "causes", "because", "results in"],
+    "change": ["进行性", "下降", "上升", "增加", "减少", "加重", "发展为", "改善", "progressive", "decline", "increase", "decrease", "worsen", "develop into"],
+    "contrast": ["相比", "相较", "对比", "不同于", "与之相反", "高于", "低于", "compared with", "versus", " vs ", "whereas"],
+    "correspondence": ["匹配", "对应", "相符", "不一致", "match", "correspond", "consistent with"],
+    "scope": ["适用于", "任何", "所有", "applies to", "any setting", "all settings"],
+    "containment": ["是一种", "组成", "构成", "其中", "属于", "is a", "consists of", "comprises"],
+    "threshold": ["<", ">", "≥", "≤", "阈值", "超过", "threshold", "above", "below"],
+    "proportion": ["%", "比例", "proportion", "percent"],
+    "time_frame": ["未来", "将来", "目前", "当前", "长期", "随时间", "future", "currently", "long-term"],
+    "purpose_means": ["旨在", "目的", "为了", "以便", "aims to", "in order to", "so that"]
+  },
+  "derivations": {
+    "generic_symbol": "原文点名事物的通用示意符号",
+    "baseline": "原文说某事物发生变化时，同一事物的未变化基线",
+    "carrier": "原文把状态归属于人或物时，用通用的人或物作载体",
+    "uncertain_style": "原文说“可能”“将来”时，用虚线或淡化表达",
+    "slot": "无字占位槽，由相邻原生文字命名"
+  },
+  "omission_reasons": {
+    "heading_or_label": "标题、栏目名、来源或页码",
+    "native_graphic": "本页原生表格、原件图或数据图已表达这段内容",
+    "duplicate": "与本页另一个已配图的单元表达同一关系",
+    "attribution_only": "只是出处、引用或说明性修饰，没有陈述关系或事物"
+  },
+  "layouts": {
+    "no_illustration": ["table", "figure", "agenda", "chart"],
+    "suggested": {
+      "cards": ["categories", "any_or_all", "containment", "entity"],
+      "grid": ["categories", "any_or_all", "containment", "entity"],
+      "compare": ["contrast", "correspondence", "threshold"],
+      "flow": ["sequence", "branch", "condition_action", "cause_effect"],
+      "timeline": ["sequence", "time_frame"],
+      "hero": ["entity", "proportion"],
+      "statement": ["categories", "cause_effect", "condition_action", "purpose_means", "entity"],
+      "bullets": ["categories", "entity"],
+      "composed": []
+    }
+  },
+  "rules": [
+    "方案逐个单元列出：原文片段、它陈述的关系（类型＋原文关系词句）、关系中的各项（各为原文逐字片段），以及要画的对象清单；清单外的任何东西都不画。",
+    "清单中每个对象要么就是某一项原文点名的事物，要么属于允许派生（generic_symbol / baseline / carrier / uncertain_style / slot），并绑定到它所表达的那一项或关系。",
+    "用简化示意（结构轮廓、剖面、示意符号）和空间排布表达关系，不追求写实，不画场景，不画坐标轴、测量曲线和统计区间；数值只用原文的。",
+    "插图内不写文字或标签；页面上只出现锁定文字，逐字照抄。同页同级单元同尺寸同画法；正文页不用整页背景插画或风景，装饰只限角落少量。"
+  ]
+}

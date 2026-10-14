@@ -37,7 +37,28 @@ def flow(tmp_path,monkeypatch):
     return store,store.start_generation(w["id"])
 
 
+def fixture_plan(contract):
+    """An invented plan that satisfies visual-grammar.5 for any fixture page: one entity unit on the focus
+    passage (or the first passage), other passages with detected relation words left out as duplicates."""
+    g=contract["grammar"]; passages=[x["text"] for x in g["passages"]]
+    main=next((x["text"] for x in g["passages"] if x["focus"]),passages[0])
+    term="".join(main.split())[:4]
+    plan={"units":[{"text":main,"relation":{"type":"entity","span":""},"terms":[{"span":term,"role":"TEST"}],
+                    "draw":[{"object":term+" TEST fixture drawing","bound_to":term,"derivation":""}],"encoding":""}],
+          "omitted":[{"text":x["text"],"reason":"duplicate"} for x in g["passages"] if x["candidates"] and x["text"]!=main],"arrangement":"TEST"}
+    return plan
+
+
 def complete_one(store,wid,kind):
+    if kind=="VISUAL_BLIND_READ":     # an independent identity reads the text-free image (invented fixture reading)
+        t=store.claim(wid,"TEST_FIXTURE_BLIND_READER",kind)
+        if not t: return store.get(wid)
+        page=next(p for p in store.get(wid)["generation"]["pages"] if p["id"]==t["binding"])
+        plan=page["assets"]["design"]["receipt"]["qa"]["illustration_plan"]
+        result={"input_sha256":t["input_sha256"],"inspected":True,
+                "objects":[{"description":"TEST","bound_to":term["span"]} for u in plan["units"] for term in u["terms"]],
+                "relations":[{"type":u["relation"]["type"],"spans":[u["text"]]} for u in plan["units"]]}
+        return store.complete(wid,t["id"],t["lease_token"],result)
     t=store.claim(wid,"TEST_FIXTURE_ONLY",kind); assert t
     if kind=="VISUAL_LAYOUT":
         result=copy.deepcopy(t["brief"]["result_contract"]); result["design_inspected"]=True
@@ -47,6 +68,10 @@ def complete_one(store,wid,kind):
     receipt=copy.deepcopy(t["brief"]["receipt_contract"])
     receipt.update(tool_call_id="TEST_FIXTURE_NOT_A_REAL_CALL_"+t["id"],asset_sha256=sha(data),elapsed_seconds=1)
     receipt["qa"]={k:True for k in receipt["qa"]}
+    if t["brief"].get("illustration_plan_contract"):   # content-page design: invented fixture plan
+        from app.deck_generation import plan_prompt
+        plan=fixture_plan(t["brief"]["illustration_plan_contract"])
+        receipt["qa"]["illustration_plan"]=plan; receipt["prompt"]=plan_prompt(t["brief"]["prompt"],plan)
     return store.visual_asset(wid,t["id"],t["lease_token"],data,receipt)
 
 

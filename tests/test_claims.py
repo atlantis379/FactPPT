@@ -143,10 +143,11 @@ def test_summary_review_is_independent_complete_and_gates_confirmation(store):
         brief = store.brief(ww, "SUMMARY_REVIEW", None)
         for worker, match in (("author-A", "总结作者"), ("claims-1", "论断清单作者")):
             with pytest.raises(WorkflowError, match=match):
-                store.accept_summary_review(ww, brief["result_contract"], worker)
+                store.accept_summary_review(ww, T.clear_summary_review(brief["result_contract"]), worker)
     t = store.claim(w["id"], "reviewer-S", "SUMMARY_REVIEW")
     assert t, "review task"
-    r = copy.deepcopy(t["brief"]["result_contract"])
+    assert t["brief"]["result_contract"]["sections"][0]["summary_verdict"] == ""      # nothing passes by default
+    r = T.clear_summary_review(t["brief"]["result_contract"])
     assert r["sections"][0]["points"] and "core" in r["sections"][0]
     lazy = copy.deepcopy(r)
     lazy["sections"][0]["points"].pop()
@@ -191,7 +192,7 @@ def test_confirmation_draft_shows_the_review(store, monkeypatch):
     assert "当前总结尚未经独立审查" in text
     store.queue(w["id"], "SUMMARY_REVIEW")
     t = store.claim(w["id"], "reviewer-S", "SUMMARY_REVIEW")
-    r = copy.deepcopy(t["brief"]["result_contract"])
+    r = T.clear_summary_review(t["brief"]["result_contract"])
     pid = r["sections"][0]["points"][0]["point_id"]
     r["sections"][0]["points"][0].update(verdict="NOT_ENTAILED", issue="原文只说相关（测试）")
     w = store.complete(w["id"], t["id"], t["lease_token"], r)

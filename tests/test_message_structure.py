@@ -235,7 +235,7 @@ def test_limit_point_must_show_its_own_text():
 
 def test_focus_is_marked_shown_and_central():
     missing = _deck_run(lambda p: p[1].pop("focus"))
-    assert any("a：未标注本页焦点" in x for x in missing["warnings"])
+    assert any("a：须标注本页焦点" in x for x in missing["deck_errors"])      # a content page without a focus is an error
     absent = _deck_run(lambda p: p[1].__setitem__("focus", {"fact": "n3"}))
     assert any("焦点 n3 须是本页显示的事实" in e for e in absent["deck_errors"])
     side = _deck_run(lambda p: p[2].__setitem__("focus", {"fact": "n2"}))

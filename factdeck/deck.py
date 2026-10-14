@@ -318,25 +318,35 @@ RELATION_LAYOUTS = {"sequence": {"flow", "timeline"}, "branch": {"flow"}, "any_o
 
 def _message_checks(pages: list[dict], checked: list[dict], sections: list[dict], facts: dict, result: dict, err) -> None:
     """The summary's information structure carried onto the pages: each content page names its focus (a fact from
-    the item's core point or one of its relations); a relation's units appear on a page whose layout fits the
-    relation; a limiting point's own text is shown on a page."""
-    msgs = {s["outline_id"]: (s["message"], {r["point_id"]: r.get("unit_ids") or [] for r in s.get("point_coverage") or []})
-            for s in sections if s.get("outline_id") and s.get("message")}
+    its chapter's core point or one of its relations); a relation's units appear on a page whose layout fits the
+    relation; a limiting point's own text is shown on a page. Points are outline points (point_coverage) or, for an
+    outline without points, the chapter's key points; pages belong to a chapter through point_ids or section_ids."""
+    msgs = {}
+    for s in sections:
+        if not s.get("message"):
+            continue
+        rows = s.get("point_coverage") if s.get("outline_id") else [{"point_id": k.get("id"), "unit_ids": k.get("unit_ids")}
+                                                                     for k in s.get("key_points") or []]
+        msgs[s["id"]] = (s["message"], {r["point_id"]: r.get("unit_ids") or [] for r in rows or [] if r.get("point_id")})
     if not msgs:
         return
-    item_of = {pid: oid for oid, (_, cover) in msgs.items() for pid in cover}
+    item_of = {pid: sid for sid, (_, cover) in msgs.items() for pid in cover}
+
+    def chapters(p):
+        return {item_of[x] for x in p.get("point_ids") or [] if x in item_of} | {x for x in p.get("section_ids") or [] if x in msgs}
+
     shown_units = []                                  # per page: the source units its facts quote
     for p, c in zip(pages, checked):
         shown_units.append({facts[x].get("unit") for x in c["facts"] + c["edge_facts"] if x in facts})
     for p, c, units in zip(pages, checked, shown_units):
-        if p.get("layout") in NON_CONTENT or p.get("layout") == "closing" or not p.get("point_ids"):
+        if p.get("layout") in NON_CONTENT or p.get("layout") == "closing":
             continue
-        own = [msgs[item_of[x]] for x in p["point_ids"] if x in item_of]
+        own = [msgs[x] for x in sorted(chapters(p))]
         if not own:
             continue
         focus = (p.get("focus") or {}).get("fact") if isinstance(p.get("focus"), dict) else None
         if not focus:
-            result["warnings"].append(f"{p.get('id')}：未标注本页焦点（focus）")
+            err(f"{p.get('id')}：须标注本页焦点（focus）：本章核心要点或某条要点关系中的一条事实")
             continue
         if focus not in c["facts"]:
             err(f"{p.get('id')}：焦点 {focus} 须是本页显示的事实")
@@ -346,21 +356,21 @@ def _message_checks(pages: list[dict], checked: list[dict], sections: list[dict]
             core = next((k for k, v in m["roles"].items() if v == "core"), None)
             allowed |= set(cover.get(core) or []) | {u for r in m.get("relations") or [] for u in r["unit_ids"]}
         if facts[focus].get("unit") not in allowed:
-            result["warnings"].append(f"{p.get('id')}：焦点 {focus} 既不属于该条目的核心要点，也不属于要点关系")
-    for oid, (m, cover) in msgs.items():
+            result["warnings"].append(f"{p.get('id')}：焦点 {focus} 既不属于该章的核心要点，也不属于要点关系")
+    for sid, (m, cover) in msgs.items():
         for r in m.get("relations") or []:
             fit = RELATION_LAYOUTS.get(r["type"])
-            where = [p for p, units in zip(pages, shown_units) if units & set(r["unit_ids"])
-                     and any(item_of.get(x) == oid for x in p.get("point_ids") or [])]      # only this item's pages
+            where = [p for p, units in zip(pages, shown_units) if units & set(r["unit_ids"]) and sid in chapters(p)]
             if fit and where and not any(p.get("layout") in fit for p in where):
-                result["warnings"].append(f"{oid} 的“{r['type']}”关系显示在 {'、'.join(p.get('id', '') for p in where)}，"
+                result["warnings"].append(f"{sid} 的“{r['type']}”关系显示在 {'、'.join(p.get('id', '') for p in where)}，"
                                           f"版式宜用 {' / '.join(sorted(fit))}")
         for pid, role in m["roles"].items():
             if role != "limit":
                 continue
-            on = [p.get("id") for p, units in zip(pages, shown_units) if pid in (p.get("point_ids") or []) and units & set(cover.get(pid) or [])]
+            on = [p.get("id") for p, units in zip(pages, shown_units)
+                  if (pid in (p.get("point_ids") or []) or sid in (p.get("section_ids") or [])) and units & set(cover.get(pid) or [])]
             if not on:
-                err(f"限定要点 {pid} 的原文未出现在任何页面（须在标注该要点的页面上显示其原文事实）")
+                err(f"限定要点 {pid} 的原文未出现在任何页面（须在该章页面上显示其原文事实）")
 
 
 def check(deck: dict, facts: dict[str, dict], terms: list[str] | tuple[str, ...] = (),

@@ -94,6 +94,8 @@ def add_messages(w, r):
         sec.setdefault("message", {"core": {"claim_id": cid},
                                    "roles": {x["point_id"]: "core" if i == 0 else "support" for i, x in enumerate(rows)},
                                    "relations": []})
+        sec["message"].setdefault("candidate_decisions", T.candidate_decisions(
+            w, sec["source_page_ids"], adopted={x.get("from_candidate") for x in sec["message"]["relations"] if x.get("from_candidate")}))
     return r
 
 

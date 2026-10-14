@@ -153,7 +153,7 @@ def test_summary_issues_keep_their_id_across_rounds_and_closure_must_agree_with_
     w = S.summarised(store)
     store.queue(w["id"], "SUMMARY_REVIEW")
     t = store.claim(w["id"], "reviewer-S", "SUMMARY_REVIEW")
-    r = copy.deepcopy(t["brief"]["result_contract"])
+    r = T.clear_summary_review(t["brief"]["result_contract"])
     r["sections"][0].update(summary_verdict="NOT_ENTAILED", summary_issue="原文没有这一归纳")
     w = store.complete(w["id"], t["id"], t["lease_token"], r)
     assert w["stage"] == "SUMMARY_ISSUES" and w["issue_ledger"]["summary"]["issues"][0]["id"] == "SR-0001"
@@ -164,7 +164,7 @@ def test_summary_issues_keep_their_id_across_rounds_and_closure_must_agree_with_
     store.queue(w["id"], "SUMMARY_REVIEW")
     t = store.claim(w["id"], "reviewer-T", "SUMMARY_REVIEW")
     assert [i["id"] for i in t["brief"]["prior_issues"]] == ["SR-0001"]
-    r = copy.deepcopy(t["brief"]["result_contract"])
+    r = T.clear_summary_review(t["brief"]["result_contract"])
     r["sections"][0].update(summary_verdict="NOT_ENTAILED", summary_issue="仍没有依据")
     r["prior_issues"] = [{"issue_id": "SR-0001", "status": "FIXED", "evidence": "已修订", "evidence_refs": ["s1"]}]
     with pytest.raises(WorkflowError, match="仍有问题"):
@@ -180,7 +180,7 @@ def test_open_notes_must_be_acknowledged_at_content_confirmation(store):
     w = S.summarised(store)
     store.queue(w["id"], "SUMMARY_REVIEW")
     t = store.claim(w["id"], "reviewer-S", "SUMMARY_REVIEW")
-    r = copy.deepcopy(t["brief"]["result_contract"])
+    r = T.clear_summary_review(t["brief"]["result_contract"])
     r["sections"][0].update(summary_verdict="PARTIAL", summary_issue="缺少人群限定")
     w = store.complete(w["id"], t["id"], t["lease_token"], r)
     assert w["stage"] == "CONTENT_CONFIRMATION" and w["content_acknowledge"] == ["SR-0001"]

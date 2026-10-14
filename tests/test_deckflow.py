@@ -58,9 +58,24 @@ def claim_of(w, unit_id):
     return next(k["id"] for s in w["sources"] for k in (s.get("claims") or {}).get("items", []) if unit_id in k["unit_ids"])
 
 
+def clear_summary_review(contract):
+    """Fill every verdict of a summary-review contract explicitly as passed (test record, not a real review).
+    The contract itself carries empty verdicts: a real reviewer must judge each one."""
+    r = copy.deepcopy(contract)
+    for sec in r.get("sections") or []:
+        sec["summary_verdict"] = sec.get("summary_verdict") or "ENTAILED"
+        for row in sec.get("points", []) + sec.get("key_points", []):
+            row["verdict"] = row.get("verdict") or "ENTAILED"
+        if "core" in sec:
+            sec["core"]["verdict"] = sec["core"].get("verdict") or "SUPPORTED"
+        for row in sec.get("relations") or []:
+            row["verdict"] = row.get("verdict") or "SUPPORTED"
+    return r
+
+
 def review_summary(store, wid, worker="reviewer-S"):
     """An all-clear summary review (test record, not a real review)."""
-    return run_task(store, wid, "SUMMARY_REVIEW", worker, lambda t: t["brief"]["result_contract"])
+    return run_task(store, wid, "SUMMARY_REVIEW", worker, lambda t: clear_summary_review(t["brief"]["result_contract"]))
 
 
 def key_points(w, page_ids):
@@ -72,7 +87,33 @@ def key_points(w, page_ids):
     return [{"point": "本页要点（程序验收用）", "unit_ids": [first[p]]} for p in page_ids if p in first]
 
 
+def candidate_decisions(w, page_ids, adopted=()):
+    """Every candidate relation on these pages: adopted when named, otherwise declined (fixture decision, not a real review)."""
+    from app.deckflow import relation_candidates_of, all_units
+    unit_page = {u["id"]: u["page_id"] for u in all_units(w)}
+    mine = sorted(cid for cid, c in relation_candidates_of(w).items() if any(unit_page.get(u) in set(page_ids) for u in c.get("unit_ids") or []))
+    return [{"candidate": c, "decision": "ADOPTED"} if c in adopted else {"candidate": c, "decision": "REJECTED", "reason": "not_between_points"} for c in mine]
+
+
+def with_message(w, section):
+    """Fixture information structure for a chapter whose points are its key points: the first key point is the core."""
+    keys = section["key_points"]
+    if keys:
+        core = {"claim_id": keys[0]["claim_ids"][0]} if keys[0].get("claim_ids") else {"none": "TEST fixture: key points rest on units, not claims"}
+        section["message"] = {"core": core,
+                              "roles": {f"{section['id']}.k{i}": ("core" if i == 1 and "claim_id" in core else "support") for i in range(1, len(keys) + 1)},
+                              "relations": [], "candidate_decisions": candidate_decisions(w, section["source_page_ids"])}
+    return section
+
+
 def summary(w):
+    r = _summary(w)
+    for sec in r["sections"]:
+        with_message(w, sec)
+    return r
+
+
+def _summary(w):
     ids = [p["id"] for s in w["sources"] for p in s["pages"]]
     return {"schema_version": "full_source_summary.v3", "input_sha256": input_hash(w),
             "overall_summary": "程序验收用的虚构资料总结：示例病X的定义与诊断、评估流程与药物、两项研究及其不可直接比较的限制。",
@@ -245,6 +286,13 @@ def all_clear(t, edit=None):
             if not row["status"]:
                 row.update(status="EXCLUDED", reason="测试：本页不讲")
     for row in r.get("relations") or []:
+        row["verdict"] = row["verdict"] or "SUPPORTED"
+        if "expression" in row:
+            row["expression"] = row["expression"] or "EXPRESSED"
+    for row in r.get("chapters") or []:
+        row.update(restated=row["restated"] or "测试：页面复述的核心论点", core_on_pages=row["core_on_pages"] or "YES",
+                   limits_on_pages=row["limits_on_pages"] or "YES")
+    for row in r.get("pages") or []:
         row["verdict"] = row["verdict"] or "SUPPORTED"
     for row in r.get("prior_issues") or []:
         row.update(status="FIXED", evidence="测试：已对照修订页", evidence_refs=[t["brief"]["pages"][0]["page"]["id"]])

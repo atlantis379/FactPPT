@@ -105,6 +105,12 @@ python tools/codex_worker.py fail FLOW_ID --task data/worker/visual_task.json --
 python tools/codex_worker.py revise FLOW_ID --page PAGE_ID --kind VISUAL_LAYOUT
 ```
 
+页面角色（2026-10-13）：版式为 cover / divider / closing 的页面是封面类，可用版画式插画作整页背景，并以首张设计稿为风格参考；其余正文页的主体须是解释本页信息形状（分类、对照、条件、范围）的说明图，不沿用封面风景底图，装饰只限角落少量叶片。项目绑定已确认视觉标准时，正文页的参考图为该标准正文样页的实际无字清图（按标准中记录的校验值核对，经 `/visual-standard/{name}` 提供）。此前所有页面都以封面设计稿为参考，导致正文页统一成“风景底图＋图标＋文字”，偏离了标准中“图形必须解释本页原文”的要求。
+
+正文页插图通用标准（`config/visual_grammar.json`，visual-grammar.5，与主题无关）：插图把原文陈述的关系画出来。规划单位是“原文陈述的一个关系＋它的各项”（类别、条件或任一/全部、先后、分支、条件→做法、因果、变化、对照、对应、适用范围、包含、阈值、比例、时间框架、目的→手段，或单一事物）。方案逐单元写明原文片段、关系类型与原文关系词句、各项（逐字片段），以及封闭的作图清单：每个对象要么就是某一项原文点名的事物，要么属于允许派生（通用示意符号、变化前基线、状态载体、虚线表达“可能/将来”、无字占位），并绑定到它表达的那一项；清单外不画。程序按语言连接词为每段给出候选关系（只作提议）；焦点段落必须配图，含候选关系的段落须配图或以规定原因略去。`design-prompt` 先检查方案再生成提示词，生图提示词只含作图清单。生图后由不同于设计与去字作者的执行端对去字图独立盲读（`VISUAL_BLIND_READ`，只看去字图和本页原文，不看方案），列出图中对象及其对应原文、读出的关系；程序与方案比对，出现对应不到原文的对象、读不出的关系或认不出的项即为 FAIL，整套导出需全部 PASS。表格、原件图、数据图和目录页不另画插图。规则问题按关系类型调整，不逐页改提示词。
+
+2026-10-13 起推荐用 `submit`（程序按合同生成回执）和 `layout --inspected [--patch]`（默认版面＝内容锁几何）代替手写回执与版面文件；两者都可加 `--next-out` 直接续领同页下一步。版面提交时即做与导出相同的溢出/重叠预检；矢量提交后自动生成单页 PowerPoint 预览及对比度、遮挡信号。批次窗口、双执行端分工和计时工具见 [PARALLEL_WORKER_PLAN.md](PARALLEL_WORKER_PLAN.md) 的“吞吐改进”一节。
+
 多执行端按页领取时使用 `claim --binding PAGE_ID`，各端独立任务文件和worker身份；提交可加 `--compact` 减少完整状态传输。`tools/visual_worker_runtime.py` 提供独立续约与工具并发锁，当前限额ImageGen 1、Adobe 2、浏览器1；本次由协调agent分配页面，最终Office检查及人工门槛保留。具体用法及实现边界见 [PARALLEL_WORKER_PLAN.md](PARALLEL_WORKER_PLAN.md)。
 
 HTTP 接口：`POST/GET /workflows/{id}/generation`、`POST /generation/revise`、`POST /tasks/{task}/asset` 和按页访问的生成资产。均位于 `/api/deck`；JSON任务沿用原领取、完成、失败和续约接口。`render?draft=true` 用原代码引擎检查内容；旧项目未选择 A 的历史渲染保持兼容，在工作台启动生成即切换 A。`/api/fact` 与原语义接口继续保留。

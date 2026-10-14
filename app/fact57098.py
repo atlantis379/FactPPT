@@ -540,12 +540,13 @@ class Store:
         require(bool(worker.strip()), "请填写执行端标识", 422)
         claimed = None
         with self.transaction(workflow_id, "TASK_CLAIM") as w:
-            for t in w["tasks"]:
+            for t in self.claim_order(w["tasks"]):
                 if t["status"] == "RUNNING" and t["lease_until"] < time.time():
                     t["status"] = "PENDING" if t["attempts"] < 3 else "FAILED"
                     t["lease_token"] = None
                     t["error"] = "执行租约超时"
-                if t["status"] != "PENDING" or (kind and t["kind"] != kind) or (binding is not None and t["binding"] != binding): continue
+                kinds = (kind,) if isinstance(kind, str) else kind      # one kind, or a role's set of kinds
+                if t["status"] != "PENDING" or (kinds and t["kind"] not in kinds) or (binding is not None and t["binding"] != binding): continue
                 if not self.eligible(w, t, worker): continue
                 if not self.task_current(w, t):
                     t["status"] = "CANCELLED"
@@ -553,10 +554,14 @@ class Store:
                 if t["attempts"] >= 3:
                     t["status"] = "FAILED"
                     continue
-                t.update(status="RUNNING", worker=worker, lease_token=secrets.token_urlsafe(32), lease_until=time.time() + LEASE_SECONDS, attempts=t["attempts"] + 1, error=None)
+                t.update(status="RUNNING", worker=worker, lease_token=secrets.token_urlsafe(32), lease_until=time.time() + LEASE_SECONDS, attempts=t["attempts"] + 1, error=None, claimed_at=now())
                 claimed = copy.deepcopy(t)
                 break
         return claimed
+
+    def claim_order(self, tasks: list) -> list:
+        """Order in which pending tasks are offered (creation order unless a subclass ranks them)."""
+        return tasks
 
     def eligible(self, w: dict, t: dict, worker: str) -> bool:
         """Whether this worker identity may take the task (independence rules live in the subclass)."""

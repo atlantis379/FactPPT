@@ -208,6 +208,9 @@ def test_compare_panel_figure_rules():
 
 def test_crop_and_embedded_figure_side_by_side_to_final_render(store):
     w = store.create("并排原件图", T.OUTLINE, {"audience": "规培医生", "target_pages": 10}, generation_route="CODE_NATIVE")
+    # Same retained legacy order as test_deckflow.to_deck: facts/deck before second read.
+    with store.transaction(w["id"], "LEGACY_PROTOCOL_TEST_FIXTURE") as saved:
+        saved.pop("source_evidence_policy", None)
     for name, make in fx_.SOURCES.items():
         store.add_source(w["id"], name, make())
     store.add_source(w["id"], "figure.png", picture())

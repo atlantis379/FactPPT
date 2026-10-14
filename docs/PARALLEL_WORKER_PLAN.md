@@ -2,7 +2,38 @@
 
 状态：2026-10-02 已实施执行支持，并用于前15页剩余工作的3端并行运行；最终产物及实测结论见 `output/live15_generation/final/report.md`（完成后生成）。保留原人工审核关口。
 
-## 已实施的执行支持
+## 2026-10-13 吞吐改进（去掉往返，返工前移）
+
+依据第一批五页的实测：每页约8.5分钟，其中真实工具约2分钟、版面约1分钟，其余是执行端每步的领取、读合同、手写回执和提交。确认规则、真实调用回执和人工关口不变。
+
+| 改进 | 实现 |
+|---|---|
+| 回执自动生成 | `codex_worker.py submit`：执行端只给实际文件、调用标识、耗时和检查结论；合同校验值、完整提示词、参考资产校验值和文件校验值由程序填入。去字的“无残字/已移除语义图形”须执行端显式声明，程序不代为声明 |
+| 提交即续领 | `submit/layout --next-out`：同页下一步直接租给同一执行端，并把参考资产（本机存档按校验值复制）放到合同旁；`--next-kinds` 限定分工 |
+| 合同适配工具 | 合同列出 `allowed_tools`；去字只用 ImageGen（Adobe 去字实测保留页脚）；去字提示词≤1500字，区域坐标改为结构化 `regions` |
+| 默认版面 | `codex_worker.py layout --inspected [--patch]`：版面默认等于内容锁几何，执行端看过设计稿后确认或只改个别对象 |
+| 版面预检 | 提交版面时运行与最终导出相同的浏览器溢出/重叠检查（不通过即拒绝，未花去字和矢量调用），并按设计稿检查文字对比度 |
+| 单页预览 | 矢量化提交后自动单页编译（浏览器、原生PPTX、PowerPoint），附对比度、原生色块遮挡插画、插画容器超出原生色块的信号；`page-preview` 可手动触发。只是预览，不绑定审核，整套导出关口不变 |
+| 按批次排队 | 同时在制默认5页（`generate --batch-size N`），前面完成再排后面；从未领取的窗口外任务撤回，不再整套作废 |
+| 矢量检查 | `tools/vector_preview.py`：去字稿｜Chromium 渲染的 SVG｜原生转换三联图。通用 SVG 预览器不支持渐变时会把渐变路径画成黑色，不能据此判定矢量缺陷 |
+| 实测计时 | `tools/visual_batch_timing.py FLOW_ID --since UTC时间`：按任务时间戳和回执逐页给出墙钟、工具耗时、等待和重试；领取时记录 `claimed_at` |
+
+### 双执行端分工（ImageGen 串行是硬瓶颈）
+
+```powershell
+# 生图端：只做设计稿和去字
+python tools/codex_worker.py claim FLOW_ID --worker Codex-imagegen --kinds VISUAL_DESIGN VISUAL_CLEAN --out W1/task.json --assets-dir W1/assets
+python tools/codex_worker.py submit FLOW_ID --task W1/task.json --file ACTUAL.png --tool-call-id CALL_ID --elapsed 57.8 --inspected --qa-note "检查结论" [--text-free --semantic-removed]
+# 版面/矢量端：确认版面、Adobe 矢量化、查看三联图
+python tools/codex_worker.py claim FLOW_ID --worker Codex-vector --kinds VISUAL_LAYOUT VISUAL_VECTOR --out W2/task.json --assets-dir W2/assets
+python tools/codex_worker.py layout FLOW_ID --task W2/task.json --inspected [--patch patch.json] --next-out W2/next.json --next-kinds VISUAL_LAYOUT VISUAL_VECTOR
+python tools/vector_preview.py --svg ACTUAL.svg --clean W2/assets/clean.png --out W2/vector_check.png --task W2/task.json
+python tools/codex_worker.py submit FLOW_ID --task W2/task.json --file ACTUAL.svg --tool-call-id CALL_ID --elapsed 10.3 --inspected --qa-note "检查结论"
+python tools/codex_worker.py generation FLOW_ID   # 查看各页 preflight / preview 信号
+```
+
+两端身份不同、任务文件和资产目录分开；一页的阶段顺序不变。生图端连续处理多页的设计和去字，版面/矢量端同时处理已出图的页，两端互不等待。
+
 
 - 领取接口和 `codex_worker.py claim` 增加可选 `binding`，在原 SQLite 领取事务内选择指定页面；旧调用行为兼容。
 - `asset` / `complete` 增加可选 `compact`，执行端收到任务编号、状态及校验值的简短回执。默认完整响应及旧流程不变。

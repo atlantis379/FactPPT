@@ -20,6 +20,16 @@ CHECK_NAMES = {"COVERAGE": "覆盖/逐字检查", "RELATIONS": "语义/关系检
 PAGE_VERDICTS = ("SUPPORTED", "ISSUES", "CARRIED")
 ITEM_STATUSES = ("PRESENTED", "EXCLUDED", "NEEDS_HUMAN")
 RELATION_VERDICTS = ("SUPPORTED", "UNSUPPORTED", "UNKNOWN", "CARRIED")
+# Whether the pages let a reader see a chapter relation: saying too much is judged by the verdict,
+# saying too little (lost or flattened into a list) by the expression.
+EXPRESSIONS = ("EXPRESSED", "FLATTENED", "MISSING")
+YES_NO = ("YES", "NO")
+
+
+def outcome_sections(w: dict, ctx: dict) -> list[dict]:
+    """Chapters with an information structure whose pages are in this review's scope."""
+    shown = {sid for p in ctx["pages"] for sid in p["page"].get("section_ids") or []}
+    return [s for s in ctx["sections"] if s.get("message") and s["id"] in shown]
 NO_STRUCTURE = {"cover", "divider", "closing", "agenda", "figure", "statement", "hero"}
 
 
@@ -315,13 +325,21 @@ def brief(w: dict, check: str, req: dict) -> dict:
         extra = ["方向：从大纲要点和来源关系向页面核对：上下文、逻辑类型（条件、因果/相关、先后、并列、包含、分组、比较、阈值归属、跨页承接）、方向、分组和视觉表达。",
                  "relations：逐条判断 verdict：SUPPORTED（原文明确支持该关系及方向）、UNSUPPORTED（原文不支持或方向相反）、UNKNOWN（原文没有说明，页面也不应表达该关系）；"
                  "非 SUPPORTED 须写 issue。kind=grouping 是页面结构本身：列表不能自行解释为“同时满足”或“任选其一”；manual=true 的关系是作者判断。",
-                 "没有箭头不代表没有关系；也不能据页面布局补关系。原文未明确的关系标 UNKNOWN，禁止自动补全。"]
+                 "没有箭头不代表没有关系；也不能据页面布局补关系。原文未明确的关系标 UNKNOWN，禁止自动补全。",
+                 "kind=summary_relation 另判 expression（页面有没有说少）：EXPRESSED（读者从页面能读出这条关系及方向）、"
+                 "FLATTENED（相关内容上页了，但被排成并列清单或分散在各页，读不出关系）、MISSING（关系所涉内容未上页）。",
+                 "chapters：每章只看本章页面（不看总结），在 restated 写下你能复述的本章核心论点；core_on_pages：页面是否让读者读出总结的核心句（YES/NO）；"
+                 "limits_on_pages：标为 limit 的局限、例外和适用范围是否都在页面上（YES/NO；本章没有 limit 时写 YES）。NO 须写 issue。"]
         rels = relations(w, ctx)
         carried_rel = {r["relation_id"] for r in rels if all(p in reg["carry"] for p in r["presented_on"]) and r["presented_on"]
                        and r["relation_id"] in (prev.get("relations") or {})}
         coverage = {"relations": [{"relation_id": r["relation_id"], "verdict": "CARRIED" if r["relation_id"] in carried_rel else "",
-                                   "issue": ""} for r in rels]}
-        inventory = {"relations": rels}
+                                   **({"expression": ""} if r["kind"] == "summary_relation" else {}), "issue": ""} for r in rels],
+                    "chapters": [{"section_id": c["id"], "restated": "", "core_on_pages": "", "limits_on_pages": "", "issue": ""}
+                                 for c in outcome_sections(w, ctx)]}
+        inventory = {"relations": rels,
+                     "chapter_messages": [{"section_id": c["id"], "title": c.get("title"), "core": (c["message"].get("core") or {}).get("quote"),
+                                           "limits": [k for k, v in c["message"]["roles"].items() if v == "limit"]} for c in outcome_sections(w, ctx)]}
     summary_view = w['summary']
     if reg['mode'] == 'IMPACT':
         sections = {s for p in ctx['pages'] if p['page']['id'] in reg['affected'] for s in p['page'].get('section_ids', [])}
@@ -336,7 +354,7 @@ def brief(w: dict, check: str, req: dict) -> dict:
             "rules": common + extra,
             "result_contract": {"check": check, "input_sha256": d.semantic_input(w),
                                 "prior_issues": [{"issue_id": i["id"], "status": "", "evidence": "", "evidence_refs": []} for i in prior],
-                                "pages": [{"page_id": p["page"]["id"], "verdict": "CARRIED" if p["page"]["id"] in reg["carry"] else "SUPPORTED",
+                                "pages": [{"page_id": p["page"]["id"], "verdict": "CARRIED" if p["page"]["id"] in reg["carry"] else "",
                                            "issues": []} for p in ctx["pages"]],
                                 **coverage, "viewed_source_pages": [], "unchecked": [], "issues": []}}
 
@@ -423,8 +441,37 @@ def accept(w: dict, result: dict, reviewer: str, check: str) -> dict:
                              "ref": rid, "source_ref": "、".join(rels[rid].get("unit_ids") or []) or str(rels[rid].get("backed_by") or ""),
                              "evidence": f"页面 {where}", "problem": f"关系{'不被原文支持' if vd == 'UNSUPPORTED' else '原文未明确'}：{text}",
                              "relation": rels[rid]["kind"]})
-            (ok if vd == "SUPPORTED" else problem).add(rid)
-            record["relations"][rid] = {"verdict": vd, "issue": text or (prev.get(rid) or {}).get("issue", "")}
+            expression = None
+            if rels[rid]["kind"] == "summary_relation":
+                expression = x.get("expression") or ((prev.get(rid) or {}).get("expression") if x.get("verdict") == "CARRIED" else None)
+                require(expression in EXPRESSIONS, f"关系 {rid} 须判断 expression：EXPRESSED / FLATTENED / MISSING", 422)
+                if expression != "EXPRESSED" and x.get("verdict") != "CARRIED":
+                    require(text, f"关系 {rid} 判为 {expression} 时须写明问题", 422)
+                    auto.append({"severity": "BLOCKER", "category": "EXPRESSION_AMBIGUITY", "ref": rid,
+                                 "source_ref": "、".join(rels[rid].get("unit_ids") or []),
+                                 "evidence": f"页面 {'、'.join(rels[rid]['presented_on']) or '（未上页）'}",
+                                 "problem": f"总结中的关系在页面上{'被压平为并列内容' if expression == 'FLATTENED' else '缺失'}：{text}",
+                                 "relation": "summary_relation"})
+            (ok if vd == "SUPPORTED" and expression in (None, "EXPRESSED") else problem).add(rid)
+            record["relations"][rid] = {"verdict": vd, "issue": text or (prev.get(rid) or {}).get("issue", ""),
+                                        **({"expression": expression} if expression else {})}
+        expected = [c["id"] for c in outcome_sections(w, ctx)]
+        chapters = result.get("chapters")
+        require(isinstance(chapters, list) and [c.get("section_id") for c in chapters if isinstance(c, dict)] == expected,
+                "chapters 须按顺序逐章给出（本次范围内有信息结构的章节）", 422)
+        record["chapters"] = {}
+        for c in chapters:
+            sid = c["section_id"]
+            require(c.get("core_on_pages") in YES_NO and c.get("limits_on_pages") in YES_NO, f"章节 {sid} 须判断 core_on_pages 与 limits_on_pages（YES/NO）", 422)
+            require(str(c.get("restated", "")).strip(), f"章节 {sid} 须写下只看页面能复述的核心论点（restated）", 422)
+            issue_text = str(c.get("issue", "")).strip()
+            for key, what in (("core_on_pages", "核心句"), ("limits_on_pages", "局限与适用范围")):
+                if c[key] == "NO":
+                    require(issue_text, f"章节 {sid} 的 {key} 为 NO 时须写明问题", 422)
+                    auto.append({"severity": "BLOCKER", "category": "EXPRESSION_AMBIGUITY", "ref": sid, "source_ref": sid,
+                                 "evidence": f"复述：{str(c['restated'])[:200]}", "problem": f"只看页面读不出本章的{what}：{issue_text}"})
+            (ok if c["core_on_pages"] == "YES" and c["limits_on_pages"] == "YES" else problem).add(sid)
+            record["chapters"][sid] = {k: c[k] for k in ("restated", "core_on_pages", "limits_on_pages")} | {"issue": issue_text}
     need_view = must_view(ctx, reg)
     viewed = result.get("viewed_source_pages") or []
     require(isinstance(viewed, list) and set(need_view) <= set(viewed),
@@ -455,6 +502,7 @@ def _refs(w: dict, ctx: dict) -> set:
     refs = set(ctx["order"]) | set(ctx["by_unit"]) | set(ctx["v"]["facts"])
     refs |= {p["id"] for s in w["sources"] for p in s["pages"]}
     refs |= {r["item_id"] for r in teaching_items(w, ctx)} | {r["relation_id"] for r in relations(w, ctx)}
+    refs |= {s["id"] for s in ctx["sections"]}
     return refs
 
 

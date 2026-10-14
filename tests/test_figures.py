@@ -139,6 +139,9 @@ def store(tmp_path):
 
 def to_figure_deck(store):
     w = store.create("原件图验收", T.OUTLINE, {"audience": "规培医生", "target_pages": 10}, generation_route="CODE_NATIVE")
+    # Same retained legacy order as test_deckflow.to_deck: facts/deck before second read.
+    with store.transaction(w["id"], "LEGACY_PROTOCOL_TEST_FIXTURE") as saved:
+        saved.pop("source_evidence_policy", None)
     for name, make in fx_.SOURCES.items():
         store.add_source(w["id"], name, make())
     w = store.add_source(w["id"], "figure.png", picture())

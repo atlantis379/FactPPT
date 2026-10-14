@@ -18,6 +18,18 @@ _CELL = re.compile(r":t(\d+)r(\d+)c(\d+)$")
 _CIRCLED = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳"
 
 
+def arrow_of(u: dict) -> dict | None:
+    """A unit that is a diagram arrow: a PPTX arrow (`arrow` from/to unit ids) or a transcribed arrow cell
+    written "start→end" by READ_SOURCE (from/to are the boxes' texts)."""
+    if u.get("arrow"):
+        return u["arrow"]
+    if u.get("method") == "visual_transcription" and u["text"].count("→") == 1:
+        start, end = (x.strip() for x in u["text"].split("→"))
+        if start and end:
+            return {"from": start, "to": end}
+    return None
+
+
 def _rid(kind: str, basis: str, unit_ids: list[str]) -> str:
     return "R" + hashlib.sha1("|".join([kind, basis, *unit_ids]).encode("utf-8")).hexdigest()[:10]
 
@@ -50,13 +62,17 @@ def candidates(units: list[dict]) -> list[dict]:
     for u in units:
         by_page[u["page_id"]].append(u)
     for page_units in by_page.values():
-        # diagram arrows: a chain is a sequence; labelled arrows or a box with two ways out make a branch
-        arrows = [u for u in page_units if u.get("arrow")]
-        if arrows:
+        # diagram arrows, one candidate per diagram (figure): a chain is a sequence; labelled arrows or a box with
+        # two ways out make a branch
+        diagrams: dict[str, list[dict]] = defaultdict(list)
+        for u in page_units:
+            if arrow_of(u):
+                diagrams[str(u.get("figure_id") or "")].append(u)
+        for arrows in diagrams.values():
             outs = defaultdict(int)
             for u in arrows:
-                outs[u["arrow"]["from"]] += 1
-            branch = any(u["arrow"].get("label") for u in arrows) or max(outs.values()) >= 2
+                outs[arrow_of(u)["from"]] += 1
+            branch = any(arrow_of(u).get("label") for u in arrows) or max(outs.values()) >= 2
             out.append(_cand("branch" if branch else "sequence", "arrow", [u["id"] for u in arrows]))
         # tables: rows × columns
         tables: dict[str, list[tuple[int, int, str]]] = defaultdict(list)
@@ -68,13 +84,13 @@ def candidates(units: list[dict]) -> list[dict]:
             if len({r for r, _, _ in cells}) >= 2 and len({c for _, c, _ in cells}) >= 2:
                 out.append(_cand("matrix", "table", [i for _, _, i in sorted(cells)]))
         # numbered steps: boxes that start 1, 2, 3 … on one page
-        steps = [(n, u["id"]) for u in page_units if not u.get("arrow") and not _CELL.search(u["id"])
+        steps = [(n, u["id"]) for u in page_units if not arrow_of(u) and not _CELL.search(u["id"])
                  for n in [_step_no(u["text"], seps)] if n]
         steps.sort()
         if _run([n for n, _ in steps]):
             out.append(_cand("sequence", "numbered", [i for _, i in steps]))
     for u in units:
-        if u.get("arrow"):
+        if arrow_of(u):
             continue
         # numbered lines inside one text
         lines = [n for n in (_step_no(line, seps) for line in re.split(r"[\n\v]", u["text"])) if n]

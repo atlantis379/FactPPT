@@ -1,19 +1,23 @@
 """Local API for the FactDeck mainline (/api/deck). The earlier full-slide image
 workflow stays on /api/fact; legacy semantic endpoints stay on the host app."""
 import json
+import os
+from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.deckflow import (Store, WorkflowError, MAX_UPLOAD, KINDS, all_units, all_claims, claim_origin, claim_text, digest,
                           unsupported_points, message_lines, story_line, summary_review_current, key_point_targets)
 from factdeck.render import THEMES
+from app.deck_generation import VISUAL_KINDS
 
 router = APIRouter(prefix="/api/deck", tags=["FactDeck 主线"])
-store = Store()
-Kind = Literal["READ_SOURCE", "SECOND_READ", "CLAIMS", "SUMMARY", "SUMMARY_AMEND", "SUMMARY_REVIEW", "FACTS", "DECK", "SEMANTIC_REVIEW", "VISUAL_CRITIQUE", "VISUAL_DESIGN", "VISUAL_LAYOUT", "VISUAL_CLEAN", "VISUAL_VECTOR"]
+# FACTDECK_DATA_ROOT runs a service against another data directory (e.g. a validation copy of a project).
+store = Store(Path(os.environ["FACTDECK_DATA_ROOT"]) if os.environ.get("FACTDECK_DATA_ROOT") else None)
+Kind = Literal["READ_SOURCE", "SECOND_READ", "CLAIMS", "STRUCTURE", "STRUCTURE_REVIEW", "SUMMARY", "SUMMARY_AMEND", "SUMMARY_REVIEW", "FACTS", "DECK", "SEMANTIC_REVIEW", "VISUAL_CRITIQUE", "VISUAL_DESIGN", "VISUAL_LAYOUT", "VISUAL_CLEAN", "VISUAL_VECTOR", "VISUAL_BLIND_READ"]
 
 
 class Strict(BaseModel):
@@ -45,6 +49,7 @@ class Settings(Strict):
     theme: str | None = None
     context: dict[str, Any] | None = None
     visual_template: str | None = None
+    structure_first: bool | None = None
 
 
 class Queue(Strict):
@@ -56,16 +61,19 @@ class Queue(Strict):
 
 class VisualRevision(Strict):
     page_id: str
-    kind: Literal["VISUAL_DESIGN", "VISUAL_LAYOUT", "VISUAL_CLEAN", "VISUAL_VECTOR"]
+    kind: Literal["VISUAL_DESIGN", "VISUAL_LAYOUT", "VISUAL_CLEAN", "VISUAL_VECTOR", "VISUAL_BLIND_READ"]
 
 
 class GenerationRequest(Strict):
     first_pages: int | None = Field(default=None, ge=1, le=299, strict=True)
+    batch_size: int | None = Field(default=None, ge=1, le=60, strict=True)
+    pages: list[str] | None = Field(default=None, max_length=60)
 
 
 class Claim(Strict):
     worker: str = Field(min_length=1, max_length=200)
     kind: Kind | None = None
+    kinds: list[Kind] | None = Field(default=None, min_length=1, max_length=4)
     binding: str | None = Field(default=None, min_length=1, max_length=200)
 
 
@@ -283,6 +291,17 @@ def figure_file(workflow_id: str, figure_id: str):
     return FileResponse(store.path(g["path"]), media_type="image/png")
 
 
+class RulesAdoption(Strict):
+    operator: str = Field(min_length=1, max_length=200)
+    reason: str = Field(min_length=4, max_length=2000)
+
+
+@router.post("/workflows/{workflow_id}/rules/adopt")
+def adopt_rules(workflow_id: str, body: RulesAdoption):
+    result = call(store.adopt_rules, workflow_id, body.operator, body.reason)
+    return {k: result.get(k) for k in ("id", "rules_version", "rules_history")}
+
+
 @router.post("/workflows/{workflow_id}/tasks")
 def queue(workflow_id: str, body: Queue, compact: bool = False):
     if sum(bool(x) for x in (body.sources, body.pages, body.checks)) > 1: raise HTTPException(422, "sources、pages、checks 只能提交其一")
@@ -292,13 +311,26 @@ def queue(workflow_id: str, body: Queue, compact: bool = False):
 
 @router.post("/workflows/{workflow_id}/tasks/claim")
 def claim(workflow_id: str, body: Claim):
-    task = call(store.claim, workflow_id, body.worker, body.kind, body.binding)
+    if body.kind and body.kinds: raise HTTPException(422, "kind 与 kinds 只能提交其一")
+    task = call(store.claim, workflow_id, body.worker, tuple(body.kinds) if body.kinds else body.kind, body.binding)
     return task if task else Response(status_code=204)
 
 
+def chained(ack, workflow_id, task_id, chain, chain_kinds):
+    """Lease the same page's next visual stage to the same worker right after a submit."""
+    if not chain: return ack
+    w = call(store.get, workflow_id)
+    done = next(t for t in w["tasks"] if t["id"] == task_id)
+    kinds = tuple(chain_kinds) if chain_kinds else VISUAL_KINDS
+    ack["next"] = call(store.claim, workflow_id, done["worker"], kinds, done["binding"]) if done["status"] == "COMPLETE" else None
+    return ack
+
+
 @router.post("/workflows/{workflow_id}/tasks/{task_id}/complete")
-def complete(workflow_id: str, task_id: str, body: Complete, compact: bool = False):
+def complete(workflow_id: str, task_id: str, body: Complete, background_tasks: BackgroundTasks, compact: bool = False,
+             chain: bool = False, chain_kinds: list[Kind] | None = Query(default=None)):
     result = call(store.complete, workflow_id, task_id, body.lease_token, body.result)
+    if chain: return chained(completion_ack(result, task_id), workflow_id, task_id, chain, chain_kinds)
     return completion_ack(result, task_id) if compact else result
 
 
@@ -431,7 +463,7 @@ def render(workflow_id: str, background_tasks: BackgroundTasks, draft: bool = Fa
 
 @router.post("/workflows/{workflow_id}/generation")
 def generate(workflow_id: str, background_tasks: BackgroundTasks, body: GenerationRequest | None = None):
-    result = call(store.start_generation, workflow_id, body.first_pages if body else None)
+    result = call(store.start_generation, workflow_id, body.first_pages if body else None, body.batch_size if body else None, body.pages if body else None)
     background_tasks.add_task(store.run_generation, workflow_id)
     return result
 
@@ -448,12 +480,24 @@ def revise_generation(workflow_id: str, body: VisualRevision):
 
 @router.post("/workflows/{workflow_id}/tasks/{task_id}/asset")
 def visual_asset(workflow_id: str, task_id: str, background_tasks: BackgroundTasks,
-                 lease_token: str = Form(...), receipt: str = Form(...), file: UploadFile = File(...), compact: bool = False):
+                 lease_token: str = Form(...), receipt: str = Form(...), file: UploadFile = File(...), compact: bool = False,
+                 chain: bool = False, chain_kinds: list[Kind] | None = Query(default=None)):
     content = file.file.read(MAX_UPLOAD + 1)
     if len(content) > MAX_UPLOAD: raise HTTPException(422, "文件超过40MB")
     result = call(store.visual_asset, workflow_id, task_id, lease_token, content, call(json.loads, receipt))
+    task = next(t for t in result["tasks"] if t["id"] == task_id)
+    if task["kind"] == "VISUAL_VECTOR": background_tasks.add_task(store.run_page_preview, workflow_id, task["binding"])
     background_tasks.add_task(store.run_generation, workflow_id)
+    if chain: return chained(completion_ack(result, task_id), workflow_id, task_id, chain, chain_kinds)
     return completion_ack(result, task_id) if compact else result
+
+
+@router.get("/workflows/{workflow_id}/visual-standard/{name}")
+def visual_standard_reference(workflow_id: str, name: str):
+    from app.deck_generation import content_references
+    ref = next((r for r in call(content_references, call(store.get, workflow_id)) if r["name"] == name), None)
+    if not ref: raise HTTPException(404, "该项目没有这张标准参考图")
+    return FileResponse(ref["path"], media_type="image/png")
 
 
 @router.get("/workflows/{workflow_id}/generation/assets/{page_id}/{kind}")
@@ -466,6 +510,22 @@ def visual_asset_file(workflow_id: str, page_id: str, kind: Literal["design", "c
     from app.fact57098 import sha
     if sha(path.read_bytes()) != asset["sha256"]: raise HTTPException(409, "资产校验失败")
     return FileResponse(path, media_type="image/svg+xml" if kind == "vector" else "image/png")
+
+
+@router.post("/workflows/{workflow_id}/generation/previews/{page_id}")
+def page_preview(workflow_id: str, page_id: str):
+    result = call(store.run_page_preview, workflow_id, page_id)
+    if result is None: raise HTTPException(409, "该页素材未齐或生成已过期")
+    return {k: result.get(k) for k in ("status", "error", "issues", "seconds", "summary", "office")}
+
+
+@router.get("/workflows/{workflow_id}/generation/previews/{page_id}")
+def page_preview_file(workflow_id: str, page_id: str):
+    w = call(store.get, workflow_id)
+    page = next((p for p in (w.get("generation") or {}).get("pages", []) if p["id"] == page_id), None)
+    slide = ((page or {}).get("preview") or {}).get("slide")
+    if not slide: raise HTTPException(404, "暂无单页预览")
+    return FileResponse(store.path(slide), media_type="image/png")
 
 
 def recover_generation_jobs(stop):
@@ -504,7 +564,7 @@ def render_file(workflow_id: str, kind: Literal["final", "draft"], filename: str
 
 
 @router.post("/workflows/{workflow_id}/approvals/{kind}")
-def approve(workflow_id: str, kind: Literal["content", "style"], body: Approval):
+def approve(workflow_id: str, kind: Literal["structure", "content", "style"], body: Approval):
     return call(store.approval, workflow_id, kind, body.model_dump())
 
 

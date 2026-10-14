@@ -18,7 +18,7 @@ def test_key_point_and_duplicate_coverage_rejected(store, mutation):
     w = summarised(store)
     store.queue(w["id"], "SUMMARY_REVIEW")
     t = store.claim(w["id"], "independent-v2", "SUMMARY_REVIEW")
-    result = copy.deepcopy(t["brief"]["result_contract"])
+    result = T.clear_summary_review(t["brief"]["result_contract"])
     row = result["sections"][0]
     if mutation == "missing": row["key_points"].pop()
     if mutation == "duplicate": row["key_points"].append(copy.deepcopy(row["key_points"][0]))
@@ -38,7 +38,7 @@ def test_key_issue_blocks_confirmation_and_targets_bind_whole_version(store):
     w = summarised(store)
     store.queue(w["id"], "SUMMARY_REVIEW")
     t = store.claim(w["id"], "independent-v2", "SUMMARY_REVIEW")
-    result = copy.deepcopy(t["brief"]["result_contract"])
+    result = T.clear_summary_review(t["brief"]["result_contract"])
     result["sections"][0]["key_points"][0].update(verdict="NOT_ENTAILED", issue="虚构测试：原文没有此断言")
     w = store.complete(w["id"], t["id"], t["lease_token"], result)
     assert w["stage"] == "SUMMARY_ISSUES"
