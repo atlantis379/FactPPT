@@ -118,6 +118,7 @@ def test_structure_is_reviewed_independently_confirmed_and_then_shapes_the_summa
             "overall_summary": "TEST：按已确认的课程结构撰写的全文总结，覆盖全部资料页，保留人群、阈值与限定条件，并说明各部分之间如何承接。", "sections": sections,
             "outline_coverage": [{"outline_id": o["id"], "section_ids": [next(x["id"] for x in w["structure"]["result"]["sections"] if o["id"] in x["outline_ids"])]}
                                  for o in w["outline"]], "pending_issues": []}
+    T.with_understanding(w, good)
     swapped = copy.deepcopy(good); swapped["sections"][0]["message"]["core"]["claim_id"] = sections[1]["message"]["core"]["claim_id"]
     swapped["sections"][0]["key_points"][0]["claim_ids"] = [sections[1]["message"]["core"]["claim_id"]]
     with pytest.raises(WorkflowError):

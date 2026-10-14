@@ -1,6 +1,6 @@
 # FactPPTv2 主线：FactDeck 生成线与执行端协作
 
-2026-10-14已确认新的[模型理解总结与同步证据索引要求](MODEL_UNDERSTANDING_SUMMARY.md)：模型理解完整上下文并判断重点，代码负责索引与校验。固定数量的论断分组不能用来决定总结要点；新合同与候选复用正在按该要求整改。
+2026-10-14新的[模型理解总结与同步证据索引要求](MODEL_UNDERSTANDING_SUMMARY.md)已接入新SUMMARY任务：模型理解完整上下文并判断重点，代码负责索引与校验。固定数量的论断分组不能用来决定总结要点；合同标记`model_understanding.v1`，同步索引为`summary_evidence.v1`。旧合同与历史总结保留兼容。
 
 本机五步工作台入口与使用说明见[LOCAL_WORKBENCH.md](LOCAL_WORKBENCH.md)：上传资料、要求与模板、内容复核、生成审核、下载交付。任务对接现有Codex＋Adobe执行端，未实现无人值守模型调用。
 

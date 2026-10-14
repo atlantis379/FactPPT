@@ -12,6 +12,35 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from app.deckflow import Store, all_claims, all_units, digest
 from factdeck import facts as fx
+from factdeck import summary_evidence as se
+
+
+def prepare_indexed(w, out: Path):
+    """Reuse the model's semantic bindings; no new point grouping is performed."""
+    summary = w['summary']
+    units = all_units(w)
+    summary = dict(summary, evidence_index=se.validate(summary, units, all_claims(w),
+        {p['id'] for s in w['sources'] for p in s['pages']},
+        {g['id'] for s in w['sources'] for g in s.get('figures', [])}))
+    candidate = se.candidates(summary)
+    result = dict(candidate['result'], summary_sha256=digest(w['summary']))
+    facts, ders, terms = fx.parse(result)
+    fx.verify(facts, ders, units, {}, terms)
+    if any(f.status != 'ACCEPTED' for f in facts):
+        raise ValueError('Indexed evidence did not pass the existing fact verifier')
+    manifest = {'workflow_id': w['id'], 'workflow_revision': w['revision'], 'summary_algorithm': se.ALGORITHM,
+                'summary_sha256': digest(w['summary']), 'state': 'DRAFT_PENDING_CONTENT_CONFIRMATION',
+                'workflow_updated': False, 'point_count': len(summary['evidence_index']['points']),
+                'candidate_count': len(facts), 'verbatim_pass': len(facts),
+                'source_transcription_pending': sum(f.needs_confirmation for f in facts),
+                'pending_issues': candidate['pending_issues'], 'bindings': candidate['bindings']}
+    out.mkdir(parents=True, exist_ok=True)
+    for name, value in [('result.json', result), ('manifest.json', manifest),
+                        ('verification.json', {'facts': [asdict(f) for f in facts], 'semantic_conflicts_evaluated': False})]:
+        (out / name).write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding='utf-8')
+    (out / 'REPORT.md').write_text(f"# 同步索引事实库候选\n\n复用模型理解阶段的证据绑定，核验{len(facts)}条原文引文。"
+        "未重新选择、合并或拆分教学要点。候选保留全部待确认事项，不产生人工确认或正式工作流验收。\n", encoding='utf-8')
+    print(json.dumps({k: manifest[k] for k in ['state', 'summary_algorithm', 'point_count', 'candidate_count', 'verbatim_pass']}, ensure_ascii=False))
 
 
 def prepare(data_root: Path, workflow_id: str, out: Path, supplements: list[dict]):
@@ -20,6 +49,10 @@ def prepare(data_root: Path, workflow_id: str, out: Path, supplements: list[dict
     summary = w['summary']
     if not summary:
         raise ValueError('No summary is available')
+    if summary.get('summary_algorithm') == se.ALGORITHM:
+        if supplements:
+            raise ValueError('New summaries must bind supplements in their model-authored evidence_index')
+        return prepare_indexed(w, out)
     claims = all_claims(w)
     units = all_units(w)
     by_unit = {u['id']: u for u in units}

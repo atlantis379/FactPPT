@@ -113,6 +113,36 @@ def summary(w):
     return r
 
 
+def with_understanding(w, result):
+    """Synthetic new-contract fixture; these reasons are TEST data, not a model audit."""
+    from factdeck.summary_evidence import ALGORITHM, SCHEMA
+    from app.deckflow import all_claims, all_units
+    claims = all_claims(w)
+    unit_page = {u['id']: u['page_id'] for u in all_units(w)}
+    links = {p['id']: set() for s in w['sources'] for p in s['pages']}
+    rows = []
+    for section in result['sections']:
+        for i, point in enumerate(section['key_points'], 1):
+            pid = f"{section['id']}.k{i}"
+            evidence = []
+            cids = point.get('claim_ids') or [cid for cid, claim in claims.items()
+                if any(sp['unit_id'] in point.get('unit_ids', []) for sp in claim['spans'])]
+            if not point.get('claim_ids'):
+                point['claim_ids'] = cids
+            for cid in cids:
+                for span in claims[cid]['spans']:
+                    evidence.append({'id': f'e{len(evidence)+1}', 'unit_id': span['unit_id'], 'quote': span['quote'],
+                                     'role': 'main', 'usage': 'TEACHING'})
+                    links[unit_page[span['unit_id']]].add(pid)
+            rows.append({'point_id': pid, 'selection_reason': 'TEST：验证要点与证据同步绑定的合同',
+                         'context': 'TEST：完整上下文由fixture提供，非真实语义判断', 'evidence': evidence,
+                         'data_items': [], 'figure_ids': []})
+    result.update(summary_algorithm=ALGORITHM, evidence_index={'schema_version': SCHEMA, 'points': rows,
+        'page_decisions': [{'page_id': p, 'disposition': 'TEACHING' if v else 'CONTEXT',
+                            'reason': 'TEST：来源页处置记录', 'point_ids': sorted(v)} for p, v in links.items()]})
+    return result
+
+
 def _summary(w):
     ids = [p["id"] for s in w["sources"] for p in s["pages"]]
     return {"schema_version": "full_source_summary.v3", "input_sha256": input_hash(w),
@@ -128,7 +158,10 @@ def run_task(store, wid, kind, worker, make):
     store.queue(wid, kind)
     t = store.claim(wid, worker, kind)
     assert t, kind
-    return store.complete(wid, t["id"], t["lease_token"], make(t))
+    result = make(t)
+    if kind == 'SUMMARY' and t['brief'].get('summary_algorithm') and not result.get('summary_algorithm'):
+        with_understanding(store.get(wid), result)
+    return store.complete(wid, t["id"], t["lease_token"], result)
 
 
 def approve(store, w, kind):
@@ -210,6 +243,7 @@ def test_summary_key_points_must_rest_on_units_of_the_section(store):
     def submit(edit):
         r = summary(w)
         edit(r["sections"])
+        with_understanding(w, r)
         store.complete(w["id"], t["id"], t["lease_token"], r)
 
     with pytest.raises(WorkflowError, match="key_points"):

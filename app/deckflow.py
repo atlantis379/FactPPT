@@ -1221,7 +1221,7 @@ class Store(GenerationMixin, _BaseStore):
         w["summary_review"] = {"schema_version": SUMMARY_REVIEW_SCHEMA, "input_sha256": summary_review_input(w), "reviewer": reviewer, "at": now(),
                                "sections": result["sections"], "round": rnd["round"], "issues": [], "dismissed": {}}
 
-    def accept_summary(self, w: dict, result: dict, author: str = ""):
+    def accept_summary(self, w: dict, result: dict, author: str = "", expected_algorithm: str | None = None):
         self.source_integrity(w)
         require(fully_claimed(w), "全部资料完成阅读和论断清单后才能提交总结")
         require(result.get("schema_version") == "full_source_summary.v3", "总结版本需为full_source_summary.v3", 422)
@@ -1272,9 +1272,31 @@ class Store(GenerationMixin, _BaseStore):
         for m in mapping:
             require(m.get("section_ids") and set(m["section_ids"]) <= set(ids), "提纲映射需指向有效章节", 422)
         require(isinstance(result.get("pending_issues"), list), "需列出待解决问题；无问题时为空列表", 422)
+        from factdeck import summary_evidence as se
+        if expected_algorithm:
+            require(result.get("summary_algorithm") == expected_algorithm, "新SUMMARY任务需按模型理解与同步证据索引合同提交", 422)
+        candidate = None
+        if result.get("summary_algorithm"):
+            require(result["summary_algorithm"] == se.ALGORITHM, "不支持的总结算法版本", 422)
+            try:
+                result["evidence_index"] = se.validate(result, all_units(w), all_claims(w), set(known),
+                    {g['id'] for s in w['sources'] for g in s.get('figures', [])})
+                candidate = se.candidates(result)
+                F, D, T = fx.parse(candidate['result'])
+                fx.verify(F, D, all_units(w), {}, T)
+                require(all(f.status == 'ACCEPTED' for f in F), "同步证据候选未通过逐字核验", 422)
+            except ValueError as error:
+                raise WorkflowError(str(error), 422) from error
         self.snapshot(w, "summary", result)
         w["summary"] = copy.deepcopy(result)
         w["summary_meta"] = {"author": author, "at": now()}
+        w['summary_fact_candidates'] = None
+        if candidate is not None:
+            candidate['summary_sha256'] = digest(w['summary'])
+            candidate['result']['summary_sha256'] = candidate['summary_sha256']
+            w['summary_fact_candidates'] = {'summary_sha256': candidate['summary_sha256'],
+                'path': self.snapshot(w, 'summary_fact_candidates', candidate),
+                'fact_count': len(candidate['result']['facts']), 'state': 'PENDING_CONTENT_CONFIRMATION'}
         w["content_approval"] = None
 
     @staticmethod
@@ -1546,6 +1568,24 @@ class Store(GenerationMixin, _BaseStore):
 
     # ---- tasks
     def brief(self, w: dict, kind: str, binding: str | None) -> dict:
+        from factdeck import summary_evidence as se
+        b = self._brief(w, kind, binding)
+        if kind == 'SUMMARY' and not b.get('summary_algorithm'):
+            b['summary_algorithm'] = se.ALGORITHM
+            b['context_mode'] = 'FULL_SECTION_CONTEXT_WITH_CLAIM_INDEX'
+            b['rules'] = list(se.RULES) + b['rules']
+            b['result_contract'].update(summary_algorithm=se.ALGORITHM, evidence_index=se.contract())
+        elif kind == 'SUMMARY_REVIEW' and (w.get('summary') or {}).get('summary_algorithm') == se.ALGORITHM:
+            b['evidence_index'] = copy.deepcopy(w['summary']['evidence_index'])
+            b['rules'].append('先独立阅读原文、判断要点和关系，再查重点选择理由及同步索引是否漏掉条件/限制。选择理由不得作为来源支持证据；问题仍写入既有逐条判定或issues。')
+        elif kind == 'FACTS':
+            c = w.get('summary_fact_candidates')
+            if c and c['summary_sha256'] == digest(w['summary']):
+                b['fact_candidates'] = json.loads(self.path(c['path']).read_text(encoding='utf-8'))['value']
+                b['rules'].insert(0, '复用SUMMARY已同步建立并逐字核验的fact_candidates及bindings。只补必要的细粒度切分、实体/属性/冲突信息；不得把候选重新机械合并成新的教学要点。PENDING绑定仍须人工裁定，不得静默用于教学。')
+        return b
+
+    def _brief(self, w: dict, kind: str, binding: str | None) -> dict:
         req = {"requirements": w["requirements"], "outline": w["outline"], "context": w["context"]}
         if kind == "STRUCTURE":
             return {**req, **structure_stage.brief(w)}
@@ -1990,7 +2030,7 @@ class Store(GenerationMixin, _BaseStore):
              "CLAIMS": lambda: self.accept_claims(w, t["binding"], result, t["worker"]),
              "STRUCTURE": lambda: (structure_stage.accept(w, result, t["worker"]), self.snapshot(w, "structure", result)),
              "STRUCTURE_REVIEW": lambda: (structure_stage.accept_review(w, result, t["worker"]), self.snapshot(w, "structure_review", result)),
-             "SUMMARY": lambda: self.accept_summary(w, result, t["worker"]),
+             "SUMMARY": lambda: self.accept_summary(w, result, t["worker"], t['brief'].get('summary_algorithm')),
              "SUMMARY_AMEND": lambda: self.accept_summary_amend(w, result, t["worker"]),
              "SUMMARY_REVIEW": lambda: self.accept_summary_review(w, result, t["worker"]),
              "FACTS": lambda: self.accept_facts(w, result, t["worker"]),

@@ -31,3 +31,23 @@
 ## 本次变更界限
 
 当前18项待确认问题保留。此次为算法与开发流程整改，不自动重写现网总结、记录内容确认或生成PPT。模型能力改善需要同一章节的独立实测，合同和代码测试不能替代该实测结论。
+
+## 已实现的接口行为
+
+新SUMMARY任务的brief标记`summary_algorithm=model_understanding.v1`、`context_mode=FULL_SECTION_CONTEXT_WITH_CLAIM_INDEX`；仍使用原`full_source_summary.v3`总结对象，同时要求`evidence_index`。
+
+索引`points`逐一记录`point_id`、`selection_reason`、`context`、`evidence`、可选`data_items`和`figure_ids`。证据含`id/unit_id/quote/role/usage`；程序记录原始单元位置`start/end/source_quote/page_id`及转录待确认标记。data_items记录`evidence_id/meaning/value/operator/unit/context_quote`，语义由模型判断，字段逐字存在性由程序核验。
+
+已有论断片段优先用`claim_id/span_index`引用，由代码解析引文和位置，不要求模型重复输出整段原文。需要细分或补缺时才提供`unit_id/quote`。这同时降低输出量，并避免抄写数字时引入错误。
+
+`page_decisions`覆盖每个来源页，记录`TEACHING/CONTEXT/REFERENCE/PENDING`、理由和要点对应关系。参考/跨章节限制只能标PENDING，并用`pending_issue_index`绑定实际未决事项，不能靠索引绕开来源分配。
+
+SUMMARY验收同时保存版本绑定的`summary_fact_candidates`快照；FACTS合同按总结校验值读取此候选及绑定，版本变化即不复用。SUMMARY_REVIEW收到同步索引，先独立判断原文支持，再核查选择理由和遗漏。人工确认及正式事实库关口继续由现有代码执行。
+
+`tools/prepare_fact_candidates.py`对于新算法只复用模型索引，不再自行按论断分组；历史总结保留逐字候选准备兼容入口，该入口不代表完成模型理解。
+
+## 本次验证记录
+
+2026-10-14：同步索引、结构优先、旧合同兼容、来源/总结覆盖、独立复核与问题闭环相关57项回归通过。追加论断片段引用功能后，索引专用10项测试通过（其中9项为前述回归子集，1项为新增）。测试使用明确标识的合成数据及临时Store，不代表真实医学内容确认。代码差异检查通过。
+
+测试覆盖了伪造引文/数据拒绝、理由缺失、页或要点漏索引、跨参考页限制待定、旧租约验收、候选快照版本绑定，以及修改总结后不复用旧候选。整章Luna首稿的质量、遗漏与耗时/费用尚未按新合同实测。

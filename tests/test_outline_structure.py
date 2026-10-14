@@ -113,6 +113,7 @@ def test_summary_follows_the_outline_point_by_point(store):
         r = structured_summary(w)
         edit(r)
         add_messages(w, r)
+        T.with_understanding(w, r)
         store.complete(w["id"], t["id"], t["lease_token"], r)
 
     with pytest.raises(WorkflowError, match="提纲顺序"):
