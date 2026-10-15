@@ -767,9 +767,10 @@ def resolve_theme(theme) -> tuple[dict, str | None, str | None, str]:
 # ---------------------------------------------------------------- main
 def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Path,
            theme: str = "navy-teal", terms: list[str] | tuple[str, ...] = (), pages_only: list[str] | None = None,
-           figures: dict[str, dict] | None = None) -> dict:
+           figures: dict[str, dict] | None = None, teaching_notes: dict[str, str] | None = None) -> dict:
     """Render `deck` into `out`. `facts` are verified facts by id; `sources` by id ({title|filename});
-    `figures` by figure id ({path, sha256, width, height}) for every figure fact on a page."""
+    `figures` by figure id ({path, sha256, width, height}) for every figure fact on a page;
+    `teaching_notes` by page id: the summary text the presenter speaks to, placed before the provenance list."""
     import hashlib
     from playwright.sync_api import sync_playwright
 
@@ -861,6 +862,7 @@ def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Pa
 
     notes = []
     for p, res in zip(pages, chk["pages"]):
+        script = (teaching_notes or {}).get(p.get("id"), "")
         lines = ["【来源追溯】本页每条内容对应的原文位置："]
         for fid in res["facts"]:
             f = facts[fid]
@@ -868,7 +870,8 @@ def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Pa
             src = sources.get(f["source_id"], {})
             shown = f"〔原件图片，未作修改〕{f['figure']}" if f.get("figure") else fview[fid]["text"]
             lines.append(f"· {shown} ← {src.get('filename') or src.get('title', '')} {f['location']}{flag}")
-        notes.append("\n".join(lines) if res["facts"] else "")
+        trace = "\n".join(lines) if res["facts"] else ""
+        notes.append("\n\n".join(x for x in ("【讲稿】\n" + script if script else "", trace) if x))
     pptx_path = out / "deck.pptx"
     figure_png = {fid: figview[f["figure"]]["path"] for fid, f in facts.items() if f.get("figure") in figview}
     build_pptx(models, raster_png, notes, pptx_path, deck.get("title", ""), figure_png, font or PPT_FONT, tokens)

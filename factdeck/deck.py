@@ -92,7 +92,7 @@ LAYOUT_GUIDE = {
 del F, T
 EDGE_LABEL_MAX = 5           # an arrow label sits in the gap between two boxes
 HERO_MAX_CHARS = 16        # a hero value is a short number or phrase; longer text belongs in `statement`
-SKIP = {"id", "layout", "widths", "edges", "outline_ids", "section_ids", "point_ids", "focus", "col", "row", "emphasis", "kind", "orientation",
+SKIP = {"id", "layout", "widths", "edges", "outline_ids", "section_ids", "point_ids", "key_point_ids", "focus", "col", "row", "emphasis", "kind", "orientation",
         # composed-page geometry and styling (no shown text)
         "role", "tone", "peer", "align", "valign", "size", "weight", "radius", "round", "points", "from", "to", "backed_by",
         "value_of", "scale", "design", "sep", "recipe", "group"}
@@ -375,7 +375,11 @@ def _message_checks(pages: list[dict], checked: list[dict], sections: list[dict]
 
 def check(deck: dict, facts: dict[str, dict], terms: list[str] | tuple[str, ...] = (),
           outline: list[dict] | None = None, sections: list[dict] | None = None,
-          requirements: dict | None = None, parts: list[dict] | None = None) -> dict:
+          requirements: dict | None = None, parts: list[dict] | None = None,
+          key_points: dict[str, str] | None = None) -> dict:
+    """`key_points` (id -> point text) is given for a complete-notes summary (model_understanding.v4): every
+    content page names the summary key points it teaches and every key point reaches a page; page count follows
+    the content, so no target-page pressure is reported."""
     glossary_items = deck.get("glossary", deck.get("terms", []))
     glossary = [x["text"] for x in glossary_items]
     result = {"pages": [], "errors": 0, "pending": 0, "deck_errors": [], "warnings": []}
@@ -583,13 +587,48 @@ def check(deck: dict, facts: dict[str, dict], terms: list[str] | tuple[str, ...]
                 err(f"omissions 引用了不存在的章节：{sid}")
             else:
                 coverage["omissions"].append({"section_id": sid, "reason": o.get("reason", "")})
-    if requirements and requirements.get("target_pages"):
+    if key_points is not None:
+        _key_point_coverage(pages, key_points, coverage, err)
+    if requirements and requirements.get("target_pages") and key_points is None:
         target, n = int(requirements["target_pages"]), len(pages)
         if abs(n - target) > max(2, target * 0.3):
             result["warnings"].append(f"页数 {n} 与需求 {target} 相差较大")
     result["warnings"] += monotony_warnings(pages)
     result["coverage"] = coverage
     return result
+
+
+def _key_point_coverage(pages: list[dict], key_points: dict[str, str], coverage: dict, err) -> None:
+    """Complete-notes summaries are not compressed by selection: every key point is taught on at least one page
+    (a dense point may span several); what the slide leaves out is carried by the speaker notes."""
+    where = {k: [] for k in key_points}
+    for p in pages:
+        if p.get("layout") in NON_CONTENT or p.get("layout") == "closing":
+            continue
+        ids = p.get("key_point_ids")
+        if not isinstance(ids, list) or not ids:
+            err(f"{p.get('id')}：内容页需用 key_point_ids 标注本页讲的总结要点（<章节id>.k<序号>）")
+            continue
+        bad = [x for x in ids if x not in key_points]
+        if bad:
+            err(f"{p.get('id')}：key_point_ids 引用了不存在的总结要点：{'、'.join(map(str, bad))}")
+        for x in ids:
+            if x in where:
+                where[x].append(p.get("id"))
+    missing = [k for k, v in where.items() if not v]
+    if missing:
+        err("以下总结要点没有任何页面讲授（v4总结是完整笔记，要点不得删减；内容多就拆页）：" + "、".join(missing))
+    coverage["key_points"] = [{"key_point_id": k, "pages": v} for k, v in where.items()]
+
+
+def teaching_notes(pages: list[dict], key_points: dict[str, str]) -> dict[str, str]:
+    """Speaker notes per page: the full confirmed summary text of the key points the page teaches, verbatim."""
+    out = {}
+    for p in pages:
+        ids = [x for x in p.get("key_point_ids") or [] if x in key_points]
+        if ids:
+            out[p["id"]] = "\n\n".join(f"〔{x}〕{key_points[x]}" for x in ids)
+    return out
 
 
 PLAIN_LAYOUTS = {"bullets", "statement", "table"}

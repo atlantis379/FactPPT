@@ -10,7 +10,7 @@ import zipfile
 
 import pytest
 
-from app.deckflow import Store, WorkflowError, digest, input_hash, stage, verified
+from app.deckflow import summary_key_points, Store, WorkflowError, digest, input_hash, stage, verified
 import factdeck_fixture as fx_
 
 OUTLINE = "认识示例病X\n评估与治疗\n研究证据"
@@ -210,7 +210,23 @@ def run_task(store, wid, kind, worker, make):
     result = make(t)
     if kind == 'SUMMARY' and t['brief'].get('summary_algorithm') and not result.get('summary_algorithm'):
         with_understanding(store.get(wid), result)
+    if kind == 'DECK' and t['brief'].get('summary_key_points'):
+        with_key_points(result, t['brief']['summary_key_points'])
     return store.complete(wid, t["id"], t["lease_token"], result)
+
+
+def with_key_points(deck, key_points):
+    """Synthetic fixture only: each content page teaches its chapters' key points; leftovers go to the last content page."""
+    from factdeck.deck import NON_CONTENT
+    ids = [k['key_point_id'] for k in key_points]
+    content = [p for p in deck['pages'] if p.get('layout') not in NON_CONTENT and p.get('layout') != 'closing']
+    for p in content:
+        if 'key_point_ids' not in p:
+            p['key_point_ids'] = [k for k in ids if k.rsplit('.k', 1)[0] in (p.get('section_ids') or [])] or ids[:1]
+    used = {k for p in content for k in p['key_point_ids']}
+    if content:
+        content[-1]['key_point_ids'] += [k for k in ids if k not in used]
+    return deck
 
 
 def approve(store, w, kind):
@@ -232,7 +248,9 @@ def deck_result(w):
     d = fx_.deck_spec([o["id"] for o in w["outline"]])
     d["pages"][6]["panels"][0]["items"].append({"fact": "chart.a"})
     d["facts_sha256"] = w["facts"]["result_sha256"]
-    return d
+    from app.deckflow import summary_key_points
+    kp = summary_key_points(w)
+    return with_key_points(d, [{"key_point_id": k} for k in kp]) if kp is not None else d
 
 
 def to_deck(store):
@@ -470,6 +488,11 @@ def test_full_mainline_to_delivery(store):
         assert len(prs.slides) == 9
         notes = prs.slides[2].notes_slide.notes_text_frame.text
         assert "来源追溯" in notes and "overview.txt" in notes
+        # complete-notes summary: the page's key points go verbatim into the speaker notes, before the provenance
+        page = store.get(w["id"])["deck"]["result"]["pages"][2]
+        kp = summary_key_points(store.get(w["id"]))
+        assert notes.startswith("【讲稿】") and all(kp[k] in notes for k in page["key_point_ids"])
+        assert notes.index("【讲稿】") < notes.index("来源追溯")
     # changing the requirements makes the deck, review and delivery stale
     w = store.settings(w["id"], {"requirements": {"audience": "护士", "target_pages": 12}})
     assert w["stage"] == "DECK_REQUIRED"

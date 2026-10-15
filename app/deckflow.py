@@ -56,7 +56,7 @@ SAMPLE_PAGES = 5
 DEIDENTIFIED = ("NO_PATIENT_CONTENT", "DEIDENTIFIED", "IDENTIFIABLE")
 # Content-rule version. A project keeps the version it started with; when the rules change mid-project, new content
 # tasks wait until someone adopts the new version explicitly (recorded), so rules never change under a running review.
-CONTENT_RULES_VERSION = "content-rules.2026-10-13"
+CONTENT_RULES_VERSION = "content-rules.2026-10-16"   # SUMMARY model_understanding.v4 + source_coverage.v2
 KINDS = ("READ_SOURCE", "SECOND_READ", "CLAIMS", "STRUCTURE", "STRUCTURE_REVIEW", "SUMMARY", "SUMMARY_AMEND", "SUMMARY_REVIEW", "FACTS", "DECK", "SEMANTIC_REVIEW", "VISUAL_CRITIQUE") + VISUAL_KINDS
 REQUIREMENT_KEYS = {"audience", "purpose", "duration_minutes", "target_pages", "emphasis", "tone", "notes"}
 
@@ -484,9 +484,24 @@ def deck_sha(w: dict) -> str | None:
     return w["deck"]["result_sha256"] if w["deck"] else None
 
 
+def summary_key_points(w: dict) -> dict[str, str] | None:
+    """Key point id -> full point text, for a complete-notes (model_understanding.v4) summary; None otherwise."""
+    s = w.get("summary") or {}
+    if s.get("summary_algorithm") != "model_understanding.v4":
+        return None
+    return {f"{sec['id']}.k{i}": k.get("point", "") for sec in s["sections"] for i, k in enumerate(sec.get("key_points") or [], 1)}
+
+
+def deck_teaching_notes(w: dict, spec: dict) -> dict[str, str] | None:
+    from factdeck.deck import teaching_notes
+    kp = summary_key_points(w)
+    return teaching_notes(spec.get("pages") or [], kp) if kp is not None else None
+
+
 def checked(w: dict, v: dict | None = None) -> dict:
     v = v or verified(w)
-    return check_spec(w["deck"]["result"], v["facts"], v["terms"], w["outline"], w["summary"]["sections"], w["requirements"], w.get("outline_parts"))
+    return check_spec(w["deck"]["result"], v["facts"], v["terms"], w["outline"], w["summary"]["sections"], w["requirements"], w.get("outline_parts"),
+                      key_points=summary_key_points(w))
 
 
 def pending_items(w: dict, v: dict, chk: dict) -> list[dict]:
@@ -1129,6 +1144,16 @@ class Store(GenerationMixin, _BaseStore):
         require(reviewer not in {(s.get("claims") or {}).get("reader") for s in w["sources"]}, "总结审查须由论断清单作者之外的执行端完成", 422)
         require(result.get("input_sha256") == summary_review_input(w), "审查对应的总结已过期")
         require(result.get("schema_version") == SUMMARY_REVIEW_SCHEMA, "总结审查需使用 summary_review.v2 完整覆盖合同", 422)
+        from factdeck.summary_evidence import garbled
+
+        def broken(x, at="result"):
+            if isinstance(x, dict):
+                return [b for k, v in x.items() for b in broken(v, f"{at}.{k}")]
+            if isinstance(x, list):
+                return [b for i, v in enumerate(x) for b in broken(v, f"{at}[{i}]")]
+            return [at] if garbled(x) else []
+        bad = broken(result)
+        require(not bad, "审查结果中以下文字已损坏（多为?，通常是写入时编码错误），请用UTF-8重写：" + "、".join(bad[:8]), 422)
 
         def unique_rows(value, field, expected, label):
             require(isinstance(value, list) and all(isinstance(r, dict) for r in value), f"{label}需为列表", 422)
@@ -1491,7 +1516,8 @@ class Store(GenerationMixin, _BaseStore):
             require(w.get('deck') and scope['base_page_ids']==[p['id'] for p in w['deck']['result']['pages']], '前N页生成须保留现有整套规格的页面编号',422)
             n=scope['page_count']
             require(deck['pages'][n:]==w['deck']['result']['pages'][n:], '本次范围之外的页面不得修改',422)
-        chk = check_spec(deck, v["facts"], v["terms"], w["outline"], w["summary"]["sections"], w["requirements"], w.get("outline_parts"))
+        chk = check_spec(deck, v["facts"], v["terms"], w["outline"], w["summary"]["sections"], w["requirements"], w.get("outline_parts"),
+                         key_points=summary_key_points(w))
         from factdeck.content_obligations import validate_deck
         prevention = validate_deck(w, deck, v, chk)
         used = {fid for p in chk["pages"] for fid in p["facts"] + p["edge_facts"]}
@@ -1597,6 +1623,11 @@ class Store(GenerationMixin, _BaseStore):
             b['result_contract']['source_coverage'] = sc.contract(sc.SCHEMA_V2)
             b['source_coverage_input'] = sc.coverage_input(all_units(w))
             b['chunks'] = sc.chunks(all_units(w))
+            if w.get('summary') and b.get('review_issues'):
+                # a revision starts from the reviewed summary; only what the review ledger names is reopened
+                b['revision_base'] = copy.deepcopy(w['summary'])
+                b['rules'].insert(0, '带revision_base时是修订任务：在其基础上逐条处理review_issues（逐句覆盖问题的ref是登记片段编号），补写或改正point正文并重新登记受影响的句子；'
+                                     '未被指出的内容保持不变，不得为通过审核删减原文含义或改归非论断/待定。分块与草稿规则照旧适用。')
         elif kind == 'SUMMARY_REVIEW' and (w.get('summary') or {}).get('summary_algorithm') in se.SUPPORTED_ALGORITHMS:
             b['evidence_index'] = copy.deepcopy(w['summary']['evidence_index'])
             b['source_understanding'] = copy.deepcopy(w['summary'].get('source_understanding'))
@@ -1604,6 +1635,8 @@ class Store(GenerationMixin, _BaseStore):
                 from factdeck import source_coverage as sc
                 b['source_coverage'] = copy.deepcopy(w['summary']['source_coverage'])
                 b['source_coverage_audit'] = sc.audit(w['summary'], all_units(w), all_claims(w))
+                if sc.expected_schema(w['summary']) == sc.SCHEMA_V2:
+                    b['chunks'] = sc.chunks(all_units(w))
                 if sc.expected_schema(w['summary']) != sc.SCHEMA_V2:
                     b['rules'].append('逐项核验source_coverage：非论断分类/重复翻译依据是否正确、每条结论六类限定条件是否漏判、多项是否全列、PRESENT的summary_quote是否真正表达原文限定条件。ACCOUNTED仅是登记状态，不是语义通过，不得据此默认ENTAILED。')
                 else:
@@ -1614,6 +1647,8 @@ class Store(GenerationMixin, _BaseStore):
                                       'FULL/PARTIAL/CONTRADICTED须在point_evidence写出所依据的point正文逐字片段（point_id+quote），代码核对存在；不得用按位置排列的判定串。PARTIAL/CONTRADICTED在missing_facets标明缺失类别（population/time/threshold/condition/exception/negation/modality/descriptor/relation/enumeration/number/other）。FULL=这句的全部含义（列举各项、数字、比较、人群、时间、条件、例外、否定、模态词）都在point正文；PARTIAL=部分表达，写明缺什么；MISSING=未表达；CONTRADICTED=表达相反。'
                                       '非EXPRESSED片段判ACCEPTED/REJECTED：分类或待定理由是否成立，含实质内容却被归为非论断或待定即REJECTED。每个非FULL/ACCEPTED判定成为阻断问题退回总结作者修订。'
                                       'source_coverage_audit.warnings列出一个短语代表多句原文的情况，须逐句核实。')
+                    b['rules'].append('按chunks顺序逐块判定coverage_review；每完成一块，用draft保存当前完整结果对象（已判定的行即可），代码逐块核对并续约。'
+                                      '任务带draft时，draft.done_chunks中的块已判定完成，draft.result是此前保存的结果，从下一块继续；全部完成并填好其余判定后再complete。')
             b['rules'].append('审核目标是原文理解、重点选择、上下文完整、结构与关系准确；不奖励压缩或少写。逐项核对source_understanding作者主旨/组织依据/结论及关系；模型组织建议不得充当作者关系。正文必须表达关键条件和分支，不能用图引用或索引存在替代。问题写入现有issues并绑定相关要点。')
             b['rules'].append('先独立阅读原文、判断要点和关系，再查重点选择理由及同步索引是否漏掉条件/限制。选择理由不得作为来源支持证据；问题仍写入既有逐条判定或issues。')
         elif kind == 'FACTS':
@@ -1854,6 +1889,12 @@ class Store(GenerationMixin, _BaseStore):
                                         if w.get("critique") else {}),
                     "review_issues": [ledger.view(i) for i in ledger.unresolved(w, "semantic")],
                     "outline_parts": w.get("outline_parts") or [], "unsupported_points": unsupported_points(w),
+                    **({"summary_key_points": [{"key_point_id": k, "point": t} for k, t in summary_key_points(w).items()],
+                        "notes_rules": ["总结是客户已确认的完整笔记：每个内容页用 key_point_ids 标注本页讲的总结要点，每个要点至少上一页，不得删减。",
+                                        "页数由内容决定：不按时长、目标页数或 outline_parts 的建议区间压缩；一个要点内容多就拆成几页，几页都标注它。",
+                                        "页面只放核心句、关键数字/阈值、流程与分支；上页内容的人群、时间、阈值、条件、例外、否定及“可能/尚未证明/至关重要”等强度词必须随之上页。"
+                                        "研究细节、机制列举、例子等可不上页：程序把所标要点的总结全文原样放进该页演讲者备注（讲稿），不需要也不得在页面上自行改写补全。"]}
+                       if summary_key_points(w) is not None else {}),
                     "relation_layouts": {k: sorted(v) for k, v in RELATION_LAYOUTS.items()},
                     "outline_rules": (["提纲带要点时，课件按提纲组织：每个部分以章节页（divider）开头，页面顺序与提纲条目顺序一致；"
                                        "每个内容页（含结束页）用 point_ids 标注本页讲的提纲要点，每条有资料支撑的要点至少上一页；"
@@ -1864,7 +1905,8 @@ class Store(GenerationMixin, _BaseStore):
                                        "关系按 relation_layouts 选版式（先后、条件分支用 flow/timeline，满足任一、均需满足用 cards/grid，对照用 compare/table，"
                                        "对象×属性用 table，结论←证据用 hero/cards）；标为 limit 的要点必须在标注它的页面上显示其原文事实，不能在排版时丢掉。"]
                                       if structured(w) else []),
-                    "rules": ["按需求（受众、目的、时长、目标页数、重点）组织页面；一页一个认知单元，内容多就拆页。",
+                    "rules": [("按需求（受众、目的、重点）组织页面；页数由内容决定（见 notes_rules），一页一个认知单元，内容多就拆页。"
+                               if summary_key_points(w) is not None else "按需求（受众、目的、时长、目标页数、重点）组织页面；一页一个认知单元，内容多就拆页。"),
                               "源头约束：content_bindings将主事实与适用范围/条件/限制/脚注的逐字事实绑定，同页显示全部依赖；不明关系留待人工。"
                               "content_obligations的实际使用主事实及lead_in/leading_connective强信号必须逐项回应context_responses；"
                               "COVERED引用同页或明确允许相邻页的真实可见事实；EXCERPT须给出明确上页节选marker及理由；NEEDS_HUMAN不得用于绕过已锁定条件。"
@@ -2096,23 +2138,30 @@ class Store(GenerationMixin, _BaseStore):
         return self.get(workflow_id)
 
     def save_summary_draft(self, workflow_id: str, task_id: str, token: str, draft: dict):
-        """Checkpoint a chunked SUMMARY. Code records which planned chunks have a complete registration (structure
-        only), renews the lease and keeps the draft on the task, so a later session continues instead of restarting."""
+        """Checkpoint a chunked SUMMARY or its sentence-level SUMMARY_REVIEW. Code records which planned chunks are
+        complete (registration for the author, judged rows for the reviewer; structure only), renews the lease and keeps
+        the draft on the task, so a later session continues instead of restarting."""
         from factdeck import source_coverage as sc
-        require(isinstance(draft, dict), "草稿需为总结对象", 422)
+        require(isinstance(draft, dict), "草稿需为结果对象", 422)
         with self.transaction(workflow_id, "SUMMARY_DRAFT") as w:
             t = self.leased(w, task_id, token)
             plan = t["brief"].get("chunks")
-            require(t["kind"] == "SUMMARY" and plan, "只有分块的SUMMARY任务可以保存草稿", 422)
+            require(t["kind"] in {"SUMMARY", "SUMMARY_REVIEW"} and plan, "只有分块的SUMMARY / SUMMARY_REVIEW任务可以保存草稿", 422)
             try:
-                progress = sc.chunk_progress(draft, all_units(w), all_claims(w), plan)
+                if t["kind"] == "SUMMARY":
+                    progress = sc.chunk_progress(draft, all_units(w), all_claims(w), plan)
+                    done = [c["index"] for c in progress if not c["open_issues"]]
+                else:
+                    progress = sc.review_progress(t["brief"]["coverage_targets"], draft.get("coverage_review"),
+                                                  sc.point_texts(w["summary"]), plan)
+                    done = [c["index"] for c in progress if not c["problem"]]
             except (KeyError, TypeError, ValueError, AttributeError) as error:
                 raise WorkflowError(f"草稿结构无效：{error}", 422) from error
-            done = [c["index"] for c in progress if not c["open_issues"]]
             before = set((t.get("draft") or {}).get("done_chunks") or [])
-            t["draft"] = {"summary": copy.deepcopy(draft), "saved_at": now(), "done_chunks": done, "progress": progress,
+            t["draft"] = {("summary" if t["kind"] == "SUMMARY" else "result"): copy.deepcopy(draft), "saved_at": now(),
+                          "done_chunks": done, "progress": progress,
                           "workers": sorted({*((t.get("draft") or {}).get("workers") or []), t["worker"]}),
-                          "path": self.snapshot(w, "summary_draft", draft)}
+                          "path": self.snapshot(w, "summary_draft" if t["kind"] == "SUMMARY" else "summary_review_draft", draft)}
             if set(done) - before:
                 t["attempts"] = 0          # real progress: a session that stops after a chunk is not a failed attempt
             t["lease_until"] = time.time() + LEASE_SECONDS
@@ -2347,7 +2396,9 @@ class Store(GenerationMixin, _BaseStore):
         figs = {k: {"path": str(self.path(g["path"])), "sha256": g["sha256"], "width": g["width"], "height": g["height"]}
                 for k, g in figures(w).items() if k in shown}
         try:
-            report = do_render(selected_spec(w["deck"]["result"]), v["facts"], sources, folder, self.render_theme(w), v["terms"], figures=figs)
+            spec = selected_spec(w["deck"]["result"])
+            report = do_render(spec, v["facts"], sources, folder, self.render_theme(w), v["terms"], figures=figs,
+                               teaching_notes=deck_teaching_notes(w, spec))
         except ImportError as e:
             raise WorkflowError(f"渲染环境缺失：{e}；请安装 factdeck/requirements.txt 并执行 playwright install chromium", 503)
         # per page for the reviewer: the page's own design note, its visual signals (open or justified) and what the

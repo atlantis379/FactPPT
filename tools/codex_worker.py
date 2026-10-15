@@ -140,7 +140,7 @@ def main():
         if command in {"complete", "draft", "image", "asset", "submit", "layout", "design-prompt", "fetch-assets", "fail", "renew"}:
             sub.add_argument("--task", type=Path, required=True, help="claim命令保存的任务合同（含租约）")
         if command in {"complete", "draft"}:
-            sub.add_argument("--result", type=Path, required=True, help="draft：当前完整总结对象（含已完成块的逐句登记），保存进度不结束任务")
+            sub.add_argument("--result", type=Path, required=True, help="draft：当前结果对象（总结含已完成块的逐句登记；审核含已判定的coverage_review行），保存进度不结束任务")
         if command == "image":
             sub.add_argument("--png", type=Path, required=True)
             sub.add_argument("--receipt", type=Path, required=True, help="实际ImageGen调用的记录；必须提供调用标识与生成时间")
@@ -283,7 +283,7 @@ def main():
                 elif args.command == "renew":
                     response = client.post(task_url + "/renew", json={"lease_token": token})
                 elif args.command == "draft":
-                    if args.api != "deck" or task["kind"] != "SUMMARY": raise SystemExit("draft 只用于主线分块SUMMARY任务")
+                    if args.api != "deck" or task["kind"] not in {"SUMMARY", "SUMMARY_REVIEW"}: raise SystemExit("draft 只用于主线分块SUMMARY / SUMMARY_REVIEW任务")
                     result = json.loads(args.result.read_text(encoding="utf-8-sig"))
                     response = client.post(task_url + "/summary-draft", json={"lease_token": token, "result": result})
                 else:

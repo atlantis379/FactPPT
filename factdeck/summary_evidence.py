@@ -35,6 +35,36 @@ RULES = [
 ]
 
 
+def garbled(text):
+    """Text lost to an encoding failure: mostly '?' or replacement characters."""
+    if not isinstance(text, str):
+        return False
+    bad = text.count('?') + text.count('�')
+    return bad >= 4 and bad > 0.3 * sum(not c.isspace() for c in text)
+
+
+def authored_text(summary):
+    """(field, text) for every model-authored prose field of a summary."""
+    yield 'overall_summary', summary.get('overall_summary')
+    for i, x in enumerate(summary.get('pending_issues') or []):
+        yield f'pending_issues[{i}]', x if isinstance(x, str) else json.dumps(x, ensure_ascii=False)
+    for s in summary.get('sections') or []:
+        yield f"{s.get('id')}.title", s.get('title'); yield f"{s.get('id')}.summary", s.get('summary')
+        for i, k in enumerate(s.get('key_points') or [], 1):
+            yield f"{s.get('id')}.k{i}.title", k.get('title'); yield f"{s.get('id')}.k{i}", k.get('point')
+    for r in (summary.get('source_understanding') or {}).get('sections') or []:
+        sid = r.get('section_id')
+        yield f'{sid}.author_message', r.get('author_message'); yield f'{sid}.relation_assessment', r.get('relation_assessment')
+        yield f'{sid}.organization', (r.get('organization') or {}).get('reason')
+        for c in r.get('conclusions') or []:
+            yield f"{sid}/{c.get('id')}.statement", c.get('statement')
+            yield f"{sid}/{c.get('id')}.conditions_and_limits", c.get('conditions_and_limits')
+        for i, x in enumerate(r.get('relations') or []):
+            yield f'{sid}.relation{i}', x.get('explanation')
+    for p in (summary.get('evidence_index') or {}).get('points') or []:
+        yield f"{p.get('point_id')}.selection_reason", p.get('selection_reason'); yield f"{p.get('point_id')}.context", p.get('context')
+
+
 def need(ok, message):
     if not ok:
         raise ValueError(message)
@@ -114,6 +144,9 @@ def validate_understanding(summary, index):
 
 
 def validate(summary, units, claims, page_ids, figure_ids=()):
+    if summary.get('summary_algorithm') == ALGORITHM:
+        broken = [f for f, t in authored_text(summary) if garbled(t)]
+        need(not broken, '以下字段的文字已损坏（多为?，通常是写入时编码错误），请用UTF-8重写：' + '、'.join(broken[:10]))
     index = copy.deepcopy(summary.get('evidence_index'))
     need(isinstance(index, dict) and index.get('schema_version') == SCHEMA, '需提供summary_evidence.v1同步证据索引')
     points = {f"{s['id']}.k{i}": (s, p) for s in summary['sections'] for i, p in enumerate(s.get('key_points', []), 1)}

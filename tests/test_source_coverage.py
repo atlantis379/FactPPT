@@ -248,6 +248,7 @@ def test_coverage_verdicts_become_ledger_blockers_for_the_author(store):
     store.queue(w['id'], 'SUMMARY')
     again = store.claim(w['id'], 'author-A', 'SUMMARY')
     assert any(i['ref'] == row['target_id'] for i in again['brief']['review_issues'])
+    assert again['brief']['revision_base'] == store.get(w['id'])['summary']
 
 
 def test_closing_citation_stays_with_its_sentence_but_list_markers_do_not():
@@ -327,5 +328,37 @@ def test_draft_is_only_for_chunked_summary_tasks(store):
     t = store.claim(w['id'], 'author-v4', 'SUMMARY')
     with pytest.raises(WorkflowError, match='租约'):
         store.save_summary_draft(w['id'], t['id'], 'wrong-token', {})
-    with pytest.raises(WorkflowError, match='总结对象'):
+    with pytest.raises(WorkflowError, match='结果对象'):
         store.save_summary_draft(w['id'], t['id'], t['lease_token'], [])
+
+
+def test_sentence_review_is_checkpointed_by_chunk(store):
+    w = summarised(store)
+    store.queue(w['id'], 'SUMMARY_REVIEW')
+    t = store.claim(w['id'], 'independent-v4', 'SUMMARY_REVIEW')
+    plan = t['brief']['chunks']
+    assert len(plan) > 1
+    full = T.clear_summary_review(t['brief']['result_contract'])
+    first = {u for u in plan[0]['unit_ids']}
+    partial = dict(full, coverage_review=[r for r in full['coverage_review'] if r['target_id'].split('/')[0] in first])
+    ack = store.save_summary_draft(w['id'], t['id'], t['lease_token'], partial)
+    assert ack['done_chunks'] == [0]
+    bad = dict(partial, coverage_review=[dict(r, point_evidence=[]) if r['verdict'] == 'FULL' else r for r in partial['coverage_review']])
+    assert store.save_summary_draft(w['id'], t['id'], t['lease_token'], bad)['done_chunks'] == []
+    with store.transaction(w['id'], 'TEST_SESSION_STOPS') as raw:
+        next(x for x in raw['tasks'] if x['id'] == t['id'])['lease_until'] = 0
+    assert store.claim(w['id'], 'author-A', 'SUMMARY_REVIEW') is None              # the author still cannot pick it up
+    again = store.claim(w['id'], 'independent-v4', 'SUMMARY_REVIEW')
+    assert again['id'] == t['id'] and again['draft']['done_chunks'] == [] and again['draft']['result'] == bad
+    w = store.complete(w['id'], again['id'], again['lease_token'], full)
+    assert w['summary_review']['reviewer'] == 'independent-v4'
+
+
+def test_review_text_lost_to_encoding_is_refused(store):
+    w = summarised(store)
+    store.queue(w['id'], 'SUMMARY_REVIEW')
+    t = store.claim(w['id'], 'independent-v4', 'SUMMARY_REVIEW')
+    result = T.clear_summary_review(t['brief']['result_contract'])
+    result['sections'][0].update(summary_verdict='PARTIAL', summary_issue='??????????????/?????')
+    with pytest.raises(WorkflowError, match='summary_issue'):
+        store.complete(w['id'], t['id'], t['lease_token'], result)

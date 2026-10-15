@@ -111,6 +111,25 @@ def chunk_progress(summary, units, claims, plan):
              'open_issues': sum(len(where.get(u, [])) for u in c['unit_ids'])} for c in plan]
 
 
+def review_progress(targets, rows, points, plan):
+    """Per planned chunk: whether every coverage target of its units is judged with a valid row (code checks only)."""
+    rows = [r for r in rows or [] if isinstance(r, dict)]
+    out = []
+    for c in plan:
+        own = set(c['unit_ids'])
+        sub_t = [t for t in targets if t['unit_id'] in own]
+        ids = {t['target_id'] for t in sub_t}
+        sub_r = [r for r in rows if r.get('target_id') in ids]
+        try:
+            check_review(sub_t, sub_r, points)
+            problem = ''
+        except ValueError as error:
+            problem = str(error)
+        out.append({'index': c['index'], 'page_ids': c['page_ids'], 'targets': len(sub_t),
+                    'judged': len({r.get('target_id') for r in sub_r}), 'problem': problem})
+    return out
+
+
 def coverage_input(units):
     return {'schema_version': SCHEMA_V2, 'segmenter': SEGMENTER, 'source_units_sha256': source_hash(units),
             'units': [{'unit_id': u['id'], 'page_id': u['page_id'], 'characters': len(u['text']),

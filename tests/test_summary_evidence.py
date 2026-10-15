@@ -165,3 +165,12 @@ def test_previous_leased_tasks_remain_compatible(store, version):
     accepted = store.complete(w['id'], t['id'], t['lease_token'], r)
     assert accepted['summary']['summary_algorithm'] == version
     assert ('source_understanding' in accepted['summary']) == (version != 'model_understanding.v1')
+
+
+def test_text_lost_to_an_encoding_failure_is_refused():
+    s, units, claims = understood_case()
+    se.validate(s, units, claims, {'p1', 'p2'})
+    s['source_understanding']['sections'][0]['conclusions'][0]['statement'] = '????????????1?'
+    with pytest.raises(ValueError, match='s1/c1.statement'):
+        se.validate(s, units, claims, {'p1', 'p2'})
+    assert not se.garbled('是否需要复查？可以吗? 是的')

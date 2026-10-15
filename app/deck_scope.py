@@ -64,8 +64,12 @@ def context(deck,outline,sections,requirements,parts):
     return view,rows,secs,req,[],descriptor
 
 
-def check_spec(deck,facts,terms,outline,sections,requirements,parts):
+def check_spec(deck,facts,terms,outline,sections,requirements,parts,key_points=None):
     view,rows,secs,req,parts,scope=context(deck,outline,sections,requirements,parts)
-    result=check(view,facts,terms,rows,secs,req,parts)
+    if scope and key_points is not None:
+        # a first-N-pages scope is partial by design: check the key points it names, not completeness
+        named={x for p in view['pages'] for x in p.get('key_point_ids') or []}
+        key_points={k:v for k,v in key_points.items() if k in named}
+    result=check(view,facts,terms,rows,secs,req,parts,key_points=key_points)
     if scope: result['scope']=scope;result['coverage']['scope']=scope
     return result

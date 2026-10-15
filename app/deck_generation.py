@@ -398,7 +398,8 @@ class GenerationMixin:
         shown={v["facts"][f]["figure"] for p in chk["pages"] for f in p["facts"] if v["facts"][f].get("figure")}
         figs={k:{"path":str(self.path(g["path"])),"sha256":g["sha256"],"width":g["width"],"height":g["height"]} for k,g in figures(w).items() if k in shown}
         spec=selected_spec(w['deck']['result'])
-        report=prepare(spec,v["facts"],src,folder,self.render_theme(w),v["terms"],figures=figs)
+        from app.deckflow import deck_teaching_notes
+        report=prepare(spec,v["facts"],src,folder,self.render_theme(w),v["terms"],figures=figs,teaching_notes=deck_teaching_notes(w,spec))
         if report:
             require(not any(report["summary"].get(k,0) for k in ("fact_text_mismatch","untracked_text","pptx_missing_facts","pptx_missing_figures")),"内容锁准备时出现文字或原件图缺失，不能进入生成")
         lock=json.loads((folder/"native_model.json").read_text(encoding="utf8"))

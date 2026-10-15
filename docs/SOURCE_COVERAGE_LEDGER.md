@@ -90,6 +90,10 @@ S03 p1–p10同一冻结清单（141条清晰命题）：v4修订稿要点正文
 随后完成的两项：
 
 - 切句`sentence.v2`：句末的括号引文编号（“。(306)”“。(363,365,366)”）后面只有换行、句末标点或文末时并回前一句；后接正文的列表编号（“(1) 第一项”）仍另起一句。`source_coverage_input`和登记表记录`segmenter`；已提交的`sentence.v1`登记按原切法校验。S03全章由826句变为819句。单独成单元的图号（“Figure 2.1”）不变，按版式内容归类。
-- 分块：brief的`chunks`把原文按连续整页分块（每块≤5页、约100句）。执行端每完成一块调用`summary-draft`保存草稿（API `POST /tasks/{id}/summary-draft`，CLI `draft`），代码用`chunk_progress`统计每块的登记问题、记录`done_chunks`并续约；有新完成块时清零尝试次数，会话中断后由下一个领取者从草稿继续。保存过草稿的所有执行端都是作者，SUMMARY_REVIEW须由其外的身份完成。
+- 分块：brief的`chunks`把原文按连续整页分块（每块≤5页、约100句）。执行端每完成一块调用`summary-draft`保存草稿（API `POST /tasks/{id}/summary-draft`，CLI `draft`），代码用`chunk_progress`统计每块的登记问题、记录`done_chunks`并续约；有新完成块时清零尝试次数，会话中断后由下一个领取者从草稿继续。保存过草稿的所有执行端都是作者，SUMMARY_REVIEW须由其外的身份完成。SUMMARY_REVIEW同样带`chunks`：审核每判完一块的`coverage_review`就用同一接口保存（`review_progress`逐块核对判定齐全、依据存在），会话中断后由同一独立身份或另一个合格身份从草稿继续。
 
 实验目录中的冻结稿按当时合同提交（含六类登记、`sentence.v1`切句），用现行代码校验会报`OBSOLETE_FACET_LEDGER`，第2轮审核的损坏说明文字会被拒收；实验结论以实验当时的记录为准。
+
+### 整章试点（2026-10-16）
+
+S03全章29页在验证副本`output/v4_pilot`的正式任务队列中运行（报告`output/v4_pilot/REPORT.md`）：作者4个会话完成10块首稿（62个要点、16,787字），第1轮逐句审核退回87个问题，一轮修订后第2轮审核确认85个已修复，剩7个。试点后补上：SUMMARY_REVIEW分块草稿、修订任务附`revision_base`、总结和审核结果中以“?”为主的损坏文字在提交时拒收。
