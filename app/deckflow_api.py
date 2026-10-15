@@ -360,6 +360,12 @@ def renew(workflow_id: str, task_id: str, body: Lease):
     return call(store.renew, workflow_id, task_id, body.lease_token)
 
 
+@router.post("/workflows/{workflow_id}/tasks/{task_id}/summary-draft")
+def summary_draft(workflow_id: str, task_id: str, body: Complete):
+    """Checkpoint a chunked SUMMARY; the task stays open and a later session continues from the draft."""
+    return call(store.save_summary_draft, workflow_id, task_id, body.lease_token, body.result)
+
+
 @router.put("/workflows/{workflow_id}/summary")
 def put_summary(workflow_id: str, body: Authored):
     return call(store.author, workflow_id, "SUMMARY", body.result, body.operator)

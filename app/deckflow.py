@@ -32,7 +32,7 @@ import time
 import zipfile
 from pathlib import Path
 
-from app.fact57098 import Store as _BaseStore, WorkflowError, digest, sha, now, uid, require, parse_outline, ROOT
+from app.fact57098 import Store as _BaseStore, WorkflowError, digest, sha, now, uid, require, parse_outline, ROOT, LEASE_SECONDS
 from factdeck import facts as fx
 from factdeck.deck import check as deck_check, LAYOUTS, LAYOUT_GUIDE, RELATION_LAYOUTS
 from factdeck.recipes import RECIPES
@@ -1124,7 +1124,8 @@ class Store(GenerationMixin, _BaseStore):
         """An independent reader checks each outline point, core sentence and relation of the summary against the claims
         and units they cite. Points not entailed or contradicted, and unsupported cores or relations, are blockers."""
         require(summary_current(w), "没有当前版本的总结")
-        require(reviewer != (w.get("summary_meta") or {}).get("author"), "总结审查须由总结作者之外的执行端完成", 422)
+        meta = w.get("summary_meta") or {}
+        require(reviewer != meta.get("author") and reviewer not in (meta.get("contributors") or []), "总结审查须由总结作者之外的执行端完成", 422)
         require(reviewer not in {(s.get("claims") or {}).get("reader") for s in w["sources"]}, "总结审查须由论断清单作者之外的执行端完成", 422)
         require(result.get("input_sha256") == summary_review_input(w), "审查对应的总结已过期")
         require(result.get("schema_version") == SUMMARY_REVIEW_SCHEMA, "总结审查需使用 summary_review.v2 完整覆盖合同", 422)
@@ -1203,7 +1204,24 @@ class Store(GenerationMixin, _BaseStore):
                         issue(f"{sec['id']}.relation{i}", "BLOCKER", x["issue"])
                     else:
                         passed(f"{sec['id']}.relation{i}")
+        from factdeck import source_coverage as sc
+        coverage_refs = set()
+        if w["summary"].get("source_coverage") and sc.expected_schema(w["summary"]) == sc.SCHEMA_V2:
+            # Sentence-level coverage: each part the author registered is judged against the point text it names.
+            targets = sc.review_targets(w["summary"], all_units(w))
+            try:
+                problems, fine = sc.check_review(targets, result.get("coverage_review"), sc.point_texts(w["summary"]))
+            except ValueError as error:
+                raise WorkflowError(str(error), 422) from error
+            for t in targets:
+                evidence[t["target_id"]] = t["unit_id"]
+                coverage_refs.add(t["target_id"])
+            for x in problems:
+                issue(x["target_id"], "BLOCKER", f"原文覆盖（{x['verdict']}）：「{x['source_text'][:200]}」——{x['issue']}")
+            for ref in fine:
+                passed(ref)
         refs = set(evidence) | {s["id"] for s in w["summary"]["sections"]} | {o["id"] for o in w["outline"]} | {"pending_issues"}
+        refs |= coverage_refs
         refs |= {f"{s['id']}.core" for s in w["summary"]["sections"]}
         refs |= {f"{s['id']}.relation{i}" for s in w["summary"]["sections"] for i in range(1, len((s.get("message") or {}).get("relations") or []) + 1)}
         refs |= {p["id"] for s in w["sources"] for p in s["pages"]} | set(all_claims(w))
@@ -1277,7 +1295,7 @@ class Store(GenerationMixin, _BaseStore):
             require(result.get("summary_algorithm") == expected_algorithm, "新SUMMARY任务需按模型理解与同步证据索引合同提交", 422)
         candidate = None
         if result.get("summary_algorithm"):
-            require(result["summary_algorithm"] == se.ALGORITHM, "不支持的总结算法版本", 422)
+            require(result["summary_algorithm"] in se.SUPPORTED_ALGORITHMS, "不支持的总结算法版本", 422)
             try:
                 result["evidence_index"] = se.validate(result, all_units(w), all_claims(w), set(known),
                     {g['id'] for s in w['sources'] for g in s.get('figures', [])})
@@ -1574,9 +1592,29 @@ class Store(GenerationMixin, _BaseStore):
             b['summary_algorithm'] = se.ALGORITHM
             b['context_mode'] = 'FULL_SECTION_CONTEXT_WITH_CLAIM_INDEX'
             b['rules'] = list(se.RULES) + b['rules']
-            b['result_contract'].update(summary_algorithm=se.ALGORITHM, evidence_index=se.contract())
-        elif kind == 'SUMMARY_REVIEW' and (w.get('summary') or {}).get('summary_algorithm') == se.ALGORITHM:
+            b['result_contract'].update(summary_algorithm=se.ALGORITHM, source_understanding=se.understanding_contract(), evidence_index=se.contract())
+            from factdeck import source_coverage as sc
+            b['result_contract']['source_coverage'] = sc.contract(sc.SCHEMA_V2)
+            b['source_coverage_input'] = sc.coverage_input(all_units(w))
+            b['chunks'] = sc.chunks(all_units(w))
+        elif kind == 'SUMMARY_REVIEW' and (w.get('summary') or {}).get('summary_algorithm') in se.SUPPORTED_ALGORITHMS:
             b['evidence_index'] = copy.deepcopy(w['summary']['evidence_index'])
+            b['source_understanding'] = copy.deepcopy(w['summary'].get('source_understanding'))
+            if w['summary'].get('source_coverage'):
+                from factdeck import source_coverage as sc
+                b['source_coverage'] = copy.deepcopy(w['summary']['source_coverage'])
+                b['source_coverage_audit'] = sc.audit(w['summary'], all_units(w), all_claims(w))
+                if sc.expected_schema(w['summary']) != sc.SCHEMA_V2:
+                    b['rules'].append('逐项核验source_coverage：非论断分类/重复翻译依据是否正确、每条结论六类限定条件是否漏判、多项是否全列、PRESENT的summary_quote是否真正表达原文限定条件。ACCOUNTED仅是登记状态，不是语义通过，不得据此默认ENTAILED。')
+                else:
+                    b['coverage_targets'] = sc.review_targets(w['summary'], all_units(w))
+                    b['result_contract']['coverage_review'] = [{'target_id': t['target_id'], 'disposition': t['disposition'], 'author_expressions': t.get('expressions', []),
+                                                                  'verdict': '', 'point_evidence': [], 'missing_facets': [], 'issue': ''} for t in b['coverage_targets']]
+                    b['rules'].append('coverage_review逐句判定coverage_targets，不得抽样或按脚本批量填写：EXPRESSED句先读source_text及其所在单元上下文，再读所列point全文（不只summary_quote），'
+                                      'FULL/PARTIAL/CONTRADICTED须在point_evidence写出所依据的point正文逐字片段（point_id+quote），代码核对存在；不得用按位置排列的判定串。PARTIAL/CONTRADICTED在missing_facets标明缺失类别（population/time/threshold/condition/exception/negation/modality/descriptor/relation/enumeration/number/other）。FULL=这句的全部含义（列举各项、数字、比较、人群、时间、条件、例外、否定、模态词）都在point正文；PARTIAL=部分表达，写明缺什么；MISSING=未表达；CONTRADICTED=表达相反。'
+                                      '非EXPRESSED片段判ACCEPTED/REJECTED：分类或待定理由是否成立，含实质内容却被归为非论断或待定即REJECTED。每个非FULL/ACCEPTED判定成为阻断问题退回总结作者修订。'
+                                      'source_coverage_audit.warnings列出一个短语代表多句原文的情况，须逐句核实。')
+            b['rules'].append('审核目标是原文理解、重点选择、上下文完整、结构与关系准确；不奖励压缩或少写。逐项核对source_understanding作者主旨/组织依据/结论及关系；模型组织建议不得充当作者关系。正文必须表达关键条件和分支，不能用图引用或索引存在替代。问题写入现有issues并绑定相关要点。')
             b['rules'].append('先独立阅读原文、判断要点和关系，再查重点选择理由及同步索引是否漏掉条件/限制。选择理由不得作为来源支持证据；问题仍写入既有逐条判定或issues。')
         elif kind == 'FACTS':
             c = w.get('summary_fact_candidates')
@@ -1596,7 +1634,7 @@ class Store(GenerationMixin, _BaseStore):
                               "links": st["links"], "reference_only": st.get("reference_only") or []}
             b["rules"].append("已确认的课程结构（structure）决定总结的组织：章节与结构的部分一一对应、同序，章节 id 与部分 id 相同，"
                               "资料页与该部分一致，message.core 即该部分确认的核心句；要点只写回答该部分问题所需的内容，"
-                              "数量与该部分的页数分配相称。标为参考的资料页放在最后的章节中，不写要点。")
+                              "总结的数量与篇幅由完整理解决定，不受该部分页数分配约束；页数与密度在DECK阶段处理。标为参考的资料页放在最后的章节中，不写要点。")
             return b
         if kind == "STRUCTURE_REVIEW":
             return {**req, **structure_stage.review_brief(w)}
@@ -1983,7 +2021,8 @@ class Store(GenerationMixin, _BaseStore):
                            and x["binding"] in other]
                 return worker not in done + running
             if t["kind"] == "SUMMARY_REVIEW":
-                return worker not in {(w.get("summary_meta") or {}).get("author")} | {(s.get("claims") or {}).get("reader") for s in w["sources"]}
+                meta = w.get("summary_meta") or {}
+                return worker not in {meta.get("author"), *(meta.get("contributors") or [])} | {(s.get("claims") or {}).get("reader") for s in w["sources"]}
             if t["kind"] == "STRUCTURE_REVIEW":
                 return worker not in {(w.get("structure") or {}).get("author")} | {(s.get("claims") or {}).get("reader") for s in w["sources"]}
             if t["kind"] == "VISUAL_BLIND_READ":     # never the author of the plan or the clean image it reads
@@ -2051,7 +2090,33 @@ class Store(GenerationMixin, _BaseStore):
                             "lease_until":0,"error":None,"brief":self.brief(w,"SECOND_READ",binding)})
             if t["kind"] == "SUMMARY_AMEND":
                 self.enqueue_once(w, "SUMMARY_REVIEW")
+            if t["kind"] == "SUMMARY" and w.get("summary_meta"):
+                # every session that saved part of the draft authored this summary
+                w["summary_meta"]["contributors"] = sorted({t["worker"], *((t.get("draft") or {}).get("workers") or [])})
         return self.get(workflow_id)
+
+    def save_summary_draft(self, workflow_id: str, task_id: str, token: str, draft: dict):
+        """Checkpoint a chunked SUMMARY. Code records which planned chunks have a complete registration (structure
+        only), renews the lease and keeps the draft on the task, so a later session continues instead of restarting."""
+        from factdeck import source_coverage as sc
+        require(isinstance(draft, dict), "草稿需为总结对象", 422)
+        with self.transaction(workflow_id, "SUMMARY_DRAFT") as w:
+            t = self.leased(w, task_id, token)
+            plan = t["brief"].get("chunks")
+            require(t["kind"] == "SUMMARY" and plan, "只有分块的SUMMARY任务可以保存草稿", 422)
+            try:
+                progress = sc.chunk_progress(draft, all_units(w), all_claims(w), plan)
+            except (KeyError, TypeError, ValueError, AttributeError) as error:
+                raise WorkflowError(f"草稿结构无效：{error}", 422) from error
+            done = [c["index"] for c in progress if not c["open_issues"]]
+            before = set((t.get("draft") or {}).get("done_chunks") or [])
+            t["draft"] = {"summary": copy.deepcopy(draft), "saved_at": now(), "done_chunks": done, "progress": progress,
+                          "workers": sorted({*((t.get("draft") or {}).get("workers") or []), t["worker"]}),
+                          "path": self.snapshot(w, "summary_draft", draft)}
+            if set(done) - before:
+                t["attempts"] = 0          # real progress: a session that stops after a chunk is not a failed attempt
+            t["lease_until"] = time.time() + LEASE_SECONDS
+            return {"task_id": task_id, "done_chunks": done, "chunks": len(plan), "progress": progress, "lease_until": t["lease_until"]}
 
     def enqueue_once(self, w: dict, kind: str):
         fp = self.fingerprint(w, kind, None)

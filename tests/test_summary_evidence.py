@@ -13,7 +13,7 @@ def case():
     units = [{'id': 'u1', 'page_id': 'p1', 'text': '条件甲成立时，数值 < 0.7。'},
              {'id': 'u2', 'page_id': 'p2', 'text': '原文限制乙。', 'needs_confirmation': True}]
     claims = {'c1': {'spans': [{'unit_id': 'u1', 'quote': units[0]['text']}]}}
-    summary = {'summary_algorithm': se.ALGORITHM, 'pending_issues': ['TEST来源限制待裁定'],
+    summary = {'summary_algorithm': 'model_understanding.v1', 'pending_issues': ['TEST来源限制待裁定'],
                'sections': [{'id': 's1', 'source_page_ids': ['p1'], 'key_points': [{'claim_ids': ['c1']}]},
                             {'id': 'reference', 'source_page_ids': ['p2'], 'key_points': []}],
                'evidence_index': {'schema_version': se.SCHEMA,
@@ -107,3 +107,61 @@ def test_old_leased_summary_contract_is_still_accepted(store):
     t = store.claim(w['id'], 'legacy-author', 'SUMMARY')
     w = store.complete(w['id'], t['id'], t['lease_token'], T.summary(w))
     assert not w['summary'].get('summary_algorithm') and w['summary_fact_candidates'] is None
+
+
+def understood_case():
+    s, units, claims = case()
+    s['summary_algorithm'] = se.ALGORITHM
+    s['sections'][0]['key_points'][0]['point'] = '条件甲成立时，数值 < 0.7。'
+    s['source_understanding'] = {'schema_version': se.UNDERSTANDING_SCHEMA, 'sections': [{
+        'section_id': 's1', 'author_message': 'TEST有条件的阈值',
+        'organization': {'basis': 'SOURCE_SUPPORTED', 'reason': 'TEST来源结构', 'evidence_refs': ['s1.k1/e1']},
+        'conclusions': [{'id': 'c1', 'statement': 'TEST阈值', 'conditions_and_limits': 'TEST条件甲成立',
+                         'point_ids': ['s1.k1'], 'evidence_refs': ['s1.k1/e1']}],
+        'relations': [], 'relation_assessment': 'TEST单结论不猜测关系'}]}
+    T.with_source_coverage(s, units)
+    return s, units, claims
+
+
+def test_v2_requires_understanding_but_v1_remains_valid():
+    s, units, claims = case()
+    se.validate(s, units, claims, {'p1', 'p2'})
+    s['summary_algorithm'] = se.ALGORITHM
+    with pytest.raises(ValueError, match='原文理解结果'):
+        se.validate(s, units, claims, {'p1', 'p2'})
+
+
+@pytest.mark.parametrize('change,message', [
+    (lambda u: u['sections'][0]['conclusions'][0].update(evidence_refs=['s1.k1/nonexistent']), '证据引用'),
+    (lambda u: u['sections'][0]['conclusions'][0].update(point_ids=['s2.k1']), '本章有效要点'),
+    (lambda u: u['sections'][0].update(relations=[{'from':'c1', 'to':'c2'}]), '关系端点'),
+    (lambda u: u['sections'][0]['organization'].update(basis='MODEL_FACT'), '组织依据'),
+    (lambda u: u['sections'][0]['organization'].update(basis='ANALYST_ORGANIZATION', evidence_refs=['invented']), '证据引用'),
+])
+def test_understanding_rejects_unbound_claims_and_invented_endpoints(change, message):
+    s, units, claims = understood_case(); change(s['source_understanding'])
+    with pytest.raises(ValueError, match=message):
+        se.validate(s, units, claims, {'p1', 'p2'})
+
+
+def test_understanding_does_not_force_a_relation_or_a_short_summary():
+    s, units, claims = understood_case()
+    s['sections'][0]['summary'] = 'TEST完整上下文' * 1000
+    se.validate(s, units, claims, {'p1', 'p2'})
+
+
+@pytest.mark.parametrize('version', ['model_understanding.v1', 'model_understanding.v2'])
+def test_previous_leased_tasks_remain_compatible(store, version):
+    w = summarised(store); store.queue(w['id'], 'SUMMARY')
+    with store.transaction(w['id'], 'TEST_V1_LEASE') as raw:
+        task = next(t for t in raw['tasks'] if t['kind'] == 'SUMMARY' and t['status'] == 'PENDING')
+        task['brief']['summary_algorithm'] = version
+        task['brief']['result_contract'].pop('source_understanding', None)
+    t = store.claim(w['id'], 'v1-author', 'SUMMARY')
+    r = T.with_understanding(w, T.summary(w))
+    r['summary_algorithm'] = version
+    r.pop('source_coverage')
+    if version == 'model_understanding.v1': r.pop('source_understanding')
+    accepted = store.complete(w['id'], t['id'], t['lease_token'], r)
+    assert accepted['summary']['summary_algorithm'] == version
+    assert ('source_understanding' in accepted['summary']) == (version != 'model_understanding.v1')

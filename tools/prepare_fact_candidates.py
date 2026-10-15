@@ -28,7 +28,7 @@ def prepare_indexed(w, out: Path):
     fx.verify(facts, ders, units, {}, terms)
     if any(f.status != 'ACCEPTED' for f in facts):
         raise ValueError('Indexed evidence did not pass the existing fact verifier')
-    manifest = {'workflow_id': w['id'], 'workflow_revision': w['revision'], 'summary_algorithm': se.ALGORITHM,
+    manifest = {'workflow_id': w['id'], 'workflow_revision': w['revision'], 'summary_algorithm': summary['summary_algorithm'],
                 'summary_sha256': digest(w['summary']), 'state': 'DRAFT_PENDING_CONTENT_CONFIRMATION',
                 'workflow_updated': False, 'point_count': len(summary['evidence_index']['points']),
                 'candidate_count': len(facts), 'verbatim_pass': len(facts),
@@ -49,7 +49,7 @@ def prepare(data_root: Path, workflow_id: str, out: Path, supplements: list[dict
     summary = w['summary']
     if not summary:
         raise ValueError('No summary is available')
-    if summary.get('summary_algorithm') == se.ALGORITHM:
+    if summary.get('summary_algorithm') in se.SUPPORTED_ALGORITHMS:
         if supplements:
             raise ValueError('New summaries must bind supplements in their model-authored evidence_index')
         return prepare_indexed(w, out)

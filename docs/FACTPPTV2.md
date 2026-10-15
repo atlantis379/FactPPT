@@ -1,6 +1,8 @@
 # FactPPTv2 主线：FactDeck 生成线与执行端协作
 
-2026-10-14新的[模型理解总结与同步证据索引要求](MODEL_UNDERSTANDING_SUMMARY.md)已接入新SUMMARY任务：模型理解完整上下文并判断重点，代码负责索引与校验。固定数量的论断分组不能用来决定总结要点；合同标记`model_understanding.v1`，同步索引为`summary_evidence.v1`。旧合同与历史总结保留兼容。
+2026-10-14新的[模型理解总结与同步证据索引要求](MODEL_UNDERSTANDING_SUMMARY.md)已接入新SUMMARY任务：先输出作者主旨、组织依据、结论和关系的理解结果，再写总结，代码负责索引与校验。不以压缩率、字数或PPT页数决定总结；展示取舍在DECK阶段处理。当前新任务合同为`model_understanding.v4`，理解结果为`source_understanding.v1`，同步索引为`summary_evidence.v1`，[原文覆盖登记](SOURCE_COVERAGE_LEDGER.md)为`source_coverage.v2`：逐句登记、每句绑定point正文中的实际表达，SUMMARY_REVIEW逐句判定覆盖，未完整项作为阻断问题退回作者修订。旧合同与历史总结保留兼容；结构登记完整不等于语义审核通过。
+
+2026-10-15完成[独立语义清单与双向QA盲测](SUMMARY_BLIND_TRIAL_2026-10-15.md)：4条封存遗漏检出3条，源文清单自身仍会漏项；事实告警也存在误报。该方法目前为离线实验，没有自动替换独立审核或提供完整性保证。
 
 本机五步工作台入口与使用说明见[LOCAL_WORKBENCH.md](LOCAL_WORKBENCH.md)：上传资料、要求与模板、内容复核、生成审核、下载交付。任务对接现有Codex＋Adobe执行端，未实现无人值守模型调用。
 
@@ -76,6 +78,7 @@
 - 不做外部检索；不得新增资料中没有的事实。
 - `SEMANTIC_REVIEW` 的执行端标识必须不同于事实库和页面规格的作者；`SECOND_READ` 必须不同于第一次转录者和截取者，且合同中不提供第一次的文字和截取框。
 - 失败用 `fail FLOW_ID --task ... --error ...` 回报；租约15分钟，长任务用 `renew` 续约；最多3次任务尝试。失败排回队列，真实调用由执行端重领后完成。
+- 新SUMMARY任务按brief的`chunks`（连续整页，每块≤5页、约100句）分块做。每完成一块用 `draft FLOW_ID --task ... --result 当前总结.json` 保存进度：代码校验已完成块的逐句登记并续约，有新完成块时清零尝试次数。会话中断后下一个领取者拿到`draft`（`done_chunks`及草稿），从下一块继续。所有保存过草稿的执行端都记为作者（`summary_meta.contributors`），不得再做SUMMARY_REVIEW。
 - 旧整页图片流程的命令加 `--api fact`（含 `image` 命令）。
 - A 主线新增 `VISUAL_DESIGN`、`VISUAL_LAYOUT`、`VISUAL_CLEAN`、`VISUAL_VECTOR`；启动生成后自动排队，素材齐备自动导出。PNG/SVG用 `asset` 连同真实回执提交，版面用 `complete` 提交JSON。详情见 [PPT_GENERATION_ROUTE.md](PPT_GENERATION_ROUTE.md)。
 - 多执行端可用 `claim --binding PAGE_ID` 在原SQLite事务内领取指定页，`asset/complete --compact`取得简短回执；独立续约与工具限额由 `tools/visual_worker_runtime.py`管理。每端使用独立worker身份和任务文件、一页一个当前租约。当前协调agent派页；不代表服务器已能无人值守调用模型。详见 [PARALLEL_WORKER_PLAN.md](PARALLEL_WORKER_PLAN.md)。

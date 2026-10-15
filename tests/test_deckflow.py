@@ -70,6 +70,10 @@ def clear_summary_review(contract):
             sec["core"]["verdict"] = sec["core"].get("verdict") or "SUPPORTED"
         for row in sec.get("relations") or []:
             row["verdict"] = row.get("verdict") or "SUPPORTED"
+    for row in r.get("coverage_review") or []:
+        row["verdict"] = row.get("verdict") or ("FULL" if row["disposition"] == "EXPRESSED" else "ACCEPTED")
+        if row["disposition"] == "EXPRESSED" and not row.get("point_evidence"):
+            row["point_evidence"] = [{"point_id": e["point_id"], "quote": e["summary_quote"]} for e in row["author_expressions"]]
     return r
 
 
@@ -140,6 +144,51 @@ def with_understanding(w, result):
     result.update(summary_algorithm=ALGORITHM, evidence_index={'schema_version': SCHEMA, 'points': rows,
         'page_decisions': [{'page_id': p, 'disposition': 'TEACHING' if v else 'CONTEXT',
                             'reason': 'TEST：来源页处置记录', 'point_ids': sorted(v)} for p, v in links.items()]})
+    result['source_understanding'] = {'schema_version': 'source_understanding.v1', 'sections': []}
+    for section in result['sections']:
+        sr = [r for r in rows if r['point_id'].rsplit('.k', 1)[0] == section['id']]
+        if not sr:
+            continue
+        result['source_understanding']['sections'].append({'section_id': section['id'],
+            'author_message': 'TEST合成来源主旨', 'organization': {'basis': 'ANALYST_ORGANIZATION', 'reason': 'TEST组织建议'},
+            'conclusions': [{'id': f'c{i}', 'statement': 'TEST合成结论', 'conditions_and_limits': f'TEST保留来源条件{section["id"]}{i}',
+                'point_ids': [r['point_id']], 'evidence_refs': [f"{r['point_id']}/{e['id']}" for e in r['evidence'][:1]]}
+                for i, r in enumerate(sr, 1)], 'relations': [], 'relation_assessment': 'TEST不推断来源关系'})
+    return with_source_coverage(result, all_units(w))
+
+
+def with_source_coverage(result, units):
+    """Synthetic structural fixture only. Never use to classify real sources."""
+    from factdeck.source_coverage import scaffold
+    ledger = scaffold(result, units)
+    evidence = {r['point_id']: r['evidence'] for r in result['evidence_index']['points']}
+    from factdeck.source_coverage import SCHEMA_V2, segments
+    points = {f"{s['id']}.k{i}": k.get('point', '') for s in result['sections'] for i, k in enumerate(s.get('key_points') or [], 1)}
+    for row, unit in zip(ledger['units'], units):
+        found = [(f"{s['section_id']}/{c['id']}", c['point_ids'][0]) for s in result['source_understanding']['sections']
+                 for c in s['conclusions'] if any(e['unit_id'] == unit['id']
+                     for pid in c['point_ids'] for e in evidence[pid])]
+        if not found:   # claimed text must be expressed in v2; bind it to a conclusion of the section that owns the page
+            found = [(f"{u['section_id']}/{u['conclusions'][0]['id']}", u['conclusions'][0]['point_ids'][0])
+                     for u in result['source_understanding']['sections']
+                     for sec in result['sections'] if sec['id'] == u['section_id'] and unit['page_id'] in sec['source_page_ids']][:1]
+        ids = [cid for cid, _ in found]
+        if not unit['text']:
+            continue
+        if ledger['schema_version'] != SCHEMA_V2:
+            row['parts'] = [{'start': 0, 'end': len(unit['text']), 'quote': unit['text'],
+                'disposition': 'EXPRESSED' if ids else 'SOURCE_METADATA',
+                'reason': 'TEST结构fixture，不是真实分类', 'conclusion_ids': ids}]
+            continue
+        # One part per code-cut sentence; the expression is a synthetic slice of the point, never a real judgment.
+        row['parts'] = [{'segment_index': n, 'reason': 'TEST结构fixture，不是真实分类', 'conclusion_ids': ids,
+                         **({'disposition': 'EXPRESSED', 'expressions': [{'point_id': pid, 'summary_quote': points.get(pid, '')[:4]} for _, pid in found]}
+                            if ids else {'disposition': 'SOURCE_METADATA'})}
+                        for n, _ in enumerate(segments(unit['text']))]
+    for row in ledger.get('conclusions', []):
+        for record in row['facets'].values():
+            record.update(status='NOT_STATED', reason='TEST虚构字段，不是真实来源判断')
+    result['source_coverage'] = ledger
     return result
 
 

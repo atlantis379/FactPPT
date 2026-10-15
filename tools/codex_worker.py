@@ -118,7 +118,7 @@ def main():
     parser.add_argument("--api", choices=["deck", "fact"], default="deck", help="deck=主线（事实库+渲染）；fact=旧整页图片流程")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("list")
-    for command in ("show", "queue", "claim", "complete", "image", "asset", "submit", "layout", "design-prompt", "adopt-rules", "fetch-assets", "generate", "generation", "revise", "fail", "renew", "render", "page-preview", "backfill-structure", "backfill-arrows"):
+    for command in ("show", "queue", "claim", "complete", "draft", "image", "asset", "submit", "layout", "design-prompt", "adopt-rules", "fetch-assets", "generate", "generation", "revise", "fail", "renew", "render", "page-preview", "backfill-structure", "backfill-arrows"):
         sub = commands.add_parser(command)
         sub.add_argument("workflow_id")
         if command == "queue":
@@ -137,10 +137,10 @@ def main():
         if command in {"queue", "complete", "asset", "fail"}:
             sub.add_argument("--compact", action="store_true", default=True, help="主线默认返回简短回执，减少完整项目传输")
             sub.add_argument("--full-response", action="store_false", dest="compact", help="恢复原完整项目响应；旧流程保持原行为")
-        if command in {"complete", "image", "asset", "submit", "layout", "design-prompt", "fetch-assets", "fail", "renew"}:
+        if command in {"complete", "draft", "image", "asset", "submit", "layout", "design-prompt", "fetch-assets", "fail", "renew"}:
             sub.add_argument("--task", type=Path, required=True, help="claim命令保存的任务合同（含租约）")
-        if command == "complete":
-            sub.add_argument("--result", type=Path, required=True)
+        if command in {"complete", "draft"}:
+            sub.add_argument("--result", type=Path, required=True, help="draft：当前完整总结对象（含已完成块的逐句登记），保存进度不结束任务")
         if command == "image":
             sub.add_argument("--png", type=Path, required=True)
             sub.add_argument("--receipt", type=Path, required=True, help="实际ImageGen调用的记录；必须提供调用标识与生成时间")
@@ -282,6 +282,10 @@ def main():
                     print(json.dumps(fetch_assets(client, args.server, args.workflow_id, task, args.out), ensure_ascii=False, indent=2)); return
                 elif args.command == "renew":
                     response = client.post(task_url + "/renew", json={"lease_token": token})
+                elif args.command == "draft":
+                    if args.api != "deck" or task["kind"] != "SUMMARY": raise SystemExit("draft 只用于主线分块SUMMARY任务")
+                    result = json.loads(args.result.read_text(encoding="utf-8-sig"))
+                    response = client.post(task_url + "/summary-draft", json={"lease_token": token, "result": result})
                 else:
                     response = client.post(task_url + "/fail", params={"compact":True} if args.api == "deck" and args.compact else {}, json={"lease_token": token, "error": args.error})
         if response.status_code == 204:
