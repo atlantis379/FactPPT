@@ -29,9 +29,10 @@ TERMINATORS = set('。！？；!?;')
 SEGMENTER = 'sentence.v2'
 SEGMENTERS = ('sentence.v1', SEGMENTER)
 _CITATION = re.compile(r'[ \t]*[(\[（【][ \t]*\d+(?:[ \t]*[,，、\-–—][ \t]*\d+)*[ \t]*[)\]）】]')
-# Chunks a single worker session can finish (S03: one session registered ~6 pages / ~170 sentences).
-CHUNK_PAGES = 5
-CHUNK_SEGMENTS = 100
+# One chunk is one worker session's bounded goal. S03 pilot (older Codex build): ~170 sentences per session; COPD run
+# 2026-10-17 (Codex 0.163): sessions ended before finishing a 70–84 sentence chunk, so chunks are now ~40 sentences.
+CHUNK_PAGES = 3
+CHUNK_SEGMENTS = 40
 # Reference-list pages (the reader classified the page REFERENCE and the claims list found no claim in the unit) are
 # registered by code, one REFERENCE_LIST part per sentence; the reviewer judges each such page once. COPD book: 1,879
 # of 6,367 sentences. An author row for a unit replaces the code registration (a reviewer rejected the page).

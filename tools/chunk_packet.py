@@ -2,13 +2,29 @@
 pages it is about to work on instead of the whole brief. Read-only: it never changes the task or its result.
 
 usage: python tools/chunk_packet.py --task TASK.json [--chunk N | --next] [--images DIR] [--out FILE]
-  --next      the first chunk not yet in draft.done_chunks of the task file (or of --done N N ...)
+  --next      the first chunk not yet done: the task's live draft in the project store (or --done N N ...)
   --images    folder with <source id>/pNN.png page images; paths of the chunk's pages are listed when present
 """
 import argparse
 import json
 import sys
 from pathlib import Path
+
+
+def live_done(task_id):
+    """done_chunks of the task's current draft, read from the project store (the task file is a claim-time copy)."""
+    import os
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from app.deckflow import Store
+    root = os.environ.get("FACTDECK_DATA_ROOT")
+    store = Store(Path(root) if root else None)
+    with store.connect() as db:
+        ids = [r[0] for r in db.execute("SELECT id FROM workflows WHERE instr(state, ?) > 0", (task_id,)).fetchall()]
+    for wid in ids:
+        for t in store.get(wid)["tasks"]:
+            if t["id"] == task_id:
+                return (t.get("draft") or {}).get("done_chunks") or []
+    return None
 
 
 def unit_texts(brief):
@@ -78,7 +94,8 @@ def main():
     brief = task["brief"]
     plan = brief.get("chunks") or []
     if a.next:
-        done = set(a.done if a.done is not None else (task.get("draft") or {}).get("done_chunks") or [])
+        live = live_done(task["id"]) if a.done is None else None
+        done = set(a.done if a.done is not None else live if live is not None else (task.get("draft") or {}).get("done_chunks") or [])
         left = [c for c in plan if c["index"] not in done]
         if not left:
             print(json.dumps({"next": None, "note": "全部分块已完成"}, ensure_ascii=False)); return
