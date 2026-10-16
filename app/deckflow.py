@@ -1539,15 +1539,8 @@ class Store(GenerationMixin, _BaseStore):
         require(reviewer not in {(s.get("claims") or {}).get("reader") for s in w["sources"]}, "总结审查须由论断清单作者之外的执行端完成", 422)
         require(result.get("input_sha256") == summary_review_input(w), "审查对应的总结已过期")
         require(result.get("schema_version") == SUMMARY_REVIEW_SCHEMA, "总结审查需使用 summary_review.v2 完整覆盖合同", 422)
-        from factdeck.summary_evidence import garbled
-
-        def broken(x, at="result"):
-            if isinstance(x, dict):
-                return [b for k, v in x.items() for b in broken(v, f"{at}.{k}")]
-            if isinstance(x, list):
-                return [b for i, v in enumerate(x) for b in broken(v, f"{at}[{i}]")]
-            return [at] if garbled(x) else []
-        bad = broken(result)
+        from factdeck.summary_evidence import garbled_paths
+        bad = garbled_paths(result)
         require(not bad, "审查结果中以下文字已损坏（多为?，通常是写入时编码错误），请用UTF-8重写：" + "、".join(bad[:8]), 422)
 
         def unique_rows(value, field, expected, label):
@@ -2609,7 +2602,10 @@ class Store(GenerationMixin, _BaseStore):
             plan = t["brief"].get("chunks")
             require(t["kind"] in {"SUMMARY", "SUMMARY_REVIEW"} and plan, "只有分块的SUMMARY / SUMMARY_REVIEW任务可以保存草稿", 422)
             v = self.chapter_view_of(w, t["binding"]) if t.get("binding") else w
-            self._refuse_garbled_draft(t["kind"], draft)
+            try:
+                self._refuse_garbled_draft(t["kind"], draft)
+            except (KeyError, TypeError, AttributeError) as error:
+                raise WorkflowError(f"草稿结构无效：{error}", 422) from error
             if isinstance(draft.get("fragment_chunks"), list):
                 # chunk-parallel: one session's section(s) for its chunk(s), merged into the task's draft by code
                 from factdeck import summary_fragments as sf
@@ -2652,18 +2648,17 @@ class Store(GenerationMixin, _BaseStore):
     def _refuse_garbled_draft(kind: str, draft: dict):
         """Text lost to an encoding failure is refused when it is saved, not first at completion: a fragment or draft
         whose authored fields are mostly '?' cannot be merged into a chapter."""
-        from factdeck.summary_evidence import garbled, authored_text
-
-        def strings(x, at):
-            if isinstance(x, dict):
-                return [b for k, y in x.items() for b in strings(y, f"{at}.{k}")]
-            if isinstance(x, list):
-                return [b for i, y in enumerate(x) for b in strings(y, f"{at}[{i}]")]
-            return [at] if garbled(x) else []
-        bad = [f for f, x in authored_text(draft) if garbled(x)] if kind == "SUMMARY" else strings(draft, "result")
+        from factdeck.summary_evidence import ALGORITHM, garbled, authored_text, garbled_paths
+        if kind == "SUMMARY":
+            if draft.get("summary_algorithm") != ALGORITHM:      # the same scope as the check at completion
+                return
+            bad = [f for f, x in authored_text(draft) if garbled(x)]
+        else:
+            bad = garbled_paths(draft)
         require(not bad, "以下文字已损坏（多为?）：" + "、".join(bad[:8]) + (f" 等{len(bad)}处" if len(bad) > 8 else "")
-                + "。PowerShell 管道把中文变成了问号：每条命令先执行 $OutputEncoding=[System.Text.UTF8Encoding]::new($false)，"
-                  "或把脚本写成 .py 文件再运行；然后按原文重写这些文字再保存", 422)
+                + "。常见原因是写入时的编码：在 Windows PowerShell 中经管道把中文传给 Python 前，须设 "
+                  "$OutputEncoding=[System.Text.UTF8Encoding]::new($false) 和 $env:PYTHONUTF8='1'（或把脚本写成 .py 文件再运行）；"
+                  "然后按原文重写这些文字再保存", 422)
 
     def enqueue_once(self, w: dict, kind: str):
         fp = self.fingerprint(w, kind, None)

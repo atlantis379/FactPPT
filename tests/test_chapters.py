@@ -218,3 +218,16 @@ def test_garbled_text_is_refused_when_a_draft_is_saved(store):
     r["sections"][0]["key_points"][0]["point"] = "????????????"                       # what a broken pipe leaves
     with pytest.raises(WorkflowError, match="OutputEncoding"):
         store.save_summary_draft(w["id"], t["id"], t["lease_token"], {**r, "fragment_chunks": [0]})
+
+
+def test_garbled_check_ignores_verbatim_quotes_and_reports_bad_structure(store):
+    from factdeck.summary_evidence import garbled_paths
+    assert garbled_paths({"coverage_review": [{"target_id": "u/part0", "point_evidence": [{"quote": "????????"}], "issue": ""}]}) == []
+    assert garbled_paths({"coverage_review": [{"issue": "??????????"}]}) == ["result.coverage_review[0].issue"]
+    w = project(store)
+    store.queue(w["id"], "SUMMARY", ["ch1"])
+    t = store.claim(w["id"], "author-A", "SUMMARY")
+    r = chapter_summary(store.get(w["id"]), "ch1")
+    r["sections"][0]["key_points"] = ["not an object"]
+    with pytest.raises(WorkflowError, match="草稿结构无效"):
+        store.save_summary_draft(w["id"], t["id"], t["lease_token"], {**r, "fragment_chunks": [0]})

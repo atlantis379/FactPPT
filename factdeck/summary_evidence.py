@@ -43,6 +43,20 @@ def garbled(text):
     return bad >= 4 and bad > 0.3 * sum(not c.isspace() for c in text)
 
 
+# Fields that copy source or summary text verbatim (or are ids): a faithful quote of a '????' cell is not an encoding failure.
+VERBATIM_KEYS = frozenset({'quote', 'summary_quote', 'source_text', 'source_quote', 'context_quote', 'target_id', 'point_id',
+                           'unit_id', 'issue_id', 'section_id', 'id', 'value'})
+
+
+def garbled_paths(x, at='result', skip=VERBATIM_KEYS):
+    """Paths of strings in a JSON value that are garbled, ignoring verbatim-copy and id fields."""
+    if isinstance(x, dict):
+        return [b for k, v in x.items() if k not in skip for b in garbled_paths(v, f'{at}.{k}', skip)]
+    if isinstance(x, list):
+        return [b for i, v in enumerate(x) for b in garbled_paths(v, f'{at}[{i}]', skip)]
+    return [at] if garbled(x) else []
+
+
 def authored_text(summary):
     """(field, text) for every model-authored prose field of a summary."""
     yield 'overall_summary', summary.get('overall_summary')
