@@ -471,6 +471,13 @@ def chapter_view(w: dict, c: dict, part: dict | None = None, meta: dict | None =
     return v
 
 
+def reference_units(w: dict) -> set[str]:
+    """Units on pages the reader classified REFERENCE that carry no claim: registered by code (source_coverage)."""
+    kind = {p["id"]: (p.get("reading") or {}).get("classification") for s in w["sources"] for p in s["pages"]}
+    claimed = {sp["unit_id"] for k in all_claims(w).values() for sp in k["spans"]}
+    return {u["id"] for u in all_units(w) if kind.get(u["page_id"]) == "REFERENCE" and u["id"] not in claimed}
+
+
 def summary_check(w: dict) -> str:
     """The ledger check a summary review round answers: the whole summary, or one chapter of it."""
     return f"SUMMARY:{w['chapter']['id']}" if w.get("chapter") else "SUMMARY"
@@ -1043,8 +1050,27 @@ class Store(GenerationMixin, _BaseStore):
     def chapter_view_of(self, w: dict, cid: str) -> dict:
         """A chapter's view with its last accepted part (read from its snapshot) as the summary."""
         r = chapter_record(w, cid)
-        return chapter_view(w, chapter_of(w, cid), self.chapter_part(w, cid) if r else None,
-                            {k: r[k] for k in ("author", "contributors", "at")} if r else None)
+        v = chapter_view(w, chapter_of(w, cid), self.chapter_part(w, cid) if r else None,
+                         {k: r[k] for k in ("author", "contributors", "at")} if r else None)
+        v["chapter"]["coverage_memory"] = ((r or {}).get("review") or {}).get("coverage_memory") or (r or {}).get("coverage_memory")
+        return v
+
+    def coverage_targets(self, w: dict) -> tuple[list[dict], dict]:
+        """Coverage targets of the current summary and those an earlier independent review passed with the same
+        fingerprint (source text, registration, full point text): {target_id: earlier row}. Those are not judged again."""
+        from factdeck import source_coverage as sc
+        targets = sc.review_targets(w["summary"], all_units(w))
+        path = (w.get("chapter") or {}).get("coverage_memory") if w.get("chapter") else (w.get("summary_review") or {}).get("coverage_memory")
+        if not path:
+            return targets, {}
+        memory = json.loads(self.path(path).read_text(encoding="utf-8"))["value"]
+        points = sc.point_texts(w["summary"])
+        carried = {}
+        for t in targets:
+            row = memory.get(sc.target_fingerprint(t, points))
+            if row:
+                carried[t["target_id"]] = row
+        return targets, carried
 
     def chapter_brief(self, w: dict, kind: str, cid: str) -> dict:
         c = chapter_of(w, cid)
@@ -1071,7 +1097,9 @@ class Store(GenerationMixin, _BaseStore):
         v = chapter_view(w, c)
         self.accept_summary(v, result, t["worker"], t["brief"].get("summary_algorithm"))
         part = v["summary"]
-        w.setdefault("summary_chapters", {})[c["id"]] = {
+        before = chapter_record(w, c["id"]) or {}
+        memory = (before.get("review") or {}).get("coverage_memory") or before.get("coverage_memory")
+        w.setdefault("summary_chapters", {})[c["id"]] = {"coverage_memory": memory,
             "input_sha256": part["input_sha256"], "sha256": digest(part), "path": self.snapshot(w, "chapter_summary", part),
             "author": t["worker"], "contributors": sorted({t["worker"], *((t.get("draft") or {}).get("workers") or [])}),
             "at": now(), "review": None}
@@ -1083,7 +1111,7 @@ class Store(GenerationMixin, _BaseStore):
         v = self.chapter_view_of(w, cid)
         self.accept_summary_review(v, result, reviewer)
         r = v["summary_review"]
-        w["summary_chapters"][cid]["review"] = {k: r[k] for k in ("input_sha256", "reviewer", "at", "round", "sections")}
+        w["summary_chapters"][cid]["review"] = {k: r[k] for k in ("input_sha256", "reviewer", "at", "round", "sections", "coverage_memory") if k in r}
         self.aggregate_chapter_reviews(w)
 
     def merge_chapters(self, w: dict) -> bool:
@@ -1593,11 +1621,19 @@ class Store(GenerationMixin, _BaseStore):
         coverage_refs = set()
         if w["summary"].get("source_coverage") and sc.expected_schema(w["summary"]) == sc.SCHEMA_V2:
             # Sentence-level coverage: each part the author registered is judged against the point text it names.
-            targets = sc.review_targets(w["summary"], all_units(w))
+            targets, carried = self.coverage_targets(w)
+            rows = result.get("coverage_review")
+            require(isinstance(rows, list) and not {r.get("target_id") for r in rows if isinstance(r, dict)} & set(carried),
+                    "沿用通过判定的片段不在本轮coverage_review中", 422)
+            rows = rows + [{"target_id": tid, **row, "carried": True} for tid, row in carried.items()]
             try:
-                problems, fine = sc.check_review(targets, result.get("coverage_review"), sc.point_texts(w["summary"]))
+                problems, fine = sc.check_review(targets, rows, sc.point_texts(w["summary"]))
             except ValueError as error:
                 raise WorkflowError(str(error), 422) from error
+            points = sc.point_texts(w["summary"])
+            passed_rows = {r["target_id"]: r for r in rows if r.get("verdict") in {"FULL", "ACCEPTED"}}
+            memory = {sc.target_fingerprint(t, points): {k: passed_rows[t["target_id"]].get(k) for k in ("verdict", "point_evidence")}
+                      for t in targets if t["target_id"] in passed_rows}
             for t in targets:
                 evidence[t["target_id"]] = t["unit_id"]
                 coverage_refs.add(t["target_id"])
@@ -1623,6 +1659,8 @@ class Store(GenerationMixin, _BaseStore):
         self.snapshot(w, "summary_review", result)
         w["summary_review"] = {"schema_version": SUMMARY_REVIEW_SCHEMA, "input_sha256": summary_review_input(w), "reviewer": reviewer, "at": now(),
                                "sections": result["sections"], "round": rnd["round"], "issues": [], "dismissed": {}}
+        if coverage_refs:
+            w["summary_review"]["coverage_memory"] = self.snapshot(w, "coverage_memory", memory)
 
     def accept_summary(self, w: dict, result: dict, author: str = "", expected_algorithm: str | None = None):
         self.source_integrity(w)
@@ -1681,6 +1719,18 @@ class Store(GenerationMixin, _BaseStore):
         candidate = None
         if result.get("summary_algorithm"):
             require(result["summary_algorithm"] in se.SUPPORTED_ALGORITHMS, "不支持的总结算法版本", 422)
+            if result["summary_algorithm"] == se.ALGORITHM and isinstance(result.get("source_coverage"), dict):
+                from factdeck import source_coverage as sc
+                refs = reference_units(w)
+                sc.prefill_reference(result["source_coverage"], all_units(w), refs)
+                index = result.get("evidence_index")
+                if isinstance(index, dict) and isinstance(index.get("page_decisions"), list):
+                    decided = {d.get("page_id") for d in index["page_decisions"] if isinstance(d, dict)}
+                    by_page = {}
+                    for u in all_units(w):
+                        by_page.setdefault(u["page_id"], []).append(u["id"] in refs)
+                    index["page_decisions"] += [{"page_id": p, "disposition": "REFERENCE", "reason": sc.CODE_REASON, "point_ids": []}
+                                                for p in known if p not in decided and by_page.get(p) and all(by_page[p])]
             try:
                 result["evidence_index"] = se.validate(result, all_units(w), all_claims(w), set(known),
                     {g['id'] for s in w['sources'] for g in s.get('figures', [])})
@@ -1983,8 +2033,16 @@ class Store(GenerationMixin, _BaseStore):
             b['result_contract'].update(summary_algorithm=se.ALGORITHM, source_understanding=se.understanding_contract(), evidence_index=se.contract())
             from factdeck import source_coverage as sc
             b['result_contract']['source_coverage'] = sc.contract(sc.SCHEMA_V2)
+            refs = reference_units(w)
             b['source_coverage_input'] = sc.coverage_input(all_units(w))
-            b['chunks'] = sc.chunks(all_units(w))
+            for row in b['source_coverage_input']['units']:
+                if row['unit_id'] in refs:
+                    row['registered_by'] = sc.CODE_REGISTERED
+            b['chunks'] = sc.chunks([u for u in all_units(w) if u['id'] not in refs])
+            if refs:
+                b['rules'].append('source_coverage_input中标registered_by的单元在参考文献页上且没有论断：不必登记，程序逐句登记为REFERENCE_LIST，'
+                                  '未写page_decisions的全参考文献页由程序补REFERENCE；这些页仍须列入某章节的source_page_ids（通常放最后一节）。'
+                                  '审核会按页核对；某页被退回时，按审核意见为该页单元逐句登记（你的登记取代程序登记）。')
             if w.get('summary') and b.get('review_issues'):
                 # a revision starts from the reviewed summary; only what the review ledger names is reopened
                 b['revision_base'] = copy.deepcopy(w['summary'])
@@ -1995,14 +2053,25 @@ class Store(GenerationMixin, _BaseStore):
             b['source_understanding'] = copy.deepcopy(w['summary'].get('source_understanding'))
             if w['summary'].get('source_coverage'):
                 from factdeck import source_coverage as sc
-                b['source_coverage'] = copy.deepcopy(w['summary']['source_coverage'])
-                b['source_coverage_audit'] = sc.audit(w['summary'], all_units(w), all_claims(w))
+                audit = sc.audit(w['summary'], all_units(w), all_claims(w))
                 if sc.expected_schema(w['summary']) == sc.SCHEMA_V2:
-                    b['chunks'] = sc.chunks(all_units(w))
+                    # the targets carry every registered part; the whole ledger is not repeated in the brief
+                    b['source_coverage_audit'] = {k: audit[k] for k in ('structural_status', 'warnings', 'counts')}
+                    light = {r['unit_id'] for r in w['summary']['source_coverage']['units'] if r.get('registered_by') == sc.CODE_REGISTERED}
+                    b['chunks'] = sc.chunks(all_units(w), light=light)
+                else:
+                    b['source_coverage'] = copy.deepcopy(w['summary']['source_coverage'])
+                    b['source_coverage_audit'] = audit
                 if sc.expected_schema(w['summary']) != sc.SCHEMA_V2:
                     b['rules'].append('逐项核验source_coverage：非论断分类/重复翻译依据是否正确、每条结论六类限定条件是否漏判、多项是否全列、PRESENT的summary_quote是否真正表达原文限定条件。ACCOUNTED仅是登记状态，不是语义通过，不得据此默认ENTAILED。')
                 else:
-                    b['coverage_targets'] = sc.review_targets(w['summary'], all_units(w))
+                    targets, carried = self.coverage_targets(w)
+                    b['coverage_targets'] = [t for t in targets if t['target_id'] not in carried]
+                    b['carried_coverage'] = {'count': len(carried), 'of': len(targets)}
+                    b['rules'].append(f'本轮有{len(carried)}/{len(targets)}个片段沿用此前独立审核的通过判定：其原文、登记与所列point全文均未改变（代码按内容指纹核对），'
+                                      '不在coverage_targets中，也不需判定。只判定列出的片段。'
+                                      'registered_by为程序登记的目标是一整页参考文献（target_id为“页/reference_page”）：读整页，'
+                                      '全为文献条目、无实质内容判ACCEPTED；夹有实质内容判REJECTED并写明是哪句。')
                     b['result_contract']['coverage_review'] = [{'target_id': t['target_id'], 'disposition': t['disposition'], 'author_expressions': t.get('expressions', []),
                                                                   'verdict': '', 'point_evidence': [], 'missing_facets': [], 'issue': ''} for t in b['coverage_targets']]
                     b['rules'].append('coverage_review逐句判定coverage_targets，不得抽样或按脚本批量填写：EXPRESSED句先读source_text及其所在单元上下文，再读所列point全文（不只summary_quote），'

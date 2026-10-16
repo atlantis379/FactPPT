@@ -32,6 +32,11 @@ _CITATION = re.compile(r'[ \t]*[(\[（【][ \t]*\d+(?:[ \t]*[,，、\-–—][ \
 # Chunks a single worker session can finish (S03: one session registered ~6 pages / ~170 sentences).
 CHUNK_PAGES = 5
 CHUNK_SEGMENTS = 100
+# Reference-list pages (the reader classified the page REFERENCE and the claims list found no claim in the unit) are
+# registered by code, one REFERENCE_LIST part per sentence; the reviewer judges each such page once. COPD book: 1,879
+# of 6,367 sentences. An author row for a unit replaces the code registration (a reviewer rejected the page).
+CODE_REGISTERED = 'code:reference_page'
+CODE_REASON = '阅读分类为参考文献页，论断清单在本单元没有论断；程序逐句登记为参考文献，审核按页核对'
 EXPRESSED_VERDICTS = ('FULL', 'PARTIAL', 'MISSING', 'CONTRADICTED')
 # What a PARTIAL/CONTRADICTED sentence lost. v2 dropped the author-side six-facet ledger (S03 p1–p10: only 3 of 7
 # review problems fell in those six; the rest were modality/strength, descriptors and relations) and asks the
@@ -78,8 +83,9 @@ def segments(text, segmenter=SEGMENTER):
     return [(a, b) for a, b in out if text[a:b].strip()]
 
 
-def chunks(units, max_pages=CHUNK_PAGES, max_segments=CHUNK_SEGMENTS):
-    """Consecutive whole pages, in source order, sized for one worker session. Code plans; the model writes."""
+def chunks(units, max_pages=CHUNK_PAGES, max_segments=CHUNK_SEGMENTS, light=frozenset()):
+    """Consecutive whole pages, in source order, sized for one worker session. Code plans; the model writes.
+    Units in `light` (judged once per page) add a page to the chunk without counting toward its size."""
     pages, order = {}, []
     for u in units:
         if u['page_id'] not in pages:
@@ -87,11 +93,38 @@ def chunks(units, max_pages=CHUNK_PAGES, max_segments=CHUNK_SEGMENTS):
         pages[u['page_id']].append(u)
     out, cur = [], None
     for pid in order:
-        n = sum(len(segments(u['text'])) for u in pages[pid])
-        if cur is None or len(cur['page_ids']) >= max_pages or (cur['segments'] and cur['segments'] + n > max_segments):
-            cur = {'index': len(out), 'page_ids': [], 'unit_ids': [], 'segments': 0}; out.append(cur)
-        cur['page_ids'].append(pid); cur['unit_ids'] += [u['id'] for u in pages[pid]]; cur['segments'] += n
+        heavy = [u for u in pages[pid] if u['id'] not in light]
+        n = sum(len(segments(u['text'])) for u in heavy)
+        size = 1 if heavy else 0
+        if cur is None or (size and (cur['size'] >= max_pages or (cur['segments'] and cur['segments'] + n > max_segments))):
+            cur = {'index': len(out), 'page_ids': [], 'unit_ids': [], 'segments': 0, 'size': 0}; out.append(cur)
+        cur['page_ids'].append(pid); cur['unit_ids'] += [u['id'] for u in pages[pid]]; cur['segments'] += n; cur['size'] += size
+    for c in out:
+        del c['size']
     return out
+
+
+def prefill_reference(ledger, units, unit_ids):
+    """Register by code every unit in `unit_ids` the ledger does not register yet: one REFERENCE_LIST part per sentence."""
+    if not isinstance(ledger, dict) or not isinstance(ledger.get('units'), list):
+        return ledger
+    segmenter = ledger.get('segmenter', SEGMENTER)
+    have = {r.get('unit_id') for r in ledger['units'] if isinstance(r, dict)}
+    for u in units:
+        if u['id'] in unit_ids and u['id'] not in have:
+            ledger['units'].append({'unit_id': u['id'], 'registered_by': CODE_REGISTERED,
+                                    'parts': [{'segment_index': i, 'disposition': 'REFERENCE_LIST', 'reason': CODE_REASON,
+                                               'conclusion_ids': []} for i, _ in enumerate(segments(u['text'], segmenter))]})
+    return ledger
+
+
+def target_fingerprint(t, points):
+    """Everything a coverage verdict rests on: the source text, the registration and the full text of each named point.
+    An earlier pass with the same fingerprint still holds."""
+    payload = {k: t.get(k) for k in ('source_text', 'disposition', 'reason', 'pending_kind', 'pending_issue_index',
+                                     'duplicate_unit_id', 'expressions')}
+    payload['points'] = {e['point_id']: points.get(e['point_id'], '') for e in t.get('expressions') or []}
+    return hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode('utf-8')).hexdigest()
 
 
 _UNIT_CODES = {'INVALID_UNIT', 'INVALID_SOURCE_SPAN', 'OVERLAPPING_SPANS', 'MISSING_REASON', 'INVALID_CONCLUSION_LINK',
@@ -369,8 +402,19 @@ def review_targets(summary, units):
     by_unit = {u['id']: u for u in units}
     points = point_texts(summary)
     segmenter = summary['source_coverage'].get('segmenter', SEGMENTER)
-    out = []
+    out, pages = [], {}
     for row in summary['source_coverage']['units']:
+        if row.get('registered_by') == CODE_REGISTERED:
+            u = by_unit[row['unit_id']]
+            if u['page_id'] not in pages:
+                pages[u['page_id']] = {'target_id': f"{u['page_id']}/reference_page", 'unit_id': u['id'], 'page_id': u['page_id'],
+                                       'source_text': '', 'disposition': 'REFERENCE_LIST', 'reason': CODE_REASON,
+                                       'registered_by': CODE_REGISTERED, 'unit_ids': []}
+                out.append(pages[u['page_id']])
+            p = pages[u['page_id']]
+            p['unit_ids'].append(u['id'])
+            p['source_text'] += ('\n' if p['source_text'] else '') + u['text']
+            continue
         text = by_unit[row['unit_id']]['text']
         cuts = segments(text, segmenter)
         for i, part in enumerate(row['parts']):

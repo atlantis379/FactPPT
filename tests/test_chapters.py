@@ -119,3 +119,67 @@ def test_chapter_plan_is_checked_and_recorded(store):
     _, w = write(store, w["id"])
     w = store.set_chapters(w["id"], [], "TEST-OPERATOR", "测试：改回整体撰写")
     assert w["chapters"] == [] and w["summary"] is None and w["chapters_history"][-1]["set_aside_chapters"]["ch1"]["path"]
+
+
+def read_with_reference_page(store, wid):
+    """Read the fixtures and mark the last page with text as a reference list (test record)."""
+    store.queue(wid, "READ_SOURCE")
+    marked = None
+    while t := store.claim(wid, "reader-1", "READ_SOURCE"):
+        result = copy.deepcopy(t["brief"]["result_contract"])
+        for row, page in zip(result["pages"], t["brief"]["pages"]):
+            row["visual_inspected"] = True
+            if row["id"] == "S03:s1":
+                row["transcription"] = [{"id": "c1", "location": "柱状图 研究甲标签", "text": "缓解率38%"}]
+        if t["binding"] == "S04":
+            row["classification"], marked = "REFERENCE", row["id"]
+        store.complete(wid, t["id"], t["lease_token"], result)
+    return T.claim_all(store, wid), marked
+
+
+def test_reference_pages_are_registered_by_code_and_reviewed_per_page(store):
+    from app.deckflow import reference_units, all_units
+    w = store.create("虚构参考页测试", T.OUTLINE, {"audience": "本科生"})
+    for name, make in T.fx_.SOURCES.items():
+        store.add_source(w["id"], name, make())
+    w, ref_page = read_with_reference_page(store, w["id"])
+    refs = reference_units(w)
+    assert refs and all(u["page_id"] == ref_page for u in all_units(w) if u["id"] in refs)
+
+    store.queue(w["id"], "SUMMARY")
+    t = store.claim(w["id"], "author-A", "SUMMARY")
+    assert not any(set(c["unit_ids"]) & refs for c in t["brief"]["chunks"])      # authors do not register them
+    r = T._summary(w)
+    for sec in r["sections"]:
+        sec["key_points"] = [k for k in sec["key_points"] if not set(k["unit_ids"]) & refs]
+        T.with_message(w, sec)
+    T.with_understanding(w, r)
+    r["source_coverage"]["units"] = [x for x in r["source_coverage"]["units"] if x["unit_id"] not in refs]
+    r["evidence_index"]["page_decisions"] = [d for d in r["evidence_index"]["page_decisions"] if d["page_id"] != ref_page]
+    w = store.complete(w["id"], t["id"], t["lease_token"], r)
+    rows = [x for x in w["summary"]["source_coverage"]["units"] if x["unit_id"] in refs]
+    assert rows and all(x["registered_by"] == "code:reference_page" for x in rows)
+
+    store.queue(w["id"], "SUMMARY_REVIEW")
+    t = store.claim(w["id"], "reviewer-R", "SUMMARY_REVIEW")
+    page = [x for x in t["brief"]["coverage_targets"] if x.get("registered_by")]
+    assert [x["target_id"] for x in page] == [f"{ref_page}/reference_page"]
+    result = T.clear_summary_review(t["brief"]["result_contract"])
+    next(x for x in result["coverage_review"] if x["target_id"] == page[0]["target_id"]).update(
+        verdict="REJECTED", issue="虚构测试：本页夹有正文")
+    w = store.complete(w["id"], t["id"], t["lease_token"], result)
+    assert any(i["ref"] == f"{ref_page}/reference_page" and i["status"] == "OPEN" for i in w["issue_ledger"]["summary"]["issues"])
+
+
+def test_unchanged_targets_keep_an_earlier_pass(store):
+    w = project(store)
+    write(store, w["id"]); write(store, w["id"])
+    t, w = review(store, w["id"])
+    assert t["brief"]["carried_coverage"]["count"] == 0
+    # rewrite ch1 with an unchanged body: every coverage target keeps its earlier pass
+    store.queue(w["id"], "SUMMARY", ["ch1"])
+    t = store.claim(w["id"], "author-A", "SUMMARY")
+    w = store.complete(w["id"], t["id"], t["lease_token"], chapter_summary(store.get(w["id"]), "ch1", "修订"))
+    t, w = review(store, w["id"])
+    c = t["brief"]["carried_coverage"]
+    assert t["binding"] == "ch1" and c["count"] == c["of"] > 0 and t["brief"]["coverage_targets"] == []
