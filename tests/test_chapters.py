@@ -183,3 +183,28 @@ def test_unchanged_targets_keep_an_earlier_pass(store):
     t, w = review(store, w["id"])
     c = t["brief"]["carried_coverage"]
     assert t["binding"] == "ch1" and c["count"] == c["of"] > 0 and t["brief"]["coverage_targets"] == []
+
+
+def test_sections_saved_as_separate_fragments_merge_into_one_draft(store):
+    from factdeck import summary_fragments as sf
+    from app.deckflow import all_units
+    w = project(store)
+    store.queue(w["id"], "SUMMARY", ["ch2"])
+    t = store.claim(w["id"], "author-A", "SUMMARY")
+    full = chapter_summary(store.get(w["id"]), "ch2")
+    pages = {u["id"]: u["page_id"] for u in all_units(store.get(w["id"]))}
+    parts = sf.split(full, pages)
+    assert len(parts) == 2
+    for part in reversed(parts):                                       # any order, as parallel sessions finish
+        frag = {**{k: full[k] for k in ("schema_version", "input_sha256", "summary_algorithm")}, **part, "fragment_chunks": [0]}
+        store.save_summary_draft(w["id"], t["id"], t["lease_token"], frag)
+    clash = {**parts[0], "sections": [{**parts[0]["sections"][0], "id": "ch2-other"}], "fragment_chunks": [0]}
+    with pytest.raises(WorkflowError):                                  # a page belongs to one section only
+        store.save_summary_draft(w["id"], t["id"], t["lease_token"], clash)
+    draft = next(x for x in store.get(w["id"])["tasks"] if x["id"] == t["id"])["draft"]["summary"]
+    assert [s["id"] for s in draft["sections"]] == [s["id"] for s in full["sections"]]
+    strip = lambda rows: [{**r, "parts": [{k: v for k, v in x.items() if k not in ("start", "end")} for x in r["parts"]]} for r in rows]
+    assert strip(draft["source_coverage"]["units"]) == strip(full["source_coverage"]["units"])   # the progress check adds offsets
+    w = store.complete(w["id"], t["id"], t["lease_token"], {**draft, "overall_summary": full["overall_summary"],
+                                                             "outline_coverage": full["outline_coverage"]})
+    assert [r["state"] for r in w["chapter_status"]] == ["WRITE", "REVIEW"]

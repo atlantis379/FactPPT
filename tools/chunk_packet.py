@@ -3,13 +3,17 @@ pages it is about to work on instead of the whole brief. Read-only: it never cha
 
 usage: python tools/chunk_packet.py --task TASK.json [--chunk N | --next] [--images DIR] [--out FILE]
        python tools/chunk_packet.py --task TASK.json --draft-out FILE   (the current saved draft, to continue from)
+       python tools/chunk_packet.py --task TASK.json (--chunk N | --section ID) --fragment-out FILE   (SUMMARY: the fragment to write)
   --next      the first chunk not yet done: the task's live draft in the project store (or --done N N ...)
   --images    folder with <source id>/pNN.png page images; paths of the chunk's pages are listed when present
 """
 import argparse
+import os
 import json
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
 def live_units(task_id):
@@ -99,9 +103,63 @@ def review_packet(brief, chunk, images):
             points[f"{sec['section_id']}.k{i}"] = k.get("point", "")
     targets = [t for t in brief.get("coverage_targets") or [] if t["unit_id"] in units]
     named = sorted({e["point_id"] for t in targets for e in t.get("expressions") or []})
+    inside = [sec for sec in brief.get("sections") or [] if set(sec.get("source_page_ids") or []) and
+              set(sec["source_page_ids"]) <= set(chunk["page_ids"])]
     return {"kind": "SUMMARY_REVIEW", "chunk": chunk["index"], "of": len(brief["chunks"]),
             "images": {p: image(images, p) for p in chunk["page_ids"] if image(images, p)},
-            "targets": targets, "points": {p: points.get(p, "") for p in named}}
+            "targets": targets, "points": {p: points.get(p, "") for p in named},
+            "sections": inside,
+            "note": "sections 是页码全在本块内的章节：本块会话一并给出它们的章节行（summary_verdict、points、key_points、core、relations）；"
+                    "跨块的章节由收尾会话判定。"}
+
+
+def fragment(task, chunk=None, section=None):
+    """The fragment a session writes: the current section(s) on the chunk's pages, or a skeleton for a new section."""
+    from factdeck import summary_fragments as sf
+    brief = task["brief"]
+    cid = (brief.get("chapter") or {}).get("id")
+    current = (live_draft(task["id"]) or {}).get("summary") or brief.get("revision_base") or {}
+    store, wid = _store_of(task["id"])
+    from app.deckflow import all_units, chapter_of, chapter_view
+    w = store.get(wid)
+    units = all_units(chapter_view(w, chapter_of(w, cid)) if cid else w)
+    unit_pages = {u["id"]: u["page_id"] for u in units}
+    parts = sf.split(current, unit_pages) if current.get("sections") else []
+    plan = brief.get("chunks") or []
+    if section:
+        mine = [f for f in parts if f["sections"][0]["id"] == section]
+        if not mine:
+            sys.exit(f"当前草稿中没有章节 {section}")
+    else:
+        mine = [f for f in parts if set(f["sections"][0].get("source_page_ids") or []) & set(chunk["page_ids"])]
+    head = {"schema_version": brief["result_contract"]["schema_version"], "input_sha256": brief["input_sha256"],
+            "summary_algorithm": brief.get("summary_algorithm")}
+    if mine:
+        out = sf.concat(mine, head)
+        pages = set().union(*(set(f["sections"][0]["source_page_ids"]) for f in mine))
+        out["fragment_chunks"] = [c["index"] for c in plan if set(c["page_ids"]) & pages]
+        out["existing"] = True
+    else:
+        rc = brief["result_contract"]
+        sid = f"{cid}-c{chunk['index']}" if cid else f"c{chunk['index']}"
+        cov = brief["source_coverage_input"]
+        out = {**head, "existing": False,
+               "sections": [{"id": sid, "title": "", "summary": "", "source_page_ids": list(chunk["page_ids"]), "key_points": [],
+                             "message": {"core": {"claim_id": ""}, "roles": {}, "relations": [], "candidate_decisions": []}}],
+               "source_understanding": {"schema_version": rc["source_understanding"]["schema_version"], "sections": [
+                   {**rc["source_understanding"]["sections"][0], "section_id": sid, "conclusions": [], "relations": []}]},
+               "evidence_index": {"schema_version": rc["evidence_index"]["schema_version"], "points": [], "page_decisions": []},
+               "source_coverage": {"schema_version": cov["schema_version"], "segmenter": cov["segmenter"],
+                                   "source_units_sha256": cov["source_units_sha256"], "units": []},
+               "pending_issues": [], "fragment_chunks": [chunk["index"]]}
+    if section or (mine and brief.get("review_issues")):
+        secs = {s["id"] for s in out["sections"]}
+        pages = set().union(*(set(s["source_page_ids"]) for s in out["sections"]))
+        def mine_ref(ref):
+            head_ = str(ref).split("/")[0]
+            return (str(ref).split(".")[0] in secs or head_ in pages or unit_pages.get(head_) in pages)
+        out["review_issues"] = [i for i in brief.get("review_issues") or [] if mine_ref(i.get("ref"))]
+    return out
 
 
 def main():
@@ -113,6 +171,9 @@ def main():
     ap.add_argument("--images", type=Path)
     ap.add_argument("--out", type=Path)
     ap.add_argument("--draft-out", type=Path, help="write the task's current saved draft (summary or review result) here and exit")
+    ap.add_argument("--fragment-out", type=Path, help="SUMMARY: write the fragment to edit for --chunk N or --section ID "
+                                                       "(current section(s) on those pages, or a skeleton for a new section)")
+    ap.add_argument("--section", help="with --fragment-out: a section of the current draft (revision of that section)")
     a = ap.parse_args()
     task = json.loads(a.task.read_text(encoding="utf-8-sig"))
     if a.draft_out:
@@ -124,6 +185,15 @@ def main():
         print(json.dumps({"draft_out": str(a.draft_out), "done_chunks": d.get("done_chunks")}, ensure_ascii=False)); return
     brief = task["brief"]
     plan = brief.get("chunks") or []
+    if a.fragment_out:
+        chunk = None if a.section else next((c for c in plan if c["index"] == a.chunk), None)
+        if not a.section and chunk is None:
+            sys.exit("--fragment-out 需要 --chunk N（存在的块）或 --section ID")
+        frag = fragment(task, chunk, a.section)
+        a.fragment_out.write_text(json.dumps(frag, ensure_ascii=False, indent=1), encoding="utf-8")
+        print(json.dumps({"fragment_out": str(a.fragment_out), "sections": [x["id"] for x in frag["sections"]],
+                          "existing": frag["existing"], "fragment_chunks": frag["fragment_chunks"],
+                          "review_issues": len(frag.get("review_issues") or [])}, ensure_ascii=False)); return
     if a.next:
         live = (live_draft(task["id"]) or {}).get("done_chunks") if a.done is None else None
         done = set(a.done if a.done is not None else live if live is not None else (task.get("draft") or {}).get("done_chunks") or [])

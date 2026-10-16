@@ -2191,7 +2191,7 @@ class Store(GenerationMixin, _BaseStore):
             view = []
             for sec in w["summary"]["sections"]:
                 m = sec.get("message") or {}
-                view.append({"section_id": sec["id"], "title": sec["title"], "summary": sec["summary"],
+                view.append({"section_id": sec["id"], "title": sec["title"], "summary": sec["summary"], "source_page_ids": sec["source_page_ids"],
                              "key_points": [{"target_id": k["target_id"], "point": k["point"], **evidence(k)} for k in key_point_targets(w, sec)],
                              "points": [{"point_id": r["point_id"], "point": r.get("point", ""), **({"statement": r["statement"]} if r.get("statement") else {}),
                                          "role": (m.get("roles") or {}).get(r["point_id"]),
@@ -2600,6 +2600,22 @@ class Store(GenerationMixin, _BaseStore):
             plan = t["brief"].get("chunks")
             require(t["kind"] in {"SUMMARY", "SUMMARY_REVIEW"} and plan, "只有分块的SUMMARY / SUMMARY_REVIEW任务可以保存草稿", 422)
             v = self.chapter_view_of(w, t["binding"]) if t.get("binding") else w
+            if isinstance(draft.get("fragment_chunks"), list):
+                # chunk-parallel: one session's section(s) for its chunk(s), merged into the task's draft by code
+                from factdeck import summary_fragments as sf
+                fragment = {k: x for k, x in draft.items() if k != "fragment_chunks"}
+                old = t.get("draft") or {}
+                try:
+                    if t["kind"] == "SUMMARY":
+                        prefix = (t["binding"] + "-") if t.get("binding") else ""
+                        require(all(str(x.get("id", "")).startswith(prefix) for x in fragment.get("sections") or []),
+                                f"片段的章节编号须以“{prefix}”开头", 422)
+                        draft = sf.apply(old.get("summary") or t["brief"].get("revision_base") or {}, fragment,
+                                         {u["id"]: u["page_id"] for u in all_units(v)})
+                    else:
+                        draft = sf.apply_review(old.get("result") or {}, fragment)
+                except ValueError as error:
+                    raise WorkflowError(f"片段无法合并：{error}", 422) from error
             try:
                 if t["kind"] == "SUMMARY":
                     progress = sc.chunk_progress(draft, all_units(v), all_claims(v), plan)
