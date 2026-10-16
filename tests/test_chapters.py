@@ -208,3 +208,13 @@ def test_sections_saved_as_separate_fragments_merge_into_one_draft(store):
     w = store.complete(w["id"], t["id"], t["lease_token"], {**draft, "overall_summary": full["overall_summary"],
                                                              "outline_coverage": full["outline_coverage"]})
     assert [r["state"] for r in w["chapter_status"]] == ["WRITE", "REVIEW"]
+
+
+def test_garbled_text_is_refused_when_a_draft_is_saved(store):
+    w = project(store)
+    store.queue(w["id"], "SUMMARY", ["ch1"])
+    t = store.claim(w["id"], "author-A", "SUMMARY")
+    r = chapter_summary(store.get(w["id"]), "ch1")
+    r["sections"][0]["key_points"][0]["point"] = "????????????"                       # what a broken pipe leaves
+    with pytest.raises(WorkflowError, match="OutputEncoding"):
+        store.save_summary_draft(w["id"], t["id"], t["lease_token"], {**r, "fragment_chunks": [0]})

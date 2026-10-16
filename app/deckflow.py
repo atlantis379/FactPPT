@@ -2609,6 +2609,7 @@ class Store(GenerationMixin, _BaseStore):
             plan = t["brief"].get("chunks")
             require(t["kind"] in {"SUMMARY", "SUMMARY_REVIEW"} and plan, "只有分块的SUMMARY / SUMMARY_REVIEW任务可以保存草稿", 422)
             v = self.chapter_view_of(w, t["binding"]) if t.get("binding") else w
+            self._refuse_garbled_draft(t["kind"], draft)
             if isinstance(draft.get("fragment_chunks"), list):
                 # chunk-parallel: one session's section(s) for its chunk(s), merged into the task's draft by code
                 from factdeck import summary_fragments as sf
@@ -2646,6 +2647,23 @@ class Store(GenerationMixin, _BaseStore):
                 t["attempts"] = 0          # real progress: a session that stops after a chunk is not a failed attempt
             t["lease_until"] = time.time() + LEASE_SECONDS
             return {"task_id": task_id, "done_chunks": done, "chunks": len(plan), "progress": progress, "lease_until": t["lease_until"]}
+
+    @staticmethod
+    def _refuse_garbled_draft(kind: str, draft: dict):
+        """Text lost to an encoding failure is refused when it is saved, not first at completion: a fragment or draft
+        whose authored fields are mostly '?' cannot be merged into a chapter."""
+        from factdeck.summary_evidence import garbled, authored_text
+
+        def strings(x, at):
+            if isinstance(x, dict):
+                return [b for k, y in x.items() for b in strings(y, f"{at}.{k}")]
+            if isinstance(x, list):
+                return [b for i, y in enumerate(x) for b in strings(y, f"{at}[{i}]")]
+            return [at] if garbled(x) else []
+        bad = [f for f, x in authored_text(draft) if garbled(x)] if kind == "SUMMARY" else strings(draft, "result")
+        require(not bad, "以下文字已损坏（多为?）：" + "、".join(bad[:8]) + (f" 等{len(bad)}处" if len(bad) > 8 else "")
+                + "。PowerShell 管道把中文变成了问号：每条命令先执行 $OutputEncoding=[System.Text.UTF8Encoding]::new($false)，"
+                  "或把脚本写成 .py 文件再运行；然后按原文重写这些文字再保存", 422)
 
     def enqueue_once(self, w: dict, kind: str):
         fp = self.fingerprint(w, kind, None)
