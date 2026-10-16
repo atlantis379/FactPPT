@@ -118,7 +118,7 @@ def main():
     parser.add_argument("--api", choices=["deck", "fact"], default="deck", help="deck=主线（事实库+渲染）；fact=旧整页图片流程")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("list")
-    for command in ("show", "queue", "claim", "complete", "draft", "image", "asset", "submit", "layout", "design-prompt", "adopt-rules", "fetch-assets", "generate", "generation", "revise", "fail", "renew", "render", "page-preview", "backfill-structure", "backfill-arrows"):
+    for command in ("show", "queue", "claim", "complete", "draft", "image", "asset", "submit", "layout", "design-prompt", "adopt-rules", "set-chapters", "fetch-assets", "generate", "generation", "revise", "fail", "renew", "render", "page-preview", "backfill-structure", "backfill-arrows"):
         sub = commands.add_parser(command)
         sub.add_argument("workflow_id")
         if command == "queue":
@@ -126,6 +126,7 @@ def main():
             sub.add_argument("--pages", nargs="+", help="旧流程IMAGE或主线视觉任务单页修订")
             sub.add_argument("--sources", nargs="+", help="仅主线CLAIMS：重做这些资料的论断清单")
             sub.add_argument("--checks", nargs="+", choices=["COVERAGE", "RELATIONS"], help="仅主线SEMANTIC_REVIEW：只排队这些检查表（默认两张都排）")
+            sub.add_argument("--chapters", nargs="+", help="分章项目的SUMMARY / SUMMARY_REVIEW：只排这些章（默认按章序排下一章）")
         if command == "claim":
             sub.add_argument("--worker", default="Codex-desktop", help="执行端标识；语义审查与第二次转录须与作者不同")
             sub.add_argument("--kind", choices=sorted(set(DECK_KINDS + FACT_KINDS)))
@@ -173,6 +174,10 @@ def main():
             sub.add_argument("--next-kinds", nargs="+", choices=VISUAL_KINDS, help="续领时只接这些类型（双执行端分工）")
             sub.add_argument("--assets-dir", type=Path, help="续领任务的参考资产目录（默认与合同同目录的 assets）")
         if command == "page-preview": sub.add_argument("--page", required=True)
+        if command == "set-chapters":
+            sub.add_argument("--plan", required=True, help="by_source（每份资料一章，提纲按序对应）或分章JSON文件：[{id,title,source_ids,outline_ids}]")
+            sub.add_argument("--operator", required=True, help="分章的操作人")
+            sub.add_argument("--reason", required=True, help="为何分章；已有总结会被搁置并记录")
         if command == "adopt-rules":
             sub.add_argument("--operator", required=True, help="采纳新内容规则的操作人")
             sub.add_argument("--reason", required=True, help="为何在项目中途改用新规则")
@@ -226,6 +231,9 @@ def main():
                 response = client.post(url + "/generation", json=body)
             elif args.command == "page-preview": response = client.post(url + f"/generation/previews/{args.page}")
             elif args.command == "adopt-rules": response = client.post(url + "/rules/adopt", json={"operator": args.operator, "reason": args.reason})
+            elif args.command == "set-chapters":
+                plan = args.plan if args.plan == "by_source" else json.loads(Path(args.plan).read_text(encoding="utf-8-sig"))
+                response = client.post(url + "/chapters", json={"chapters": plan, "operator": args.operator, "reason": args.reason})
             elif args.command == "generation": response = client.get(url + "/generation")
             elif args.command == "revise": response = client.post(url + "/generation/revise", json={"page_id":args.page,"kind":args.kind})
             elif args.command in {"backfill-structure", "backfill-arrows"}:   # sources imported by an earlier ingest
@@ -238,6 +246,8 @@ def main():
                     body["sources"] = args.sources
                 elif args.checks:
                     body["checks"] = args.checks
+                elif args.chapters:
+                    body["chapters"] = args.chapters
                 elif args.pages: body["pages"] = args.pages
                 response = client.post(url + "/tasks", params={"compact":True} if args.api == "deck" and args.compact else {}, json=body)
             elif args.command == "claim":

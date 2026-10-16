@@ -235,6 +235,7 @@ class Store:
             require(row, "项目不存在", 404)
             state = json.loads(row[1])
             yield state
+            self.before_commit(state)
             state["updated_at"] = now()
             state["revision"] = row[0] + 1
             db.execute("UPDATE workflows SET revision=?,state=? WHERE id=?", (state["revision"], json.dumps(state, ensure_ascii=False), workflow_id))
@@ -246,6 +247,9 @@ class Store:
             raise
         finally:
             db.close()
+
+    def before_commit(self, state: dict) -> None:
+        """Hook run on every write before the state is serialized (subclasses move bulky history out of it)."""
 
     def path(self, relative: str) -> Path:
         target = (self.root / relative).resolve()

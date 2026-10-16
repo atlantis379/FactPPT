@@ -57,6 +57,7 @@ class Queue(Strict):
     sources: list[str] | None = None        # CLAIMS only: redo these sources
     pages: list[str] | None = None          # visual revision only
     checks: list[Literal["COVERAGE", "RELATIONS"]] | None = None   # SEMANTIC_REVIEW only: queue these checklists
+    chapters: list[str] | None = None       # SUMMARY / SUMMARY_REVIEW of a chaptered project: these chapters
 
 
 class VisualRevision(Strict):
@@ -296,6 +297,19 @@ class RulesAdoption(Strict):
     reason: str = Field(min_length=4, max_length=2000)
 
 
+class ChapterPlan(Strict):
+    chapters: Literal["by_source"] | list[dict]
+    operator: str = Field(min_length=1, max_length=200)
+    reason: str = Field(min_length=4, max_length=2000)
+
+
+@router.post("/workflows/{workflow_id}/chapters")
+def set_chapters(workflow_id: str, body: ChapterPlan):
+    """Write and review the summary one chapter at a time (each task carries only its chapter's sources)."""
+    result = call(store.set_chapters, workflow_id, body.chapters, body.operator, body.reason)
+    return {k: result.get(k) for k in ("id", "stage", "open_items", "chapters", "chapter_status")}
+
+
 @router.post("/workflows/{workflow_id}/rules/adopt")
 def adopt_rules(workflow_id: str, body: RulesAdoption):
     result = call(store.adopt_rules, workflow_id, body.operator, body.reason)
@@ -304,8 +318,8 @@ def adopt_rules(workflow_id: str, body: RulesAdoption):
 
 @router.post("/workflows/{workflow_id}/tasks")
 def queue(workflow_id: str, body: Queue, compact: bool = False):
-    if sum(bool(x) for x in (body.sources, body.pages, body.checks)) > 1: raise HTTPException(422, "sources、pages、checks 只能提交其一")
-    result = call(store.queue, workflow_id, body.kind, body.pages or body.sources or body.checks)
+    if sum(bool(x) for x in (body.sources, body.pages, body.checks, body.chapters)) > 1: raise HTTPException(422, "sources、pages、checks、chapters 只能提交其一")
+    result = call(store.queue, workflow_id, body.kind, body.pages or body.sources or body.checks or body.chapters)
     return workflow_ack(result, body.kind) if compact else result
 
 

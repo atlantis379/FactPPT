@@ -81,6 +81,12 @@ def unsupported_points(w: dict) -> dict[str, str]:
 ROLES = ("core", "support", "limit")
 POINT_VERDICTS = ("ENTAILED", "PARTIAL", "NOT_ENTAILED", "CONTRADICTED")
 SUMMARY_REVIEW_SCHEMA = "summary_review.v2"
+# A finished task's brief and draft move to a snapshot file (see Store.archive_tasks); these small fields stay for screens.
+ARCHIVED_TASK_STATUSES = {"COMPLETE", "CANCELLED"}
+CHAPTER_KINDS = ("SUMMARY", "SUMMARY_REVIEW")      # bound to a chapter id when the project is split into chapters
+ARCHIVE_MIN_BYTES = 4096
+BRIEF_KEPT_ON_ARCHIVE = ("kind", "regression", "summary_algorithm", "chapter")
+DRAFT_KEPT_ON_ARCHIVE = ("done_chunks", "saved_at", "workers", "path")
 
 
 def key_point_targets(w: dict, section: dict) -> list[dict]:
@@ -414,6 +420,171 @@ def summary_review_current(w: dict) -> bool:
     return summary_current(w) and bool(r) and r.get("schema_version") == SUMMARY_REVIEW_SCHEMA and r["input_sha256"] == summary_review_input(w)
 
 
+# ---- chapters: the summary is written and reviewed one chapter at a time (each task loads only its chapter)
+CHAPTER_ID = re.compile(r"^[A-Za-z0-9_]{1,24}$")
+CHAPTER_STATE_NAMES = {"WRITE": "待撰写", "STALE": "资料或提纲已变更，须重写", "REVIEW": "待独立审查",
+                       "ISSUES": "审查问题待修订或裁定", "DONE": "已审查"}
+
+
+def chapters(w: dict) -> list[dict]:
+    """The project's chapter plan ([] = the whole project is one summary task, as before)."""
+    return w.get("chapters") or []
+
+
+def chapter_problem(w: dict, plan: list | None = None) -> str:
+    """Why a chapter plan does not fit the current sources and outline ('' when it does)."""
+    plan = chapters(w) if plan is None else plan
+    if not plan:
+        return ""
+    if w.get("structure_first"):
+        return "分章撰写不能与“先定整体结构”同时使用"
+    ids = [c.get("id") for c in plan]
+    if not all(isinstance(i, str) and CHAPTER_ID.match(i) for i in ids) or len(ids) != len(set(ids)):
+        return "章节编号须为1–24位字母、数字或下划线，且不重复"
+    if not all(str(c.get("title", "")).strip() for c in plan):
+        return "每章须有标题"
+    src = [x for c in plan for x in c.get("source_ids") or []]
+    if not all(c.get("source_ids") for c in plan) or len(src) != len(set(src)) or set(src) != {s["id"] for s in w["sources"]}:
+        return "每份资料须恰好属于一章，每章至少一份资料（资料增减后须重新分章）"
+    out = [x for c in plan for x in c.get("outline_ids") or []]
+    if len(out) != len(set(out)) or set(out) != {o["id"] for o in w["outline"]}:
+        return "每个提纲条目须恰好属于一章（提纲修改后须重新分章）"
+    return ""
+
+
+def chapter_of(w: dict, cid: str) -> dict:
+    c = next((c for c in chapters(w) if c["id"] == cid), None)
+    require(c, f"章节不存在：{cid}", 404)
+    return c
+
+
+def chapter_view(w: dict, c: dict, part: dict | None = None, meta: dict | None = None) -> dict:
+    """The project as one chapter's task sees it: its sources and outline items, its summary part. Shares the issue
+    ledger and confirmations with the project, so review rounds and rulings land in the project's ledger."""
+    ledger.book(w, "summary")
+    own = set(c["source_ids"])
+    v = dict(w)
+    v.update(chapter={"id": c["id"], "title": c["title"]}, sources=[s for s in w["sources"] if s["id"] in own],
+             outline=[o for o in w["outline"] if o["id"] in set(c.get("outline_ids") or [])],
+             transcription_proposals=[x for x in w.get("transcription_proposals", []) if x["source_id"] in own],
+             summary=part, summary_meta=meta, summary_review=None, content_approval=None, summary_fact_candidates=None)
+    return v
+
+
+def summary_check(w: dict) -> str:
+    """The ledger check a summary review round answers: the whole summary, or one chapter of it."""
+    return f"SUMMARY:{w['chapter']['id']}" if w.get("chapter") else "SUMMARY"
+
+
+def chapter_input(w: dict, c: dict) -> str:
+    return input_hash(chapter_view(w, c))
+
+
+def chapter_record(w: dict, cid: str) -> dict | None:
+    return (w.get("summary_chapters") or {}).get(cid)
+
+
+def chapter_current(w: dict, c: dict) -> bool:
+    r = chapter_record(w, c["id"])
+    return bool(r) and r["input_sha256"] == chapter_input(w, c)
+
+
+def chapter_review_input(w: dict, c: dict) -> str:
+    """Equals summary_review_input of the chapter view (its summary is the part whose digest is recorded)."""
+    return digest({"summary": chapter_record(w, c["id"])["sha256"], "input": chapter_input(w, c), "contract": SUMMARY_REVIEW_SCHEMA})
+
+
+def chapter_review_current(w: dict, c: dict) -> bool:
+    r = chapter_record(w, c["id"])
+    return chapter_current(w, c) and bool(r.get("review")) and r["review"]["input_sha256"] == chapter_review_input(w, c)
+
+
+def chapter_open_issues(w: dict, c: dict) -> list[dict]:
+    return [i for i in ledger.unresolved(w, "summary", f"SUMMARY:{c['id']}") if i["severity"] == "BLOCKER"]
+
+
+def chapter_status(w: dict) -> list[dict]:
+    out = []
+    for n, c in enumerate(chapters(w), 1):
+        if not chapter_current(w, c):
+            state = "STALE" if chapter_record(w, c["id"]) else "WRITE"
+        elif not chapter_review_current(w, c):
+            state = "REVIEW"
+        elif chapter_open_issues(w, c):
+            state = "ISSUES"
+        else:
+            state = "DONE"
+        out.append({"id": c["id"], "title": c["title"], "number": n, "state": state, "blocking": len(chapter_open_issues(w, c))})
+    return out
+
+
+def merge_chapter_summaries(w: dict, parts: list[dict]) -> dict:
+    """One summary of the whole project from its chapters' parts, in chapter order. Lists are concatenated; indices
+    into pending_issues are shifted by the issues of earlier chapters. Code assembles, it does not rewrite."""
+    algos = {p.get("summary_algorithm") for p in parts}
+    require(len(algos) == 1, "各章总结须使用同一算法版本才能合并", 422)
+    out = {"schema_version": "full_source_summary.v3", "input_sha256": input_hash(w),
+           "overall_summary": "\n\n".join(f"【{c['title']}】{p['overall_summary']}" for c, p in zip(chapters(w), parts)),
+           "sections": [], "outline_coverage": [], "pending_issues": []}
+    algo = algos.pop()
+    if algo:
+        out["summary_algorithm"] = algo
+    understanding, index, coverage = None, None, None
+    for p in parts:
+        shift = len(out["pending_issues"])
+        p = copy.deepcopy(p)
+        for row in (p.get("evidence_index") or {}).get("points") or []:
+            for e in row.get("evidence") or []:
+                if isinstance(e.get("pending_issue_index"), int):
+                    e["pending_issue_index"] += shift
+        for row in (p.get("source_coverage") or {}).get("units") or []:
+            for x in row.get("parts") or []:
+                if isinstance(x.get("pending_issue_index"), int):
+                    x["pending_issue_index"] += shift
+        out["sections"] += p["sections"]
+        out["outline_coverage"] += p.get("outline_coverage") or []
+        out["pending_issues"] += p["pending_issues"]
+        if p.get("source_understanding"):
+            understanding = understanding or {**{k: v for k, v in p["source_understanding"].items() if k != "sections"}, "sections": []}
+            understanding["sections"] += p["source_understanding"]["sections"]
+        if p.get("evidence_index"):
+            index = index or {"schema_version": p["evidence_index"]["schema_version"], "points": [], "page_decisions": []}
+            index["points"] += p["evidence_index"]["points"]
+            index["page_decisions"] += p["evidence_index"]["page_decisions"]
+        if p.get("source_coverage"):
+            led = p["source_coverage"]
+            coverage = coverage or {**{k: v for k, v in led.items() if k not in ("units", "conclusions", "source_units_sha256")}, "units": []}
+            require(coverage.get("segmenter") == led.get("segmenter") and coverage["schema_version"] == led["schema_version"],
+                    "各章逐句登记须使用同一版本与切句器才能合并", 422)
+            coverage["units"] += led["units"]
+            if "conclusions" in led:                          # facet ledgers of earlier schemas
+                coverage.setdefault("conclusions", []).extend(led["conclusions"])
+    if understanding:
+        out["source_understanding"] = understanding
+    if index:
+        out["evidence_index"] = index
+    if coverage:
+        from factdeck.source_coverage import source_hash
+        coverage["source_units_sha256"] = source_hash(all_units(w))
+        out["source_coverage"] = coverage
+    return out
+
+
+SECTION_REF = re.compile(r"^(s\d+)((?:\.k\d+)|(?:/c\d+))?$")
+
+
+def _prefix_section_ids(x, cid: str):
+    """The contract template's section-based ids (s1, s1.k1, s1/c1) renamed to the chapter's (cid-s1 …)."""
+    def name(v):
+        m = SECTION_REF.match(v) if isinstance(v, str) else None
+        return f"{cid}-{m.group(1)}{m.group(2) or ''}" if m else v
+    if isinstance(x, dict):
+        return {name(k): _prefix_section_ids(v, cid) for k, v in x.items()}
+    if isinstance(x, list):
+        return [_prefix_section_ids(v, cid) for v in x]
+    return name(x)
+
+
 def open_summary_issues(w: dict) -> list[dict]:
     """Blockers in the summary issue ledger not closed by an evidenced fix or a human ruling."""
     if not summary_review_current(w):
@@ -661,6 +832,15 @@ def status(w: dict) -> tuple[str, list[str]]:
     if not fully_claimed(w): return "CLAIMS_REQUIRED", ["资料的论断清单尚未全部完成"]
     gate = structure_stage.gate(w)
     if gate: return gate
+    if chapters(w) and not content_approved(w):
+        if chapter_problem(w): return "CHAPTERS_INVALID", [chapter_problem(w)]
+        rows = chapter_status(w)
+        todo = [r for r in rows if r["state"] != "DONE"]
+        if todo:
+            stage_ = ("SUMMARY_REQUIRED" if any(r["state"] in {"WRITE", "STALE"} for r in todo) else
+                      "SUMMARY_REVIEW_REQUIRED" if any(r["state"] == "REVIEW" for r in todo) else "SUMMARY_ISSUES")
+            return stage_, [f"第{r['number']}章 {r['title']}：{CHAPTER_STATE_NAMES[r['state']]}"
+                            + (f"（{r['blocking']}个阻断问题）" if r["blocking"] else "") for r in todo]
     if not summary_current(w): return "SUMMARY_REQUIRED", ["需要当前版本的全文总结"]
     if not content_approved(w):
         if any(t["kind"] == "SUMMARY_AMEND" and t["status"] in {"PENDING", "RUNNING"} for t in w["tasks"]):
@@ -763,6 +943,185 @@ class Store(GenerationMixin, _BaseStore):
     def __init__(self, data_root: Path | None = None):
         super().__init__(data_root or ROOT / "data" / "deckflow")
 
+    # ---- task archive: a finished task's brief and draft live in a snapshot file, not in the project state
+    def before_commit(self, state: dict) -> None:
+        self.archive_tasks(state)
+
+    def archive_tasks(self, w: dict) -> int:
+        """Move the bulky brief and draft of finished tasks into an immutable snapshot; the task keeps the small fields
+        screens show and the snapshot path. Every write and read of a project then handles only live work."""
+        moved = 0
+        for t in w["tasks"]:
+            if t["status"] not in ARCHIVED_TASK_STATUSES or t.get("archive"):
+                continue
+            heavy = {k: t[k] for k in ("brief", "draft") if t.get(k)}
+            size = len(json.dumps(heavy, ensure_ascii=False))
+            if size < ARCHIVE_MIN_BYTES:
+                continue
+            t["archive"] = {"path": self.snapshot(w, "task_archive", heavy), "sha256": digest(heavy), "bytes": size, "at": now()}
+            t["brief"] = {k: v for k, v in (t.get("brief") or {}).items() if k in BRIEF_KEPT_ON_ARCHIVE}
+            if t.get("draft"):
+                t["draft"] = {k: v for k, v in t["draft"].items() if k in DRAFT_KEPT_ON_ARCHIVE}
+            moved += 1
+        return moved
+
+    def archived_task(self, w: dict, t: dict) -> dict:
+        """A finished task with its archived brief and draft restored (read from the snapshot, checked by hash)."""
+        if not t.get("archive"):
+            return t
+        heavy = json.loads(self.path(t["archive"]["path"]).read_text(encoding="utf-8"))["value"]
+        require(digest(heavy) == t["archive"]["sha256"], "任务归档文件校验失败")
+        return {**t, **heavy}
+
+    # ---- chapters
+    def set_chapters(self, workflow_id: str, plan, operator: str, reason: str):
+        """Split the summary into chapters (or back to one), explicitly and on record. A summary written under the
+        previous plan is kept as a snapshot and set aside; its unresolved review issues are closed by this decision."""
+        require(bool(str(operator).strip()) and len(str(reason).strip()) >= 4, "分章须写明操作人和原因", 422)
+        with self.transaction(workflow_id, "SET_CHAPTERS") as w:
+            if plan == "by_source":
+                plan = self._chapters_by_source(w)
+            require(isinstance(plan, list) and all(isinstance(c, dict) for c in plan), "分章需为章节列表或 by_source", 422)
+            plan = [{"id": str(c.get("id", "")).strip(), "title": str(c.get("title", "")).strip(),
+                     "source_ids": list(c.get("source_ids") or []), "outline_ids": list(c.get("outline_ids") or [])} for c in plan]
+            problem = chapter_problem(w, plan)
+            require(not problem, problem, 422)
+            require(plan != chapters(w), "分章与当前相同", 409)
+            ruled = []
+            for i in ledger.unresolved(w, "summary"):
+                ledger.rule(w, "summary", i["id"], {"reviewer": "operator:" + str(operator).strip(),
+                                                    "reason": f"总结按新的分章重写，原总结作废：{str(reason).strip()}"}, None)
+                ruled.append(i["id"])
+            w.setdefault("chapters_history", []).append({
+                "from": chapters(w), "to": plan, "operator": str(operator).strip(), "reason": str(reason).strip(), "at": now(),
+                "set_aside_summary": self.snapshot(w, "set_aside_summary", w["summary"]) if w.get("summary") else None,
+                "set_aside_chapters": copy.deepcopy(w.get("summary_chapters") or {}),
+                "had_content_approval": bool(w.get("content_approval")), "ruled_issues": ruled})
+            w.update(chapters=plan, summary_chapters={}, summary=None, summary_meta=None, summary_review=None,
+                     summary_fact_candidates=None, content_approval=None)
+            self.cancel_stale(w)
+        return self.get(workflow_id)
+
+    @staticmethod
+    def _chapters_by_source(w: dict) -> list[dict]:
+        """One chapter per source in import order; outline items pair with sources in order (or there is no outline)."""
+        src, outline = w["sources"], w["outline"]
+        require(src, "请先导入资料", 422)
+        require(not outline or len(outline) == len(src), "提纲条目数与资料数不同，不能按资料自动分章；请逐章给出 source_ids 与 outline_ids", 422)
+        return [{"id": f"ch{n}", "title": outline[n - 1]["text"] if outline else s["filename"], "source_ids": [s["id"]],
+                 "outline_ids": [outline[n - 1]["id"]] if outline else []} for n, s in enumerate(src, 1)]
+
+    def next_chapters(self, w: dict, kind: str, named=None) -> list[str]:
+        """Chapters to queue: the named ones, else the first chapter that needs this step (one chapter at a time)."""
+        problem = chapter_problem(w)
+        require(not problem, problem, 409)
+        if named:
+            plan = [chapter_of(w, x) for x in named]
+            for c in plan:
+                if kind == "SUMMARY":
+                    require(fully_claimed(chapter_view(w, c)), f"{c['title']}：请先完成本章资料的阅读和论断清单")
+                else:
+                    require(chapter_current(w, c), f"{c['title']}：请先完成本章当前版本的总结")
+            return [c["id"] for c in plan]
+        for c in chapters(w):
+            if kind == "SUMMARY":
+                if not fully_claimed(chapter_view(w, c)):
+                    continue
+                revise = chapter_review_current(w, c) and any(i["status"] == "OPEN" for i in chapter_open_issues(w, c))
+                if not chapter_current(w, c) or revise:
+                    return [c["id"]]
+            elif chapter_current(w, c) and not chapter_review_current(w, c):
+                return [c["id"]]
+        require(False, "没有需要撰写或修订的章节（或其资料尚未完成论断清单）" if kind == "SUMMARY" else "没有待审查的章节")
+
+    def chapter_part(self, w: dict, cid: str) -> dict:
+        r = chapter_record(w, cid)
+        part = json.loads(self.path(r["path"]).read_text(encoding="utf-8"))["value"]
+        require(digest(part) == r["sha256"], "分章总结文件校验失败")
+        return part
+
+    def chapter_view_of(self, w: dict, cid: str) -> dict:
+        """A chapter's view with its last accepted part (read from its snapshot) as the summary."""
+        r = chapter_record(w, cid)
+        return chapter_view(w, chapter_of(w, cid), self.chapter_part(w, cid) if r else None,
+                            {k: r[k] for k in ("author", "contributors", "at")} if r else None)
+
+    def chapter_brief(self, w: dict, kind: str, cid: str) -> dict:
+        c = chapter_of(w, cid)
+        n = next(i for i, x in enumerate(chapters(w), 1) if x["id"] == cid)
+        b = self.brief(self.chapter_view_of(w, cid), kind, None)
+        b["chapter"] = {"id": cid, "title": c["title"], "number": n, "of": len(chapters(w)),
+                        "source_ids": c["source_ids"], "outline_ids": c["outline_ids"]}
+        if kind == "SUMMARY":
+            b["result_contract"] = _prefix_section_ids(b["result_contract"], cid)
+            b["rules"].insert(0, f"本任务只写第{n}/{len(chapters(w))}章“{c['title']}”：只含本章资料和提纲条目。章节编号以“{cid}-”开头"
+                                 f"（如 {cid}-s1，要点编号随之为 {cid}-s1.k1）。overall_summary 写本章概要。各章分别完成并经独立审查后，"
+                                 "程序按章序合并为全文总结（章节、要点、索引与逐句登记原样拼接）。")
+        else:
+            b["rules"].insert(0, f"本任务只审第{n}/{len(chapters(w))}章“{c['title']}”的总结；prior_issues 只含本章未闭环的问题。")
+        return b
+
+    def accept_chapter_summary(self, w: dict, t: dict, result: dict):
+        c = chapter_of(w, t["binding"])
+        problem = chapter_problem(w)
+        require(not problem, problem, 409)
+        secs = result.get("sections") if isinstance(result, dict) else None
+        require(isinstance(secs, list) and all(isinstance(s, dict) and str(s.get("id", "")).startswith(c["id"] + "-") for s in secs),
+                f"本章的章节编号须以“{c['id']}-”开头", 422)
+        v = chapter_view(w, c)
+        self.accept_summary(v, result, t["worker"], t["brief"].get("summary_algorithm"))
+        part = v["summary"]
+        w.setdefault("summary_chapters", {})[c["id"]] = {
+            "input_sha256": part["input_sha256"], "sha256": digest(part), "path": self.snapshot(w, "chapter_summary", part),
+            "author": t["worker"], "contributors": sorted({t["worker"], *((t.get("draft") or {}).get("workers") or [])}),
+            "at": now(), "review": None}
+        self.merge_chapters(w)
+
+    def accept_chapter_review(self, w: dict, cid: str, result: dict, reviewer: str):
+        c = chapter_of(w, cid)
+        require(chapter_current(w, c), "本章没有当前版本的总结")
+        v = self.chapter_view_of(w, cid)
+        self.accept_summary_review(v, result, reviewer)
+        r = v["summary_review"]
+        w["summary_chapters"][cid]["review"] = {k: r[k] for k in ("input_sha256", "reviewer", "at", "round", "sections")}
+        self.aggregate_chapter_reviews(w)
+
+    def merge_chapters(self, w: dict) -> bool:
+        """When every chapter has a current part, the project summary is their merge, validated as a whole."""
+        plan = chapters(w)
+        if not all(chapter_current(w, c) for c in plan):
+            return False
+        merged = merge_chapter_summaries(w, [self.chapter_part(w, c["id"]) for c in plan])
+        try:
+            self.accept_summary(w, merged, "chapters")
+        except WorkflowError as error:
+            raise WorkflowError(f"各章合并为全文总结时未通过校验：{error}", 422) from error
+        recs = w["summary_chapters"]
+        w["summary_meta"] = {"author": "chapters", "chapters": {c["id"]: recs[c["id"]]["author"] for c in plan},
+                             "contributors": sorted({x for c in plan for x in [recs[c["id"]]["author"], *recs[c["id"]]["contributors"]]}),
+                             "at": now()}
+        self.aggregate_chapter_reviews(w)
+        return True
+
+    def aggregate_chapter_reviews(self, w: dict):
+        """The project's summary review is current when every chapter's review is current for the merged summary."""
+        plan = chapters(w)
+        if not (summary_current(w) and all(chapter_review_current(w, c) for c in plan)):
+            w["summary_review"] = None
+            return
+        reviews = [w["summary_chapters"][c["id"]]["review"] for c in plan]
+        w["summary_review"] = {"schema_version": SUMMARY_REVIEW_SCHEMA, "input_sha256": summary_review_input(w),
+                               "reviewer": "、".join(sorted({r["reviewer"] for r in reviews})), "at": now(),
+                               "chapters": {c["id"]: {k: r[k] for k in ("reviewer", "at", "round")} for c, r in zip(plan, reviews)},
+                               "sections": [row for r in reviews for row in r["sections"]],
+                               "round": max(r["round"] for r in reviews), "issues": [], "dismissed": {}}
+
+    def compact(self, workflow_id: str) -> dict:
+        """Archive every finished task now (normally this happens on the next write of the project)."""
+        with self.transaction(workflow_id, "TASK_ARCHIVE") as w:
+            moved = self.archive_tasks(w)
+        return {"workflow_id": workflow_id, "archived": moved}
+
     # ---- project
     def create(self, title: str, outline: str = "", requirements: dict | None = None, context: dict | None = None, theme: str = "navy-teal", generation_route: str = VISUAL_ROUTE) -> dict:
         require(bool(title.strip()), "请填写项目名称", 422)
@@ -815,6 +1174,7 @@ class Store(GenerationMixin, _BaseStore):
             if w.get(key):                              # earlier screens read issues/dismissed; the ledger is the authority
                 w[key]["issues"], w[key]["dismissed"] = ledger.legacy_view(w, scope)
         w["ledger_status"] = {scope: ledger.counts(w, scope) for scope in ("summary", "semantic")}
+        w["chapter_status"] = chapter_status(w) if chapters(w) and not chapter_problem(w) else []
         w["content_acknowledge"] = ledger.to_acknowledge(w, "summary") if summary_review_current(w) else []
         for t in w["tasks"]:
             t.pop("lease_token", None)
@@ -1257,7 +1617,7 @@ class Store(GenerationMixin, _BaseStore):
             ref = str(x.get("ref") or "general").strip()
             others.append({"category": "CONTENT_ERROR", "evidence": x["problem"], "suggestion": "修订总结或人工裁定",
                            **x, "ref": ref if ref in refs else "general", "source_ref": x.get("source_ref") or ref})
-        rnd = ledger.record_round(w, "summary", "SUMMARY", reviewer=reviewer, input_sha256=summary_review_input(w),
+        rnd = ledger.record_round(w, "summary", summary_check(w), reviewer=reviewer, input_sha256=summary_review_input(w),
                                   dispositions=result.get("prior_issues") or [], new_issues=others, valid_refs=refs,
                                   ok_refs=ok, problem_refs={i["ref"] for i in issues if i["severity"] == "BLOCKER"}, auto_issues=issues)
         self.snapshot(w, "summary_review", result)
@@ -1613,6 +1973,8 @@ class Store(GenerationMixin, _BaseStore):
     # ---- tasks
     def brief(self, w: dict, kind: str, binding: str | None) -> dict:
         from factdeck import summary_evidence as se
+        if kind in CHAPTER_KINDS and binding and binding != "within-structure":
+            return self.chapter_brief(w, kind, binding)
         b = self._brief(w, kind, binding)
         if kind == 'SUMMARY' and not b.get('summary_algorithm'):
             b['summary_algorithm'] = se.ALGORITHM
@@ -1790,10 +2152,10 @@ class Store(GenerationMixin, _BaseStore):
                               "先回看 prior_issues（此前全部未闭环问题及历史）：逐条处置 FIXED（evidence_refs 写当前版本的要点/目标编号，evidence 说明所见修订）、"
                               "OPEN、NEEDS_HUMAN（须用户裁定，修订总结不能解决）或 RETAINED（证据不足而保留）。与本轮逐条判定矛盾的处置会被拒绝；"
                               "仍有问题的要点不要另起新问题，程序会并入原问题编号。"],
-                    "prior_issues": [ledger.view(i) for i in ledger.unresolved(w, "summary")],
+                    "prior_issues": [ledger.view(i) for i in ledger.unresolved(w, "summary", summary_check(w))],
                     "result_contract": {"schema_version": SUMMARY_REVIEW_SCHEMA, "input_sha256": summary_review_input(w), "issues": [],
                                         "prior_issues": [{"issue_id": i["id"], "status": "", "evidence": "", "evidence_refs": []}
-                                                         for i in ledger.unresolved(w, "summary")],
+                                                         for i in ledger.unresolved(w, "summary", summary_check(w))],
                                         "sections": [{"section_id": v["section_id"], "summary_verdict": "", "summary_issue": "",
                                                       "points": [{"point_id": p["point_id"], "verdict": "", "issue": ""} for p in v["points"]],
                                                       "key_points": [{"target_id": p["target_id"], "verdict": "", "issue": ""} for p in v["key_points"]],
@@ -1802,7 +2164,7 @@ class Store(GenerationMixin, _BaseStore):
                                                      for v in view]}}
         if kind == "SUMMARY":
             return {"kind": kind, **req, "input_sha256": input_hash(w),
-                    "review_issues": [ledger.view(i) for i in ledger.unresolved(w, "summary")],
+                    "review_issues": [ledger.view(i) for i in ledger.unresolved(w, "summary", summary_check(w))],
                     "sources": [{"id": s["id"], "filename": s["filename"], "pages": [{**{k: p[k] for k in ("id", "location", "text")}, "reading": p["reading"],
                                                                                      "units": [{k: u[k] for k in ("id", "text")} | ({"signals": u["signals"]} if u.get("signals") else {})
                                                                                                for u in s["units"] if u["page_id"] == p["id"]],
@@ -1981,6 +2343,9 @@ class Store(GenerationMixin, _BaseStore):
             return claims_input(next(s for s in w["sources"] if s["id"] == binding))
         if kind == "SEMANTIC_REVIEW":
             return semrev.task_fingerprint(w, binding)
+        if kind in CHAPTER_KINDS and binding:
+            c = chapter_of(w, binding)
+            return chapter_input(w, c) if kind == "SUMMARY" else chapter_review_input(w, c)
         return {"STRUCTURE": structure_stage.structure_input, "STRUCTURE_REVIEW": structure_stage.review_input,
                 "SUMMARY": input_hash, "SUMMARY_REVIEW": summary_review_input, "FACTS": facts_input, "DECK": deck_input,
                 "VISUAL_CRITIQUE": critique_input}[kind](w)
@@ -2016,11 +2381,14 @@ class Store(GenerationMixin, _BaseStore):
             elif kind == "STRUCTURE_REVIEW":
                 require(structure_stage.structure_current(w), "请先完成当前版本的课程结构")
                 bindings = [None]
+            elif kind in CHAPTER_KINDS and chapters(w):
+                bindings = self.next_chapters(w, kind, page_ids)
             elif kind == "SUMMARY":
                 require(fully_claimed(w), "请先完成全部资料阅读和论断清单")
                 require(not w.get("structure_first") or structure_stage.approved(w), "请先完成课程整体结构的独立审查与客户确认")
                 bindings = [None]
             elif kind == "SUMMARY_AMEND":
+                require(not chapters(w), "分章项目的待确认事项请在对应章节的修订中处理", 422)
                 require(summary_current(w) and w.get("summary_pending_responses", {}).get("subject_sha256") == digest(w["summary"]), "需先保存当前版本的人工答复")
                 bindings = [None]
             elif kind == "SUMMARY_REVIEW":
@@ -2063,7 +2431,11 @@ class Store(GenerationMixin, _BaseStore):
                            and x["binding"] in other]
                 return worker not in done + running
             if t["kind"] == "SUMMARY_REVIEW":
-                meta = w.get("summary_meta") or {}
+                if t.get("binding"):                 # one chapter: its authors and its sources' claims readers
+                    meta = chapter_record(w, t["binding"]) or {}
+                    w = chapter_view(w, chapter_of(w, t["binding"]))
+                else:
+                    meta = w.get("summary_meta") or {}
                 return worker not in {meta.get("author"), *(meta.get("contributors") or [])} | {(s.get("claims") or {}).get("reader") for s in w["sources"]}
             if t["kind"] == "STRUCTURE_REVIEW":
                 return worker not in {(w.get("structure") or {}).get("author")} | {(s.get("claims") or {}).get("reader") for s in w["sources"]}
@@ -2085,6 +2457,12 @@ class Store(GenerationMixin, _BaseStore):
             if t["kind"] == "CLAIMS" and not fully_read(w): return False
             if t["kind"] == "STRUCTURE" and not (w.get("structure_first") and fully_claimed(w)): return False
             if t["kind"] == "STRUCTURE_REVIEW" and not structure_stage.structure_current(w): return False
+            if t["kind"] in CHAPTER_KINDS and t.get("binding"):
+                c = chapter_of(w, t["binding"])
+                if chapter_problem(w): return False
+                if t["kind"] == "SUMMARY" and not fully_claimed(chapter_view(w, c)): return False
+                if t["kind"] == "SUMMARY_REVIEW" and not chapter_current(w, c): return False
+                return self.fingerprint(w, t["kind"], t["binding"]) == t["input_sha256"]
             if t["kind"] == "SUMMARY" and not fully_claimed(w): return False
             if t["kind"] == "SUMMARY" and w.get("structure_first") and not structure_stage.approved(w): return False
             if t["kind"] == "SUMMARY_REVIEW" and not summary_current(w): return False
@@ -2111,9 +2489,11 @@ class Store(GenerationMixin, _BaseStore):
              "CLAIMS": lambda: self.accept_claims(w, t["binding"], result, t["worker"]),
              "STRUCTURE": lambda: (structure_stage.accept(w, result, t["worker"]), self.snapshot(w, "structure", result)),
              "STRUCTURE_REVIEW": lambda: (structure_stage.accept_review(w, result, t["worker"]), self.snapshot(w, "structure_review", result)),
-             "SUMMARY": lambda: self.accept_summary(w, result, t["worker"], t['brief'].get('summary_algorithm')),
+             "SUMMARY": lambda: (self.accept_chapter_summary(w, t, result) if t.get("binding") else
+                                 self.accept_summary(w, result, t["worker"], t['brief'].get('summary_algorithm'))),
              "SUMMARY_AMEND": lambda: self.accept_summary_amend(w, result, t["worker"]),
-             "SUMMARY_REVIEW": lambda: self.accept_summary_review(w, result, t["worker"]),
+             "SUMMARY_REVIEW": lambda: (self.accept_chapter_review(w, t["binding"], result, t["worker"]) if t.get("binding") else
+                                        self.accept_summary_review(w, result, t["worker"])),
              "FACTS": lambda: self.accept_facts(w, result, t["worker"]),
              "DECK": lambda: self.accept_deck(w, result, t["worker"]),
              "SEMANTIC_REVIEW": lambda: self.accept_semantic(w, result, t["worker"], t["binding"]),
@@ -2132,7 +2512,7 @@ class Store(GenerationMixin, _BaseStore):
                             "lease_until":0,"error":None,"brief":self.brief(w,"SECOND_READ",binding)})
             if t["kind"] == "SUMMARY_AMEND":
                 self.enqueue_once(w, "SUMMARY_REVIEW")
-            if t["kind"] == "SUMMARY" and w.get("summary_meta"):
+            if t["kind"] == "SUMMARY" and w.get("summary_meta") and not t.get("binding"):
                 # every session that saved part of the draft authored this summary
                 w["summary_meta"]["contributors"] = sorted({t["worker"], *((t.get("draft") or {}).get("workers") or [])})
         return self.get(workflow_id)
@@ -2147,13 +2527,14 @@ class Store(GenerationMixin, _BaseStore):
             t = self.leased(w, task_id, token)
             plan = t["brief"].get("chunks")
             require(t["kind"] in {"SUMMARY", "SUMMARY_REVIEW"} and plan, "只有分块的SUMMARY / SUMMARY_REVIEW任务可以保存草稿", 422)
+            v = self.chapter_view_of(w, t["binding"]) if t.get("binding") else w
             try:
                 if t["kind"] == "SUMMARY":
-                    progress = sc.chunk_progress(draft, all_units(w), all_claims(w), plan)
+                    progress = sc.chunk_progress(draft, all_units(v), all_claims(v), plan)
                     done = [c["index"] for c in progress if not c["open_issues"]]
                 else:
                     progress = sc.review_progress(t["brief"]["coverage_targets"], draft.get("coverage_review"),
-                                                  sc.point_texts(w["summary"]), plan)
+                                                  sc.point_texts(v["summary"]), plan)
                     done = [c["index"] for c in progress if not c["problem"]]
             except (KeyError, TypeError, ValueError, AttributeError) as error:
                 raise WorkflowError(f"草稿结构无效：{error}", 422) from error
@@ -2368,6 +2749,12 @@ class Store(GenerationMixin, _BaseStore):
 
     def dismiss_summary_issue(self, workflow_id: str, issue_id: str, record: dict):
         with self.transaction(workflow_id, "DISMISS_SUMMARY_ISSUE") as w:
+            i = next((i for i in ledger.issues(w, "summary") if issue_id in (i["id"], i.get("legacy_id"))), None)
+            if i and str(i.get("check", "")).startswith("SUMMARY:"):      # a chapter's issue: that chapter's review
+                c = chapter_of(w, i["check"].split(":", 1)[1])
+                require(chapter_review_current(w, c), "该章没有当前的总结审查")
+                ledger.rule(w, "summary", issue_id, record, chapter_review_input(w, c))
+                return self.get(workflow_id)
             require(summary_review_current(w), "没有当前的总结审查")
             ledger.rule(w, "summary", issue_id, record, summary_review_input(w))
         return self.get(workflow_id)

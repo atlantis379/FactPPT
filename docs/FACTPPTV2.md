@@ -79,6 +79,8 @@
 - `SEMANTIC_REVIEW` 的执行端标识必须不同于事实库和页面规格的作者；`SECOND_READ` 必须不同于第一次转录者和截取者，且合同中不提供第一次的文字和截取框。
 - 失败用 `fail FLOW_ID --task ... --error ...` 回报；租约15分钟，长任务用 `renew` 续约；最多3次任务尝试。失败排回队列，真实调用由执行端重领后完成。
 - 新SUMMARY任务按brief的`chunks`（连续整页，每块≤5页、约100句）分块做。每完成一块用 `draft FLOW_ID --task ... --result 当前总结.json` 保存进度：代码校验已完成块的逐句登记并续约，有新完成块时清零尝试次数。会话中断后下一个领取者拿到`draft`（`done_chunks`及草稿），从下一块继续。所有保存过草稿的执行端都记为作者（`summary_meta.contributors`），不得再做SUMMARY_REVIEW。
+- **分章撰写（2026-10-16）。** 多章资料可用 `set-chapters FLOW_ID --plan by_source|分章.json --operator … --reason …` 分章：每章 `{id, title, source_ids, outline_ids}`，每份资料、每个提纲条目恰好属于一章（`by_source` 为每份资料一章、提纲按序对应）。分章后 SUMMARY 与 SUMMARY_REVIEW 按章排队（`queue … SUMMARY` 默认排下一章，`--chapters` 指定），任务说明只带本章资料、论断和提纲条目，章节编号以“章id-”开头；本章资料完成论断清单即可开写，不必等全书。审查独立性按章判断，问题以 `SUMMARY:章id` 登记，只由本章审查回看、只退回本章修订。全部章节为当前版本时，程序按章序把各章原样拼接为全文总结并整体复验（`pending_issue_index` 按前面各章顺延）；全部章节审查为当前版本后才进入客户确认，确认对象仍是全文。改分章会搁置已有总结（快照记录在 `chapters_history`），原总结未闭环的审查问题按此决定记为人工裁定。分章不能与“先定整体结构”同时使用。
+- **任务归档。** 已完成或已取消任务的说明与草稿在每次写入时移到快照文件（`task.archive` 记路径与哈希，`Store.archived_task` 可还原），项目数据只留在办任务。`tools/compact_projects.py` 可一次归档全部项目并压缩数据库。
 - 旧整页图片流程的命令加 `--api fact`（含 `image` 命令）。
 - A 主线新增 `VISUAL_DESIGN`、`VISUAL_LAYOUT`、`VISUAL_CLEAN`、`VISUAL_VECTOR`；启动生成后自动排队，素材齐备自动导出。PNG/SVG用 `asset` 连同真实回执提交，版面用 `complete` 提交JSON。详情见 [PPT_GENERATION_ROUTE.md](PPT_GENERATION_ROUTE.md)。
 - 多执行端可用 `claim --binding PAGE_ID` 在原SQLite事务内领取指定页，`asset/complete --compact`取得简短回执；独立续约与工具限额由 `tools/visual_worker_runtime.py`管理。每端使用独立worker身份和任务文件、一页一个当前租约。当前协调agent派页；不代表服务器已能无人值守调用模型。详见 [PARALLEL_WORKER_PLAN.md](PARALLEL_WORKER_PLAN.md)。
