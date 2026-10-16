@@ -2608,6 +2608,8 @@ class Store(GenerationMixin, _BaseStore):
             except (KeyError, TypeError, ValueError, AttributeError) as error:
                 raise WorkflowError(f"草稿结构无效：{error}", 422) from error
             before = set((t.get("draft") or {}).get("done_chunks") or [])
+            lost = sorted(before - set(done))
+            require(not lost, f"草稿丢失了已完成的块 {lost}：请在项目中的当前草稿上续写（tools/chunk_packet.py --draft-out 取出当前草稿），不要从头另写", 422)
             t["draft"] = {("summary" if t["kind"] == "SUMMARY" else "result"): copy.deepcopy(draft), "saved_at": now(),
                           "done_chunks": done, "progress": progress,
                           "workers": sorted({*((t.get("draft") or {}).get("workers") or []), t["worker"]}),
