@@ -12,6 +12,26 @@ import sys
 from pathlib import Path
 
 
+def live_units(task_id):
+    """Every unit's text in the project that holds this task (for briefs issued before they carried every unit)."""
+    store, wid = _store_of(task_id)
+    if not wid:
+        return {}
+    from app.deckflow import all_units
+    return {u["id"]: u["text"] for u in all_units(store.get(wid))}
+
+
+def _store_of(task_id):
+    import os
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from app.deckflow import Store
+    root = os.environ.get("FACTDECK_DATA_ROOT")
+    store = Store(Path(root) if root else None)
+    with store.connect() as db:
+        row = db.execute("SELECT id FROM workflows WHERE instr(state, ?) > 0", (task_id,)).fetchone()
+    return store, row and row[0]
+
+
 def live_draft(task_id):
     """The task's current draft in the project store (the task file is a claim-time copy)."""
     import os
@@ -47,10 +67,12 @@ def image(images, page_id):
     return str(f) if f and f.exists() else None
 
 
-def summary_packet(brief, chunk, images):
+def summary_packet(brief, chunk, images, task_id=None):
     pages = set(chunk["page_ids"])
     units = set(chunk["unit_ids"])
     texts = unit_texts(brief)
+    if task_id and units - set(texts):
+        texts = {**live_units(task_id), **texts}
     cov = {r["unit_id"]: r for r in brief["source_coverage_input"]["units"]}
     out = []
     for s in brief["sources"]:
@@ -113,7 +135,7 @@ def main():
         chunk = next((c for c in plan if c["index"] == a.chunk), None)
         if chunk is None:
             sys.exit(f"没有第 {a.chunk} 块（共 {len(plan)} 块）")
-    packet = (summary_packet if task["kind"] == "SUMMARY" else review_packet)(brief, chunk, a.images)
+    packet = summary_packet(brief, chunk, a.images, task["id"]) if task["kind"] == "SUMMARY" else review_packet(brief, chunk, a.images)
     text = json.dumps(packet, ensure_ascii=False, indent=1)
     if a.out:
         a.out.write_text(text, encoding="utf-8"); print(json.dumps({"out": str(a.out), "chunk": chunk["index"]}, ensure_ascii=False))

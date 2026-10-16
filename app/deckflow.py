@@ -2241,7 +2241,10 @@ class Store(GenerationMixin, _BaseStore):
                                                                                                 if k["page_id"] == p["id"]]}
                                                                                     for p in s["pages"]],
                                  "profile": (s.get("claims") or {}).get("profile"),
-                                 "transcriptions": [{k: u[k] for k in ("id", "location", "text")} for u in s["transcriptions"]],
+                                 # transcription cells and correction proposals, with confirmed text applied (all_units)
+                                 "transcriptions": [{k: u[k] for k in ("id", "location", "text")} for u in all_units(w)
+                                                    if u["id"] in {x["id"] for x in s["transcriptions"]}
+                                                    | {x["id"] for x in w.get("transcription_proposals", []) if x["source_id"] == s["id"]}],
                                  "relation_candidates": s.get("relations") or []} for s in w["sources"]],
                     "relation_types": RELATION_NAMES, "claim_types": CLAIM_TYPES, "source_kinds": SOURCE_KINDS,
                     "candidate_reject_reasons": CANDIDATE_REJECT_REASONS,
