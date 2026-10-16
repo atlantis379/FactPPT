@@ -376,7 +376,7 @@ def _message_checks(pages: list[dict], checked: list[dict], sections: list[dict]
 def check(deck: dict, facts: dict[str, dict], terms: list[str] | tuple[str, ...] = (),
           outline: list[dict] | None = None, sections: list[dict] | None = None,
           requirements: dict | None = None, parts: list[dict] | None = None,
-          key_points: dict[str, str] | None = None) -> dict:
+          key_points: dict[str, str] | None = None, key_roles: dict[str, str] | None = None) -> dict:
     """`key_points` (id -> point text) is given for a complete-notes summary (model_understanding.v4): every
     content page names the summary key points it teaches and every key point reaches a page; page count follows
     the content, so no target-page pressure is reported."""
@@ -588,7 +588,7 @@ def check(deck: dict, facts: dict[str, dict], terms: list[str] | tuple[str, ...]
             else:
                 coverage["omissions"].append({"section_id": sid, "reason": o.get("reason", "")})
     if key_points is not None:
-        _key_point_coverage(pages, key_points, coverage, err)
+        _key_point_coverage(pages, key_points, coverage, err, key_roles)
     if requirements and requirements.get("target_pages") and key_points is None:
         target, n = int(requirements["target_pages"]), len(pages)
         if abs(n - target) > max(2, target * 0.3):
@@ -598,9 +598,22 @@ def check(deck: dict, facts: dict[str, dict], terms: list[str] | tuple[str, ...]
     return result
 
 
-def _key_point_coverage(pages: list[dict], key_points: dict[str, str], coverage: dict, err) -> None:
-    """Complete-notes summaries are not compressed by selection: every key point is taught on at least one page
-    (a dense point may span several); what the slide leaves out is carried by the speaker notes."""
+# Which summary points must be on a slide (user decision 2026-10-17, option A): each section's core point and every
+# limit (exception, contraindication, condition) are taught on at least one page; support points may be shown, and the
+# ones no page shows are spoken from the notes of their section's first page. Nothing confirmed is dropped.
+SLIDE_ROLES = ("core", "limit")
+
+
+def _must_show(key_points: dict, key_roles: dict | None) -> set[str]:
+    """Points a slide must teach: all of them without roles (earlier contract), else core and limit points."""
+    if key_roles is None:
+        return set(key_points)
+    return {k for k in key_points if key_roles.get(k, "core") in SLIDE_ROLES}
+
+
+def _key_point_coverage(pages: list[dict], key_points: dict[str, str], coverage: dict, err, key_roles=None) -> None:
+    """Complete-notes summaries are not compressed silently: every core and limit point is taught on at least one page
+    (a dense point may span several); support points not shown are carried by the speaker notes."""
     where = {k: [] for k in key_points}
     for p in pages:
         if p.get("layout") in NON_CONTENT or p.get("layout") == "closing":
@@ -615,19 +628,38 @@ def _key_point_coverage(pages: list[dict], key_points: dict[str, str], coverage:
         for x in ids:
             if x in where:
                 where[x].append(p.get("id"))
-    missing = [k for k, v in where.items() if not v]
+    must = _must_show(key_points, key_roles)
+    missing = [k for k, v in where.items() if not v and k in must]
     if missing:
-        err("以下总结要点没有任何页面讲授（v4总结是完整笔记，要点不得删减；内容多就拆页）：" + "、".join(missing))
-    coverage["key_points"] = [{"key_point_id": k, "pages": v} for k, v in where.items()]
+        err("以下核心或限定要点没有任何页面讲授（不得删减；内容多就拆页）：" + "、".join(missing))
+    notes = _notes_pages(pages, key_points, key_roles)
+    coverage["key_points"] = [{"key_point_id": k, "pages": v, "role": (key_roles or {}).get(k),
+                               **({"notes_page": notes.get(k)} if not v else {})} for k, v in where.items()]
 
 
-def teaching_notes(pages: list[dict], key_points: dict[str, str]) -> dict[str, str]:
-    """Speaker notes per page: the full confirmed summary text of the key points the page teaches, verbatim."""
+def _notes_pages(pages: list[dict], key_points: dict, key_roles: dict | None) -> dict[str, str]:
+    """Point id -> page whose notes carry it, for points no page shows: the first page teaching its section."""
+    shown = {x for p in pages for x in p.get("key_point_ids") or []}
+    first = {}
+    for p in pages:
+        for x in p.get("key_point_ids") or []:
+            first.setdefault(str(x).rsplit(".k", 1)[0], p["id"])
+    return {k: first[k.rsplit(".k", 1)[0]] for k in key_points if k not in shown and k.rsplit(".k", 1)[0] in first}
+
+
+def teaching_notes(pages: list[dict], key_points: dict[str, str], key_roles: dict | None = None) -> dict[str, str]:
+    """Speaker notes per page: the full confirmed summary text of the key points the page teaches, verbatim, then
+    (with roles) the section's support points no page shows, marked as notes-only."""
+    extra = {}
+    if key_roles is not None:
+        for k, pid in _notes_pages(pages, key_points, key_roles).items():
+            extra.setdefault(pid, []).append(k)
     out = {}
     for p in pages:
         ids = [x for x in p.get("key_point_ids") or [] if x in key_points]
-        if ids:
-            out[p["id"]] = "\n\n".join(f"〔{x}〕{key_points[x]}" for x in ids)
+        text = [f"〔{x}〕{key_points[x]}" for x in ids] + [f"〔{x}·讲稿补充〕{key_points[x]}" for x in extra.get(p.get("id"), [])]
+        if text:
+            out[p["id"]] = "\n\n".join(text)
     return out
 
 

@@ -670,16 +670,23 @@ def summary_key_points(w: dict) -> dict[str, str] | None:
     return {f"{sec['id']}.k{i}": k.get("point", "") for sec in s["sections"] for i, k in enumerate(sec.get("key_points") or [], 1)}
 
 
+def summary_point_roles(w: dict) -> dict[str, str] | None:
+    """Key point id -> role (core / support / limit) from each section's message, for a v4 summary; None otherwise."""
+    if summary_key_points(w) is None:
+        return None
+    return {k: r for sec in w["summary"]["sections"] for k, r in ((sec.get("message") or {}).get("roles") or {}).items()}
+
+
 def deck_teaching_notes(w: dict, spec: dict) -> dict[str, str] | None:
     from factdeck.deck import teaching_notes
     kp = summary_key_points(w)
-    return teaching_notes(spec.get("pages") or [], kp) if kp is not None else None
+    return teaching_notes(spec.get("pages") or [], kp, summary_point_roles(w)) if kp is not None else None
 
 
 def checked(w: dict, v: dict | None = None) -> dict:
     v = v or verified(w)
     return check_spec(w["deck"]["result"], v["facts"], v["terms"], w["outline"], w["summary"]["sections"], w["requirements"], w.get("outline_parts"),
-                      key_points=summary_key_points(w))
+                      key_points=summary_key_points(w), key_roles=summary_point_roles(w))
 
 
 def pending_items(w: dict, v: dict, chk: dict) -> list[dict]:
@@ -1927,7 +1934,7 @@ class Store(GenerationMixin, _BaseStore):
             n=scope['page_count']
             require(deck['pages'][n:]==w['deck']['result']['pages'][n:], '本次范围之外的页面不得修改',422)
         chk = check_spec(deck, v["facts"], v["terms"], w["outline"], w["summary"]["sections"], w["requirements"], w.get("outline_parts"),
-                         key_points=summary_key_points(w))
+                         key_points=summary_key_points(w), key_roles=summary_point_roles(w))
         from factdeck.content_obligations import validate_deck
         prevention = validate_deck(w, deck, v, chk)
         used = {fid for p in chk["pages"] for fid in p["facts"] + p["edge_facts"]}
@@ -2323,8 +2330,10 @@ class Store(GenerationMixin, _BaseStore):
                                         if w.get("critique") else {}),
                     "review_issues": [ledger.view(i) for i in ledger.unresolved(w, "semantic")],
                     "outline_parts": w.get("outline_parts") or [], "unsupported_points": unsupported_points(w),
-                    **({"summary_key_points": [{"key_point_id": k, "point": t} for k, t in summary_key_points(w).items()],
-                        "notes_rules": ["总结是客户已确认的完整笔记：每个内容页用 key_point_ids 标注本页讲的总结要点，每个要点至少上一页，不得删减。",
+                    **({"summary_key_points": [{"key_point_id": k, "role": (summary_point_roles(w) or {}).get(k), "point": t}
+                                               for k, t in summary_key_points(w).items()],
+                        "notes_rules": ["总结是客户已确认的完整笔记：每个内容页用 key_point_ids 标注本页讲的总结要点。role 为 core（每节核心）和 limit（例外、禁忌、条件）的要点每条至少上一页，不得删减；"
+                                        "support 要点可以合并上页，也可以不上页——不上页的由程序放进其所在节第一页的演讲者备注（讲稿补充），不会丢失。",
                                         "页数由内容决定：不按时长、目标页数或 outline_parts 的建议区间压缩；一个要点内容多就拆成几页，几页都标注它。",
                                         "页面只放核心句、关键数字/阈值、流程与分支；上页内容的人群、时间、阈值、条件、例外、否定及“可能/尚未证明/至关重要”等强度词必须随之上页。"
                                         "研究细节、机制列举、例子等可不上页：程序把所标要点的总结全文原样放进该页演讲者备注（讲稿），不需要也不得在页面上自行改写补全。"]}
