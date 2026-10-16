@@ -344,12 +344,13 @@ def test_sentence_review_is_checkpointed_by_chunk(store):
     ack = store.save_summary_draft(w['id'], t['id'], t['lease_token'], partial)
     assert ack['done_chunks'] == [0]
     bad = dict(partial, coverage_review=[dict(r, point_evidence=[]) if r['verdict'] == 'FULL' else r for r in partial['coverage_review']])
-    assert store.save_summary_draft(w['id'], t['id'], t['lease_token'], bad)['done_chunks'] == []
+    with pytest.raises(WorkflowError):                 # a draft that drops a finished chunk is refused
+        store.save_summary_draft(w['id'], t['id'], t['lease_token'], bad)
     with store.transaction(w['id'], 'TEST_SESSION_STOPS') as raw:
         next(x for x in raw['tasks'] if x['id'] == t['id'])['lease_until'] = 0
     assert store.claim(w['id'], 'author-A', 'SUMMARY_REVIEW') is None              # the author still cannot pick it up
     again = store.claim(w['id'], 'independent-v4', 'SUMMARY_REVIEW')
-    assert again['id'] == t['id'] and again['draft']['done_chunks'] == [] and again['draft']['result'] == bad
+    assert again['id'] == t['id'] and again['draft']['done_chunks'] == [0] and again['draft']['result'] == partial
     w = store.complete(w['id'], again['id'], again['lease_token'], full)
     assert w['summary_review']['reviewer'] == 'independent-v4'
 
