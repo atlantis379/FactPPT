@@ -4,6 +4,7 @@ pages it is about to work on instead of the whole brief. Read-only: it never cha
 usage: python tools/chunk_packet.py --task TASK.json [--chunk N | --next] [--images DIR] [--out FILE]
        python tools/chunk_packet.py --task TASK.json --draft-out FILE   (the current saved draft, to continue from)
        python tools/chunk_packet.py --task TASK.json (--chunk N | --section ID) --fragment-out FILE   (SUMMARY: the fragment to write)
+       python tools/chunk_packet.py --task TASK.json --section ID [--images DIR] [--out F]          (SUMMARY revision: the section's pages)
   --next      the first chunk not yet done: the task's live draft in the project store (or --done N N ...)
   --images    folder with <source id>/pNN.png page images; paths of the chunk's pages are listed when present
 """
@@ -201,6 +202,18 @@ def main():
         if not left:
             print(json.dumps({"next": None, "note": "全部分块已完成"}, ensure_ascii=False)); return
         chunk = left[0]
+    elif a.section and a.chunk is None:
+        # a revision of one section: its pages, gathered from the chunks they fall in
+        d = live_draft(task["id"]) or {}
+        current = d.get("summary") or brief.get("revision_base") or {}
+        sec = next((s for s in current.get("sections") or [] if s["id"] == a.section), None)
+        if sec is None:
+            sys.exit(f"当前草稿中没有章节 {a.section}")
+        pages = set(sec.get("source_page_ids") or [])
+        mine = [c for c in plan if set(c["page_ids"]) & pages]
+        page_of = {r["unit_id"]: r["page_id"] for r in brief["source_coverage_input"]["units"]}
+        chunk = {"index": [c["index"] for c in mine], "page_ids": [p for c in mine for p in c["page_ids"] if p in pages],
+                 "unit_ids": [u for c in mine for u in c["unit_ids"] if page_of.get(u) in pages]}
     else:
         chunk = next((c for c in plan if c["index"] == a.chunk), None)
         if chunk is None:
