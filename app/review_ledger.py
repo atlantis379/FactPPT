@@ -168,6 +168,11 @@ def record_round(w: dict, scope: str, check: str, *, reviewer: str, input_sha256
         fields = {"severity": sev, "category": cat, "check": check, "ref": ref, "source_ref": src,
                   "evidence": _text(x, "evidence", "问题（证据）"), "problem": _text(x, "problem", "问题（说明）"),
                   "suggestion": _text(x, "suggestion", "问题（建议处置）"), "relation": _text(x, "relation", "", False)}
+        if not x.get('existing_issue_id') and not x.get('reopens'):
+            # a reviewer issue on a ref that already has an issue kept open this round is that issue, not a new one
+            same = next((i for i in b['issues'] if i['id'] in staying and i['ref'] == ref and i['check'] == check), None)
+            if same:
+                x = {**x, 'existing_issue_id': same['id']}
         if x.get('existing_issue_id'):
             old = next((i for i in b['issues'] if i['id'] == x['existing_issue_id']), None)
             require(old and old['id'] in staying and old['check'] == check,
