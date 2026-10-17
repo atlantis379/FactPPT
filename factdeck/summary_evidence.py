@@ -178,7 +178,9 @@ def validate(summary, units, claims, page_ids, figure_ids=()):
         need(isinstance(evidence, list) and evidence and all(isinstance(e, dict) for e in evidence), f'{pid}需绑定逐字证据')
         ids = [e.get('id') for e in evidence]
         need(all(isinstance(i, str) and i for i in ids) and len(ids) == len(set(ids)), f'{pid}证据编号不可为空或重复')
-        cited_units = {sp['unit_id'] for c in point.get('claim_ids', []) for sp in claims[c]['spans']}
+        # the units the point cites: its claims' spans and the units it names directly (a sentence the claims list
+        # did not extract can still be the point's main evidence; the quote is located verbatim either way)
+        cited_units = {sp['unit_id'] for c in point.get('claim_ids', []) for sp in claims[c]['spans']} | set(point.get('unit_ids') or [])
         main = False
         for e in evidence:
             if e.get('claim_id'):
