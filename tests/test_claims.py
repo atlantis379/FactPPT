@@ -248,7 +248,7 @@ def test_parallel_items_may_share_the_core_with_a_reason_and_the_source_structur
         store.author(w["id"], "SUMMARY", r, "测试编辑")
     m["core"]["parallel"] = "并列"
     m["core"]["claim_ids"] = [sec["point_coverage"][0]["claim_ids"][0]]
-    with pytest.raises(WorkflowError, match="core.parallel"):          # a reason, not a word
+    with pytest.raises(WorkflowError, match="parallel: 理由"):         # a reason, not a word
         store.author(w["id"], "SUMMARY", r, "测试编辑")
     m["core"]["parallel"] = "测试：原文分级表四级并列，无总述句"
     w = store.author(w["id"], "SUMMARY", r, "测试编辑")

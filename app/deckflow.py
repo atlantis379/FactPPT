@@ -1818,8 +1818,9 @@ class Store(GenerationMixin, _BaseStore):
         cores = [p for p, v in roles.items() if v == "core"]
         if "parallel" in core:                     # items set side by side as equals (a graded table, a list of factors)
             require("claim_id" not in core and "none" not in core, f"章节 {sid} 的 core 只能是 claim_id、none 或 parallel 之一", 422)
-            require(len(str(core.get("parallel", "")).strip()) >= 8,
-                    f"章节 {sid} 声明并列时需写明理由（core.parallel）：原文如何把这些要点并列呈现、为何没有一条比其他更重要", 422)
+            require(isinstance(core.get("parallel"), str) and len(core["parallel"].strip()) >= 8,
+                    f"章节 {sid} 声明并列时 core 写成 {{parallel: 理由（文字）, claim_ids/unit_ids: 呈现并列结构的论断或单元}}："
+                    f"理由说明原文如何把这些要点并列呈现、为何没有一条比其他更重要", 422)
             require(len(cores) >= 2, f"章节 {sid} 声明并列时须把同等重要的要点（至少两条）都标为 core", 422)
             core["parallel"] = str(core["parallel"]).strip()
             cite(w, core, s["source_page_ids"], f"章节 {sid} 的并列依据（core 中呈现并列结构的论断或单元）", unit_page)
