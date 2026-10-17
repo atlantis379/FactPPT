@@ -2070,6 +2070,11 @@ class Store(GenerationMixin, _BaseStore):
                 b['revision_base'] = copy.deepcopy(w['summary'])
                 b['rules'].insert(0, '带revision_base时是修订任务：在其基础上逐条处理review_issues（逐句覆盖问题的ref是登记片段编号），补写或改正point正文并重新登记受影响的句子；'
                                      '未被指出的内容保持不变，不得为通过审核删减原文含义或改归非论断/待定。分块与草稿规则照旧适用。')
+            elif w.get('summary') and summary_current(w):
+                # re-queued with nothing to revise (the content rules changed): conform the accepted summary, change nothing else
+                b['revision_base'] = copy.deepcopy(w['summary'])
+                b['rules'].insert(0, '带revision_base而没有review_issues时，是按现行规则复核已通过的总结：只改不符合现行校验的结构（如关系、core 写法），'
+                                     '要点正文、证据与逐句登记保持不变。')
         elif kind == 'SUMMARY_REVIEW' and (w.get('summary') or {}).get('summary_algorithm') in se.SUPPORTED_ALGORITHMS:
             b['evidence_index'] = copy.deepcopy(w['summary']['evidence_index'])
             b['source_understanding'] = copy.deepcopy(w['summary'].get('source_understanding'))
