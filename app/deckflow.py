@@ -107,7 +107,8 @@ BASIS_NAMES = {"arrow": "原件箭头", "table": "原件表格", "numbered": "�
 # Every candidate relation on a chapter's pages is adopted or declined with one of these reasons.
 CANDIDATE_REJECT_REASONS = {"not_between_points": "不是要点之间的关系（版面排列、编号或引用顺序）",
                             "outside_section": "涉及的内容不属于本章要点", "duplicate": "与本章已采纳的关系重复",
-                            "unsupported_points": "所涉要点无资料支撑或未纳入本章"}
+                            "unsupported_points": "所涉要点无资料支撑或未纳入本章",
+                            "within_one_point": "关系两端在同一条要点内（要点正文已表达，不另列关系）"}
 
 
 def relation_text(r: dict, names: dict[str, str]) -> str:
@@ -143,6 +144,9 @@ def message_lines(w: dict, s: dict) -> list[str]:
         mark = {"title": "，原件页标题", "emphasis": "，原件强调"}.get(m["core"].get("marked") or "", "")
         where = claim_origin(w, k) if k else m["core"]["claim_id"]
         out = ["", f"**核心句**：「{m['core']['quote']}」（{where}{mark}）"]
+    elif "parallel" in m["core"]:
+        cores = [names.get(p, p) for p, v in m["roles"].items() if v == "core"]
+        out = ["", f"**核心**：并列要点，无单一核心句（{m['core']['parallel']}）：" + "；".join(cores)]
     else:
         out = ["", f"**核心句**：无（{m['core'].get('none', '')}）"]
     if m.get("relations"):
@@ -174,7 +178,9 @@ def story_line(w: dict) -> list[str]:
     for s in summary.get("sections") or []:
         if s.get("outline_id") or s.get("id") in mapped:
             m = s.get("message")
-            text = (f"「{m['core']['quote']}」" if m["core"].get("claim_id") else f"（无核心句：{m['core'].get('none', '')}）") if m else "（无资料支撑）"
+            text = (f"「{m['core']['quote']}」" if m["core"].get("claim_id") else
+                    f"（并列要点：{m['core']['parallel']}）" if "parallel" in m["core"] else
+                    f"（无核心句：{m['core'].get('none', '')}）") if m else "（无资料支撑）"
             out.append(f"{len(out) + 1}. {s['title']}：{text}")
     return out
 
@@ -1598,7 +1604,7 @@ class Store(GenerationMixin, _BaseStore):
                 else:
                     passed(target["target_id"])
             m = sec.get("message")
-            if m and m["core"].get("claim_id"):
+            if m and (m["core"].get("claim_id") or "parallel" in m["core"]):
                 c = r.get("core") or {}
                 require(c.get("verdict") in {"SUPPORTED", "UNSUPPORTED"}, f"章节 {sec['id']} 需判断核心句（core.verdict：SUPPORTED / UNSUPPORTED）", 422)
                 if c["verdict"] == "UNSUPPORTED":
@@ -1810,7 +1816,14 @@ class Store(GenerationMixin, _BaseStore):
         bad = sorted({v for v in roles.values() if v not in ROLES})
         require(not bad, f"章节 {sid} 的要点角色只能是 core / support / limit：{'、'.join(map(str, bad))}", 422)
         cores = [p for p, v in roles.items() if v == "core"]
-        if "claim_id" not in core:                 # e.g. a table: the original has no sentence that states the item
+        if "parallel" in core:                     # items set side by side as equals (a graded table, a list of factors)
+            require("claim_id" not in core and "none" not in core, f"章节 {sid} 的 core 只能是 claim_id、none 或 parallel 之一", 422)
+            require(len(str(core.get("parallel", "")).strip()) >= 8,
+                    f"章节 {sid} 声明并列时需写明理由（core.parallel）：原文如何把这些要点并列呈现、为何没有一条比其他更重要", 422)
+            require(len(cores) >= 2, f"章节 {sid} 声明并列时须把同等重要的要点（至少两条）都标为 core", 422)
+            core["parallel"] = str(core["parallel"]).strip()
+            cite(w, core, s["source_page_ids"], f"章节 {sid} 的并列依据（core 中呈现并列结构的论断或单元）", unit_page)
+        elif "claim_id" not in core:               # e.g. a table: the original has no sentence that states the item
             require(len(str(core.get("none", "")).strip()) >= 4 and not cores,
                     f"章节 {sid} 没有核心句时需写明原因（core.none），且不标 core 要点", 422)
             core["none"] = str(core["none"]).strip()
@@ -1846,6 +1859,8 @@ class Store(GenerationMixin, _BaseStore):
                     f"{where}类型须是 {' / '.join(RELATION_TYPES)} 之一", 422)
             items = r.get("items")
             require(isinstance(items, list) and items and set(items) <= set(supported), f"{where}需列出涉及的本章有资料支撑的要点（items）", 422)
+            require(len(set(items)) >= 2, f"{where}须涉及至少两条不同的要点；两端都在同一条要点内时不列关系"
+                                          f"（来自候选的按 within_one_point 拒绝）", 422)
             cid = r.get("from_candidate")
             explicit = list(r.get("unit_ids") or [])
             if cid:
@@ -1854,6 +1869,12 @@ class Store(GenerationMixin, _BaseStore):
             else:
                 require(r.get("claim_ids"), f"{where}没有来自原件的候选，需列出支撑它的论断（claim_ids）", 422)
             cite(w, r, s["source_page_ids"], where, unit_page)
+            if not cid:                            # an author's relation rests on a source sentence that states it
+                b = r.get("basis")
+                require(isinstance(b, dict) and b.get("unit_id") in r["unit_ids"] and str(b.get("quote", "")).strip(),
+                        f"{where}没有来自原件的候选：须在 basis 中给出原文直接陈述这一关系的句子 {{unit_id（所引单元之一）, quote（逐字）}}", 422)
+                text = next(u["text"] for u in all_units(w) if u["id"] == b["unit_id"])
+                require(canon(b["quote"]) in canon(text), f"{where}的 basis.quote 须是单元 {b['unit_id']} 中的逐字原文", 422)
             r["manual"] = not cid
         pages_ = set(s["source_page_ids"])
         mine = sorted(cid for cid, c in cands.items() if any(unit_page.get(u) in pages_ for u in c.get("unit_ids") or []))
@@ -2199,9 +2220,12 @@ class Store(GenerationMixin, _BaseStore):
                                         for r in sec.get("point_coverage") or [] if r.get("unsupported") is None],
                              "unsupported": [{"point_id": r["point_id"], "point": r.get("point", ""), "reason": r["unsupported"]}
                                              for r in sec.get("point_coverage") or [] if r.get("unsupported") is not None],
-                             **({"core": {"claim": claim_view(claims[m["core"]["claim_id"]])} if m["core"].get("claim_id") in claims else m["core"],
+                             **({"core": {"claim": claim_view(claims[m["core"]["claim_id"]])} if m["core"].get("claim_id") in claims else
+                                         {"parallel": m["core"]["parallel"], "items": [p for p, v in m["roles"].items() if v == "core"], **evidence(m["core"])}
+                                         if "parallel" in m["core"] else m["core"],
                                  "relations": [{**{k: r[k] for k in ("type", "items", "manual")}, "from_candidate": r.get("from_candidate"),
-                                                **evidence(r)} for r in m.get("relations") or []]} if m else {})})
+                                                **({"basis": r["basis"]} if r.get("basis") else {}), **evidence(r)}
+                                               for r in m.get("relations") or []]} if m else {})})
             return {"kind": kind, **req, "input_sha256": summary_review_input(w), "overall_summary": w["summary"]["overall_summary"],
                     "pending_issues": w["summary"]["pending_issues"], "sections": view,
                     "profiles": {s["id"]: (s.get("claims") or {}).get("profile") for s in w["sources"]},
@@ -2213,7 +2237,12 @@ class Store(GenerationMixin, _BaseStore):
                               "重点检查：相关被写成因果；解读、推测被写成结果；“可能”“约”“部分”等限定词或人群、时间、剂量条件丢失；"
                               "数字与原文不一致（unmatched_tokens 列出要点文字中不见于所引论断的数字）；推广材料的说法被当作中立结论。",
                               "核心句（core）：是否确是该条目原文中的重点，SUPPORTED / UNSUPPORTED。"
-                              "关系（relations）：该关系是否被所附原文支持，manual 为 true 的是作者判断，须特别核对，SUPPORTED / UNSUPPORTED。",
+                              "core 为 parallel（并列，无单一核心）时，判断原文是否确把 items 所列要点作为同等重要的并列项呈现"
+                              "（如分级表、并列因素清单），且没有一条被原文标为总述或重点、理由成立：成立 SUPPORTED；"
+                              "原文有总述句或其中一项明显更重要，判 UNSUPPORTED 并指出该句。"
+                              "关系（relations）：该关系是否被所附原文支持，SUPPORTED / UNSUPPORTED。manual 为 true 的是作者判断，"
+                              "basis 是作者给出的原文句子：只有这句原文直接陈述了 items 之间的这一关系才判 SUPPORTED；"
+                              "从并列、相邻或主题相近推出的关系判 UNSUPPORTED。",
                               "章节总结文字（summary）同样按四级判断（summary_verdict）。",
                               "key_points 的每条主要归纳也必须独立给出四级 verdict 和 issue，使用原样 target_id；不得以章节结论代替逐条审核。",
                               "其他问题（遗漏的重要论断、资料性质未交代、限定要点未标 limit 等）写入 issues：severity、category"
@@ -2228,7 +2257,8 @@ class Store(GenerationMixin, _BaseStore):
                                         "sections": [{"section_id": v["section_id"], "summary_verdict": "", "summary_issue": "",
                                                       "points": [{"point_id": p["point_id"], "verdict": "", "issue": ""} for p in v["points"]],
                                                       "key_points": [{"target_id": p["target_id"], "verdict": "", "issue": ""} for p in v["key_points"]],
-                                                      **({"core": {"verdict": "", "issue": ""}} if isinstance(v.get("core"), dict) and "claim" in v["core"] else {}),
+                                                      **({"core": {"verdict": "", "issue": ""}} if isinstance(v.get("core"), dict)
+                                                         and ("claim" in v["core"] or "parallel" in v["core"]) else {}),
                                                       **({"relations": [{"verdict": "", "issue": ""} for _ in v["relations"]]} if "relations" in v else {})}
                                                      for v in view]}}
         if kind == "SUMMARY":
@@ -2268,11 +2298,16 @@ class Store(GenerationMixin, _BaseStore):
                               "提纲没有要点时为本章 key_points，编号按顺序为 <章节id>.k1、<章节id>.k2……（程序按顺序赋号）。"
                               "core 为本章最重要的一句：{claim_id}，须是核心要点所列的论断之一，程序取其原文；"
                               "优先选原件作者标出的句子（units 的 signals：title 为页标题，emphasis 为加粗、标色或放大的片段），"
-                              "不得自拟结论。roles 为每条要点标 core / support / limit，恰好一条 core；"
+                              "不得自拟结论。roles 为每条要点标 core / support / limit，恰好一条 core。"
+                              "例外：原文把几项作为同等重要的并列项呈现（如分级表的各级、并列的危险因素），且没有总述句、没有一项被标为重点时，"
+                              "core 写 {parallel: 理由, claim_ids/unit_ids: 呈现这一并列结构的论断或单元}，并把这些同等重要的要点（至少两条）都标为 core；"
+                              "审核会核对是否确实并列。原文有总述句时仍用该句作 core，不用 parallel；"
                               "局限、例外、禁忌、适用范围和注意事项标 limit，它们必须上页。"
                               "relations 列出要点之间的关系 {type, items, from_candidate?, unit_ids?, claim_ids?}，type 取自 relation_types，items 为要点编号；"
                               "优先采用 relation_candidates（来自原件的箭头、表格、编号和连接词），写明候选编号，unit_ids 取候选中的单元；"
-                              "原件没有候选而你判断存在的关系也可以写，须列出支撑它的 claim_ids（在本章页面内），客户确认时会标为人工判断。",
+                              "原件没有候选的关系，只有原文有一句直接陈述了这一关系时才可以写：列出 claim_ids（在本章页面内），"
+                              "并在 basis 中给出该句 {unit_id, quote（逐字）}；客户确认时会标为人工判断。不得从并列、相邻或主题相近推出关系；"
+                              "修订时同样如此。每条关系至少涉及两条不同的要点，两端都在同一条要点内的候选按 within_one_point 拒绝。",
                               "candidate_decisions：本章 source_page_ids 页面上的每条候选关系都要处理："
                               "{candidate, decision: ADOPTED}（须在 relations 中以 from_candidate 出现），"
                               "或 {candidate, decision: REJECTED, reason}，reason 取自 candidate_reject_reasons。"],

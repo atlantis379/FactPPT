@@ -353,8 +353,8 @@ def _message_checks(pages: list[dict], checked: list[dict], sections: list[dict]
             continue
         allowed = set()
         for m, cover in own:
-            core = next((k for k, v in m["roles"].items() if v == "core"), None)
-            allowed |= set(cover.get(core) or []) | {u for r in m.get("relations") or [] for u in r["unit_ids"]}
+            cores = [k for k, v in m["roles"].items() if v == "core"]      # several when the section declares parallel items
+            allowed |= {u for k in cores for u in cover.get(k) or []} | {u for r in m.get("relations") or [] for u in r["unit_ids"]}
         if facts[focus].get("unit") not in allowed:
             result["warnings"].append(f"{p.get('id')}：焦点 {focus} 既不属于该章的核心要点，也不属于要点关系")
     for sid, (m, cover) in msgs.items():

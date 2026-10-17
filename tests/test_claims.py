@@ -226,6 +226,63 @@ def test_table_items_may_state_why_there_is_no_core_sentence(store):
     assert "（无核心句：测试：表格类内容）" in story_line(w)[2]
 
 
+def _messaged(store2, title):
+    w = store2.create(title, OUTLINE)
+    for name, make in fx_.SOURCES.items():
+        store2.add_source(w["id"], name, make())
+    w = T.read_all(store2, w["id"])
+    r = add_messages(w, structured_summary(w))
+    i, sec = next((i, s) for i, s in enumerate(r["sections"]) if len(s.get("message", {}).get("roles", {})) >= 2)
+    return w, r, i, sec
+
+
+def test_parallel_items_may_share_the_core_with_a_reason_and_the_source_structure(store):
+    w, r, i, sec = _messaged(store, "并列核心")
+    m = sec["message"]
+    pts = list(m["roles"])[:2]
+    m["core"] = {"parallel": "测试：原文分级表四级并列，无总述句"}
+    with pytest.raises(WorkflowError, match="至少两条"):               # one core is not a parallel
+        store.author(w["id"], "SUMMARY", r, "测试编辑")
+    m["roles"].update({p: "core" for p in pts})
+    with pytest.raises(WorkflowError, match="并列依据"):               # the side-by-side structure must be cited
+        store.author(w["id"], "SUMMARY", r, "测试编辑")
+    m["core"]["parallel"] = "并列"
+    m["core"]["claim_ids"] = [sec["point_coverage"][0]["claim_ids"][0]]
+    with pytest.raises(WorkflowError, match="core.parallel"):          # a reason, not a word
+        store.author(w["id"], "SUMMARY", r, "测试编辑")
+    m["core"]["parallel"] = "测试：原文分级表四级并列，无总述句"
+    w = store.author(w["id"], "SUMMARY", r, "测试编辑")
+    from app.deckflow import story_line
+    assert "（并列要点：测试：原文分级表四级并列，无总述句）" in story_line(w)[i]
+    store.queue(w["id"], "SUMMARY_REVIEW")
+    t = store.claim(w["id"], "independent-v2", "SUMMARY_REVIEW")
+    view = next(v for v in t["brief"]["sections"] if v["section_id"] == sec["id"])
+    assert view["core"]["items"] == pts and view["core"]["parallel"]
+    row = next(x for x in t["brief"]["result_contract"]["sections"] if x["section_id"] == sec["id"])
+    assert row["core"] == {"verdict": "", "issue": ""}                 # the reviewer must judge the parallel
+
+
+def test_relations_join_two_points_and_an_authors_relation_quotes_the_source(store):
+    w, r, i, sec = _messaged(store, "关系依据")
+    m = sec["message"]
+    a, b = list(m["roles"])[:2]
+    cid = sec["point_coverage"][0]["claim_ids"][0]
+    m["relations"] = [{"type": "evidence", "items": [a], "claim_ids": [cid]}]
+    with pytest.raises(WorkflowError, match="至少两条不同的要点"):
+        store.author(w["id"], "SUMMARY", r, "测试编辑")
+    m["relations"] = [{"type": "evidence", "items": [a, b], "claim_ids": [cid]}]
+    with pytest.raises(WorkflowError, match="basis"):                  # no candidate: name the sentence that states it
+        store.author(w["id"], "SUMMARY", r, "测试编辑")
+    claim = next(k for s in w["sources"] for k in (s.get("claims") or {}).get("items", []) if k["id"] == cid)
+    uid = claim["spans"][0]["unit_id"]
+    m["relations"][0]["basis"] = {"unit_id": uid, "quote": "原文没有的一句话"}
+    with pytest.raises(WorkflowError, match="逐字原文"):
+        store.author(w["id"], "SUMMARY", r, "测试编辑")
+    m["relations"][0]["basis"]["quote"] = claim["spans"][0]["quote"]
+    w = store.author(w["id"], "SUMMARY", r, "测试编辑")
+    assert w["summary"]["sections"][i]["message"]["relations"][0]["manual"] is True
+
+
 def test_new_task_kinds_are_available_over_http(tmp_path, monkeypatch):
     from fastapi.testclient import TestClient
     import app.deckflow_api as api

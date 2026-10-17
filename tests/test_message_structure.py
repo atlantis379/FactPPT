@@ -142,6 +142,13 @@ def _claimed(tmp_path):
     return store, w, t
 
 
+def basis(w, claim_id):
+    """The source sentence an author's relation rests on: here the claim's first span (fixture text, not a real ruling)."""
+    from app.deckflow import all_claims
+    sp = all_claims(w)[claim_id]["spans"][0]
+    return {"unit_id": sp["unit_id"], "quote": sp["quote"]}
+
+
 def test_summary_message_is_checked_against_the_sources(tmp_path):
     store, w, t = _claimed(tmp_path)
     assert "message" in t["brief"]["result_contract"]["sections"][0] and "relation_types" in t["brief"]
@@ -170,7 +177,8 @@ def test_summary_message_is_checked_against_the_sources(tmp_path):
                                                    "from_candidate": "R0000000000"}))
     with pytest.raises(WorkflowError, match="message"):
         submit(lambda m, r: r["sections"][0].pop("message"))
-    submit(lambda m, r: m["relations"].append({"type": "all_of", "items": list(m["roles"]), "claim_ids": [m["core"]["claim_id"]]}))
+    submit(lambda m, r: m["relations"].append({"type": "all_of", "items": list(m["roles"]), "claim_ids": [m["core"]["claim_id"]],
+                                               "basis": basis(w, m["core"]["claim_id"])}))
     sec = store.get(w["id"])["summary"]["sections"]
     assert sec[0]["message"]["relations"][0]["manual"] is True
     assert any("人工判断" in x for x in sec[0]["message"]["warnings"])
@@ -187,7 +195,7 @@ def test_confirmation_draft_is_a_storyboard(tmp_path, monkeypatch):
     m = r["sections"][0]["message"]
     points = list(m["roles"])
     m["roles"][points[-1]] = "limit"
-    m["relations"].append({"type": "all_of", "items": points[:2], "claim_ids": [m["core"]["claim_id"]]})
+    m["relations"].append({"type": "all_of", "items": points[:2], "claim_ids": [m["core"]["claim_id"]], "basis": basis(w, m["core"]["claim_id"])})
     store.complete(w["id"], t["id"], t["lease_token"], r)
     text = TestClient(app).get(f"/api/deck/workflows/{w['id']}/confirmation-draft").text
     names = {x["point_id"]: x["point"] for x in r["sections"][0]["point_coverage"]}
