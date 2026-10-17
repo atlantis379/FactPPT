@@ -5,6 +5,7 @@ usage: python tools/chunk_packet.py --task TASK.json [--chunk N | --next] [--ima
        python tools/chunk_packet.py --task TASK.json --draft-out FILE   (the current saved draft, to continue from)
        python tools/chunk_packet.py --task TASK.json (--chunk N | --section ID) --fragment-out FILE   (SUMMARY: the fragment to write)
        python tools/chunk_packet.py --task TASK.json --section ID [--images DIR] [--out F]          (SUMMARY revision: the section's pages)
+                                                                                     (SUMMARY_REVIEW: one section's row to judge)
   --next      the first chunk not yet done: the task's live draft in the project store (or --done N N ...)
   --images    folder with <source id>/pNN.png page images; paths of the chunk's pages are listed when present
 """
@@ -111,7 +112,20 @@ def review_packet(brief, chunk, images):
             "targets": targets, "points": {p: points.get(p, "") for p in named},
             "sections": inside,
             "note": "sections 是页码全在本块内的章节：本块会话一并给出它们的章节行（summary_verdict、points、key_points、core、relations）；"
-                    "跨块的章节由收尾会话判定。"}
+                    "跨块的章节各由一个章节审核会话判定（--section）。"}
+
+
+def section_review_packet(brief, section_id, images):
+    """One section's row for a SUMMARY_REVIEW: the section as the brief shows it (text, points with their claims and
+    units, core, relations), its page images and the row to fill in."""
+    sec = next((x for x in brief.get("sections") or [] if x["section_id"] == section_id), None)
+    if sec is None:
+        sys.exit(f"审核任务中没有章节 {section_id}")
+    row = next(x for x in brief["result_contract"]["sections"] if x["section_id"] == section_id)
+    return {"kind": "SUMMARY_REVIEW", "section_id": section_id,
+            "images": {p: image(images, p) for p in sec.get("source_page_ids") or [] if image(images, p)},
+            "section": sec, "row": row,
+            "note": "逐项判定 row：summary_verdict、points、key_points（原样 target_id）、core、relations；每一项读所附原文后单独判断。"}
 
 
 def fragment(task, chunk=None, section=None):
@@ -202,6 +216,13 @@ def main():
         if not left:
             print(json.dumps({"next": None, "note": "全部分块已完成"}, ensure_ascii=False)); return
         chunk = left[0]
+    elif a.section and a.chunk is None and task["kind"] == "SUMMARY_REVIEW":
+        text = json.dumps(section_review_packet(brief, a.section, a.images), ensure_ascii=False, indent=1)
+        if a.out:
+            a.out.write_text(text, encoding="utf-8"); print(json.dumps({"out": str(a.out), "section": a.section}, ensure_ascii=False))
+        else:
+            sys.stdout.reconfigure(encoding="utf-8"); print(text)
+        return
     elif a.section and a.chunk is None:
         # a revision of one section: its pages, gathered from the chunks they fall in
         d = live_draft(task["id"]) or {}
