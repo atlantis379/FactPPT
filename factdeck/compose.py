@@ -2,7 +2,7 @@
 
 A composed page places blocks on the body (1152 px wide; 462 px high under a title, 436 px under a title and a
 lead). Every block is a primitive the PPTX exporter rebuilds natively: text boxes, filled or outlined surfaces
-(round ones become circles), rules, markers, proportional bars and arrow lines. What the page says is still only
+(round ones become circles), rules, markers, proportional bars, arrow lines and icons. What the page says is still only
 verified facts and linted authored labels; the composition — what is seen first, what is read next, what is kept
 for reference — is the page's own and is recorded in its design note.
 
@@ -10,7 +10,11 @@ Rules that follow from meaning apply to every composed page:
   * blocks that are peers (same `peer` key) share one surface treatment, since peers are equal;
   * a bar's length is its value on a shared scale, from zero;
   * an arrow is backed by a source arrow, or by one source sentence whose two excerpts it joins in order (a split
-    sentence; listed for semantic review).
+    sentence; listed for semantic review);
+  * an icon stands for one term the page shows in a text block (`for`); it never says anything the text does not;
+  * a drawn line names the facts it draws (`encodes`), or is an axis (`axis: true`);
+  * a page that draws states in `design.figure` the layer its drawing carries that the text cannot (where a number
+    sits on a scale, how a course runs over time, how parts connect). A drawing without such a layer is not drawn.
 """
 from __future__ import annotations
 
@@ -20,7 +24,8 @@ from .lexicon import canon
 
 BODY_W = 1152
 BODY_H = {False: 462, True: 436}          # body height without / with a lead
-KINDS = {"text", "surface", "rule", "marker", "bar", "arrow"}
+KINDS = {"text", "surface", "rule", "marker", "bar", "arrow", "line", "icon"}
+LINE_TONES = {"primary2", "accent", "line", "muted", "primary"}
 # text roles: (size px, weight, tone); a block may override size (from SIZES), weight and tone
 ROLES = {"head": (20, 700, "primary"), "key": (21, 400, "ink"), "body": (17, 400, "ink"), "sub": (15, 400, "ink"),
          "label": (13, 700, "muted"), "note": (13, 400, "muted"), "ref": (12, 400, "muted"), "value": (40, 700, "accent")}
@@ -30,7 +35,8 @@ SURFACE_TONES = {"line", "tint", "strong", "accent", "white"}
 RULE_TONES = {"line", "strong", "accent"}
 BAR_TONES = {"strong", "quiet", "accent"}
 SIGNALS = {"whitespace", "repetition", "type_sizes", "strong_areas", "balance", "alignment"}
-DESIGN_KEYS = {"first", "then", "reference", "strong", "exceptions"}
+DESIGN_KEYS = {"first", "then", "reference", "strong", "exceptions", "figure"}
+DRAWN = {"line", "icon", "arrow", "bar"}     # blocks that draw: a page with any of them states its figure layer
 LINE_H = 1.55                           # running text: line height as a multiple of the size
 LINE_H_DISPLAY = 1.3                    # display sizes (24 px and up: values, large names) set tighter
 
@@ -43,7 +49,7 @@ def structure_errors(page: dict) -> list[str]:
     """Shape of a composed page: known block kinds, geometry inside the body, valid roles/tones, arrow ends, peers."""
     errors = []
     blocks = page.get("blocks") or []
-    body_h = BODY_H[bool(page.get("lead"))]
+    body_h = BODY_H[bool(page.get("lead") or page.get("headline"))]
     ids = [b.get("id") for b in blocks if isinstance(b, dict) and b.get("id")]
     if len(set(ids)) != len(ids):
         errors.append("blocks 的 id 重复")
@@ -67,6 +73,24 @@ def structure_errors(page: dict) -> list[str]:
             if not isinstance(b.get("backed_by"), str):
                 errors.append(f"{where} 箭头需以 backed_by 给出支持事实")
             continue
+        if k == "line":                                   # a drawn course (a curve, an axis), not a relation
+            pts = b.get("points")
+            if not (isinstance(pts, list) and len(pts) >= 2 and all(isinstance(p, list) and len(p) == 2 and all(_num(v) for v in p) for p in pts)):
+                errors.append(f"{where} 线条需有 points：[[x, y], [x, y], …]")
+            elif any(not (-0.5 <= x <= BODY_W + 0.5 and -0.5 <= y <= body_h + 0.5) for x, y in pts):
+                errors.append(f"{where} 线条超出版心")
+            if b.get("tone", "primary2") not in LINE_TONES:
+                errors.append(f"{where} 线条 tone 需为 {'、'.join(sorted(LINE_TONES))} 之一")
+            enc = b.get("encodes")
+            if not b.get("axis") and not (isinstance(enc, list) and enc and all(isinstance(x, str) for x in enc)):
+                errors.append(f"{where} 线条需以 encodes 列出它画出的事实（本页显示的事实编号），坐标轴与网格线写 axis: true")
+            continue
+        if k == "icon":
+            shown = {first_fact(t) for t in blocks if isinstance(t, dict) and t.get("kind") == "text"}
+            if not isinstance(b.get("icon"), str):
+                errors.append(f"{where} 图标需以 icon 指明图标文件 id")
+            if not (isinstance(b.get("for"), str) and b["for"] in shown):
+                errors.append(f"{where} 图标需以 for 指明它代表的事实，且该事实须是本页某个文字块的首个事实")
         geo = [b.get(x) for x in ("x", "y", "h")] + ([b.get("w")] if k != "bar" else [b.get("max_w")])
         if not all(_num(v) for v in geo):
             errors.append(f"{where} 需给出数值 x、y、{'max_w' if k == 'bar' else 'w'}、h")
@@ -107,6 +131,9 @@ def structure_errors(page: dict) -> list[str]:
         if len(looks) > 1:
             errors.append(f"并列组“{key}”的各项处理不一致：并列的各项须同等处理，重点用位置或关系表达，而不是让其中一项更醒目")
     d = page.get("design")
+    drawn = sorted({b["kind"] for b in blocks if isinstance(b, dict) and b.get("kind") in DRAWN} | ({"diagram"} if page.get("diagram") else set()))
+    if drawn and not (isinstance(d, dict) and isinstance(d.get("figure"), str) and d["figure"].strip()):
+        errors.append(f"本页画了图（{'、'.join(drawn)}）：须在 design.figure 写明这张图承担了哪一层文字讲不了的内容；说不出来就不画")
     if d is not None:
         if not isinstance(d, dict) or set(d) - DESIGN_KEYS:
             errors.append(f"design 只能包含 {'、'.join(sorted(DESIGN_KEYS))}")
@@ -162,6 +189,15 @@ def model(page: dict, values: dict[str, float]) -> dict:
         k = b["kind"]
         if k == "arrow":
             arrows.append({"support": b["backed_by"], "tone": b.get("tone", "primary2"), "group": b.get("group", ""),
+                           "head": True, "dash": "", "width": b.get("width", 2),
+                           "points": " ".join(f"{x},{y}" for x, y in b["points"])})
+            continue
+        if k == "line":
+            tone = b.get("tone", "primary2")
+            arrows.append({"support": "", "tone": tone, "group": b.get("group", ""), "head": bool(b.get("head")),
+                           "dash": "6 4" if b.get("dash") else "", "width": b.get("width", 2),
+                           "var": {"on-dark": "accent-on-dark", "primary2": "primary2", "accent": "accent",
+                                   "primary": "primary", "line": "line", "muted": "muted"}[tone],
                            "points": " ".join(f"{x},{y}" for x, y in b["points"])})
             continue
         w = b["w"] if k != "bar" else round(abs(values[b["value_of"]]) / (top[b["scale"]] or 1) * b["max_w"], 1)

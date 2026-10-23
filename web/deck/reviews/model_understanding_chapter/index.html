@@ -1,0 +1,21 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>新合同章节实测｜总结对照</title><link rel="stylesheet" href="/web/vendor/tabler/tabler.min.css">
+<main class="container-xl py-4"><h1>诊断、评估与监测：新合同章节实测</h1><p>范围：S03全部29页；242基线中有50条属于本章，其余192条不在本次比较范围。旧版已完成多轮修订，新版是独立于旧稿形成的首稿。</p>
+<div id="metrics" class="alert alert-info"></div><a id="source" class="btn mb-3" target="_blank">打开原始章节PDF</a>
+<div class="alert alert-warning">原项目18项待确认事项保留。本页仅供实验比较，不记录人工确认或推进PPT生成。</div>
+<div class="row g-3"><section class="col-lg-6"><h2>242基线中的本章50条</h2><div id="old"></div></section><section class="col-lg-6"><h2 id="new-heading"></h2><p id="overall"></p><div id="new"></div></section></div>
+<section class="card mt-4"><div class="card-body"><h2>独立审核及内容差异</h2><pre id="review" style="white-space:pre-wrap;font-family:inherit"></pre></div></section></main>
+<script>
+const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+fetch('payload.json',{cache:'no-store'}).then(r=>r.json()).then(d=>{
+ document.querySelector('#metrics').textContent=`基线 ${d.metrics.baseline.points}条 / ${d.metrics.baseline.text_characters}字 → 新首稿 ${d.metrics.new.points}条 / ${d.metrics.new.text_characters}字。数量和长度变化不是质量判定。同步证据 ${d.metrics.indexed_evidence}条；数据索引 ${d.metrics.data_items}项。`;
+ document.querySelector('#source').href=d.source_file_url;document.querySelector('#overall').textContent=d.overall_summary;
+ document.querySelector('#new-heading').textContent=`新合同首稿 ${d.new_points.length}条`;
+ const rows=(points,isNew)=>points.map(p=>{
+  const index=isNew?d.evidence_index.points.find(x=>x.point_id===p.point_id):null;
+  const evidence=index?`<details class="mt-2"><summary>选择理由、上下文及原文证据</summary><p class="mt-2"><b>选择理由：</b>${esc(index.selection_reason)}</p><p><b>上下文：</b>${esc(index.context)}</p>${index.evidence.map(e=>`<div class="border-top py-2 small"><b>${esc(e.role)} · ${esc(e.claim_id||e.unit_id)}</b><p>${esc(e.source_quote)}</p><a target="_blank" href="/api/deck/workflows/${encodeURIComponent(d.metadata.workflow_id)}/sources/S03/pages/${encodeURIComponent(e.page_id)}/image">打开对应原始页</a></div>`).join('')}</details>`:'';
+  return `<article class="card mb-2"><div class="card-body"><div class="small text-secondary mb-1">${esc(p.point_id)} · ${esc(p.role||'')} ${esc(p.section_title||'')}</div><p class="mb-1">${esc(p.point)}</p><div class="small text-secondary">来源：${p.claim_ids.map(esc).join('、')}</div>${evidence}</div></article>`;
+ }).join('');
+ document.querySelector('#old').innerHTML=rows(d.baseline_points,false);document.querySelector('#new').innerHTML=rows(d.new_points,true);
+ document.querySelector('#review').textContent=d.review_report;
+});</script></html>

@@ -41,9 +41,11 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
 /* Three surface levels: white content surfaces with a hairline edge; a tinted surface only for callouts
    (side notes, card notes, statements); the primary colour for the one strongest element (band, hero, core node).
    The accent marks data (card tops, big values, bullets, labels); structure uses the primary colours. */
-.head{position:absolute;left:64px;top:44px;right:64px}
+.generated-illustration{position:absolute;z-index:0;object-fit:contain;pointer-events:none}
+.head{position:absolute;z-index:2;left:64px;top:44px;right:64px}
 .section{font-size:14px;font-weight:700;letter-spacing:.12em;color:var(--accent);height:20px;line-height:20px;white-space:nowrap;overflow:hidden}
 .title{margin-top:8px;font-size:calc(var(--k)*34px);font-weight:700;line-height:46px;color:var(--primary);height:46px;white-space:nowrap}
+.title.headline{white-space:normal;height:92px;font-size:calc(var(--k)*32px)}
 .lead{margin-top:10px;font-size:calc(var(--k)*17px);line-height:calc(var(--k)*27px);color:var(--muted);height:54px}
 .logo{position:absolute;right:48px;top:34px;max-width:170px;max-height:40px;object-fit:contain}
 .has-logo .head{right:240px}
@@ -57,7 +59,7 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
 .em{font-weight:800;color:var(--accent)}
 .band .em,.node.core .em{color:var(--accent-on-dark)}   /* dark surfaces; PPTX export keeps weight and colour only */
 .tag-conflict{display:inline-block;margin-left:6px;padding:0 6px;border-radius:4px;background:#FBE9E7;color:var(--red);font-size:11px;line-height:18px;font-weight:700}
-.body{position:absolute;left:64px;right:64px;top:{{ body_top }}px;bottom:88px;display:flex;flex-direction:column;justify-content:flex-start;padding:14px 0 8px}
+.body{position:absolute;z-index:1;left:64px;right:64px;top:{{ body_top }}px;bottom:88px;display:flex;flex-direction:column;justify-content:flex-start;padding:14px 0 8px}
 /* cover / divider / closing */
 .L-cover,.L-divider{background:var(--primary)}
 .L-cover .art,.L-divider .art{position:absolute;right:0;top:0;width:640px;height:720px}
@@ -96,6 +98,10 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
 .tbl td{font-size:calc(var(--k)*16px);line-height:calc(var(--k)*24px);padding:calc(var(--k)*13px) 16px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink)}
 .tbl tr:nth-child(even) td{background:var(--sky)}
 .tbl td:first-child{font-weight:700;color:var(--primary)}
+.tbl tr.lv1 td:first-child{padding-left:40px;font-weight:600}
+.tbl tr.lv2 td:first-child{padding-left:64px;font-weight:600}
+.tbl tr.lv3 td:first-child{padding-left:88px;font-weight:600}
+.tbl tr.parent td{border-bottom-color:transparent}
 .tbl .cellline{display:block}
 /* cards */
 .cards{display:flex;gap:20px;min-height:calc(var(--k)*200px)}
@@ -186,6 +192,7 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
 .support li:before{content:"";position:absolute;left:4px;top:calc(var(--k)*25px);width:7px;height:7px;border-radius:50%;background:var(--accent)}
 /* composed pages: blocks placed by the page's own design; text colours and surfaces come from the theme */
 .L-composed .body{padding:0}
+.L-free .body{padding:0}
 .cb{position:absolute}
 .cb .f{white-space:pre-line}
 .cb{--t-ink:var(--ink);--t-muted:var(--muted);--t-primary:var(--primary);--t-primary2:var(--primary2);--t-accent:var(--accent);--t-on-dark:#fff;--t-on-dark-accent:var(--accent-on-dark)}
@@ -226,12 +233,13 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
 /* the auxiliary area is supporting information: one step smaller and quieter than the body */
 .cardnotes.aux li{font-size:calc(var(--k)*15px);line-height:calc(var(--k)*23px);color:var(--muted)}
 .cardnotes.aux li:before{top:calc(var(--k)*8px)}
-.fnote{position:absolute;left:64px;right:64px;bottom:58px;height:28px;font-size:11px;line-height:14px;color:var(--muted);overflow:hidden}
+.fnote{position:absolute;left:64px;right:64px;bottom:76px;height:56px;font-size:11px;line-height:14px;color:var(--muted);overflow:hidden}
 </style>
 </head>
 <body>
 {% for p in pages %}
 <section class="slide L-{{ p.layout }}{% if logo and p.layout not in ('cover', 'divider') %} has-logo{% endif %}" id="{{ p.id }}" data-slide="{{ loop.index }}">
+{% for g in p.generated_illustrations %}<img class="generated-illustration" data-raster="{{ g.id }}" src="{{ g.file }}" alt="" style="left:{{ g.x }}px;top:{{ g.y }}px;width:{{ g.w }}px;height:{{ g.h }}px">{% endfor %}
 {% if p.layout in ("cover", "divider") %}
   <svg class="art" data-raster="art-{{ p.id }}" viewBox="0 0 640 720" aria-hidden="true">
     <defs>
@@ -261,10 +269,10 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
   <div class="accent-bar" data-shape></div>
   <div class="head">
     {% if p.section %}<div class="section" data-t>{{ node(p.section) }}</div>{% else %}<div class="section"></div>{% endif %}
-    <div class="title" data-t>{{ node(p.title, True) }}</div>
+    <div class="title{% if p.headline %} headline{% endif %}" data-t>{{ node(p.title, not p.headline) }}</div>
     {% if p.lead %}<div class="lead" data-t>{{ node(p.lead) }}</div>{% endif %}
   </div>
-  <div class="body"{% if not p.lead %} style="top:{{ body_top_no_lead }}px"{% endif %}>
+  <div class="body" style="bottom:{{ 132 if p.footnote else 88 }}px{% if not p.lead and not p.headline %};top:{{ body_top_no_lead }}px{% endif %}">
   {% if p.layout == "bullets" or p.layout == "closing" %}
     {% set its = p.get('items') or [] %}
     <ul class="items{% if p.variant == 'two' %} two{% endif %}">{% for it in its %}<li data-t>{{ node(it) }}</li>{% endfor %}</ul>
@@ -275,7 +283,7 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
   <table class="tbl" data-table>
     <colgroup>{% for w in p.col_widths %}<col style="width:{{ w }}%">{% endfor %}</colgroup>
     <tr>{% for c in p.columns %}<th data-authored>{{ c if c is string else c.text }}</th>{% endfor %}</tr>
-    {% for row in p.rows %}<tr>{% for cell in row %}<td>{% for ref in cell %}<span class="cellline">{{ node(ref) }}{% if ref.fact is defined and facts[ref.fact].conflict and loop.last %}<span class="tag-conflict" data-chrome>来源不一致</span>{% endif %}</span>{% endfor %}</td>{% endfor %}</tr>{% endfor %}
+    {% for row in p.rows %}{% set lv = (p.levels or [])[loop.index0] or 0 %}<tr class="lv{{ lv }}{% if (p.levels or [])[loop.index] is defined and (p.levels or [])[loop.index] > lv %} parent{% endif %}">{% for cell in row %}<td>{% for ref in cell %}<span class="cellline">{{ node(ref) }}{% if ref.fact is defined and facts[ref.fact].conflict and loop.last %}<span class="tag-conflict" data-chrome>来源不一致</span>{% endif %}</span>{% endfor %}</td>{% endfor %}</tr>{% endfor %}
   </table>
   {% elif p.layout == "cards" %}
   <div class="cards">
@@ -368,13 +376,16 @@ html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
   {% if p.side %}<div class="side">{% for x in p.side %}<div class="p" data-shape data-t>{{ node(x) }}</div>{% endfor %}</div>{% endif %}
   {% elif p.layout == "composed" %}
   {% for b in p.blocks %}{% if b.kind == "text" %}<div class="cb" style="{{ b.style }}" data-t{% if b.group %} data-group="{{ b.group }}"{% endif %}>{% for r in b.refs %}{{ node(r, b.one) }}{% if not loop.last %}{{ b.sep if b.sep is defined else "　" }}{% endif %}{% endfor %}</div>
+  {% elif b.kind == "icon" %}<img class="cb icon" data-icon="{{ b.icon }}" src="{{ b.file }}" alt="" style="{{ b.style }};object-fit:contain">
   {% else %}<div class="cb {{ b.kind }} tone-{{ b.tone or 'line' }}" style="{{ b.style }}" data-shape{% if b.group %} data-group="{{ b.group }}"{% endif %}></div>
   {% endif %}{% endfor %}
   {% if p.arrows %}<svg class="edges" data-edges width="1" height="1">
     <defs><marker id="arr-{{ p.id }}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--primary2)"/></marker>
     <marker id="arrl-{{ p.id }}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--accent-on-dark)"/></marker></defs>
-    {% for a in p.arrows %}<polyline data-edge="{{ a.support }}"{% if a.group %} data-group="{{ a.group }}"{% endif %} points="{{ a.points }}" fill="none" style="stroke:{{ 'var(--accent-on-dark)' if a.tone == 'on-dark' else 'var(--primary2)' }}" stroke-width="2" marker-end="url(#{{ 'arrl' if a.tone == 'on-dark' else 'arr' }}-{{ p.id }})"/>{% endfor %}
+    {% for a in p.arrows %}<polyline data-edge="{{ a.support }}"{% if a.group %} data-group="{{ a.group }}"{% endif %}{% if not a.head %} data-plain="1"{% endif %} points="{{ a.points }}" fill="none" style="stroke:{{ 'var(--accent-on-dark)' if a.tone == 'on-dark' else ('var(--' + a.var + ')') if a.get('var') else 'var(--primary2)' }};stroke-width:{{ a.width or 2 }}{% if a.dash %};stroke-dasharray:{{ a.dash }}{% endif %}" stroke-width="{{ a.width or 2 }}" marker-end="{{ 'none' if not a.head else ('url(#arrl-' + p.id + ')' if a.tone == 'on-dark' else 'url(#arr-' + p.id + ')') }}"/>{% endfor %}
   </svg>{% endif %}
+  {% elif p.layout == "free" %}
+  <style>{{ p.free_css|safe }}</style>{{ p.free_html|safe }}
   {% elif p.layout == "statement" %}
   <div class="stmt" data-shape data-t>{{ node(p.statement) }}</div>
   {% if p.support %}<ul class="support">{% for x in p.support %}<li data-shape data-t>{{ node(x) }}</li>{% endfor %}</ul>{% endif %}

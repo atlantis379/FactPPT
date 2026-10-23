@@ -1,0 +1,277 @@
+{
+  "pages": [
+    {
+      "number": 2,
+      "id": "s1_p01",
+      "title": "两类治疗目标与个体化管理"
+    },
+    {
+      "number": 5,
+      "id": "s1_p04",
+      "title": "不同研究间效应一致与效应差异的两种方法学情形"
+    },
+    {
+      "number": 9,
+      "id": "a_s2_04_04",
+      "title": "有结构/生理异常而无气流阻塞与给定临床背景下的确诊条件"
+    }
+  ],
+  "arms": {
+    "sol": [
+      {
+        "id": "s1_p01",
+        "page": 2,
+        "方案": "两类治疗目标形成等权分叉分组；两幅抽象情境构成主体：当下症状负担与未来风险防护。原句按起句/左目标/右目标拆一次；个体化说明横跨底部。",
+        "visual_parts": {
+          "无箭头分叉括号": "治疗目标分为两类",
+          "左情境：抽象人物周围松散压力带": "缓解和减轻症状的影响；不代表量化疗效",
+          "右情境：保护性弧面面对远处抽象事件形块": "降低未来可能不良健康事件的风险；不代表风险归零",
+          "底部整宽说明区": "全球临床环境适用与匹配患者需求"
+        },
+        "forbidden_implications": "不画前后状态比较、量值、两目标先后流程、药物、风险归零或治疗到疗效因果箭头。",
+        "prompt": "Use case: scientific-educational. Generate ONE complete 16:9 Chinese undergraduate teaching slide. This experiment must use substantial explanatory diagram geometry as the main visual, not decorative icons, not a campus/book illustration. The common reference image supplies ivory #F8F6EE, forest-green #183A29/#355A42, sage, quiet academic typography only. No copied reference wording. Main substantive title is biggest; 前言与方法学 if present is small navigation eyebrow. Readable Chinese sans body, restrained academic title. No botanical/book/campus decoration.\nEXPLANATORY COMPOSITION: Main explanatory graphic is a large two-way grouping bracket with NO arrowheads, starting with the exact opening clause. Below it TWO equal visual narrative scenes occupy most of page, not merely icons atop cards. Left: an abstract human figure inside spacious loosened layered pressure ribbons as a metaphor for symptom burden easing, no before/after pair. Right: a protective curved screen facing soft distant irregular event forms on a pale horizon as metaphor for possible future adverse-event risk, screen not sealed and events not eradicated. Both equal green/sage treatment. Their exact clause text sits integrated under its scene; do not duplicate any sentence. Bottom full width applicability statement.\nVISUAL MEANINGS: {\"无箭头分叉括号\": \"治疗目标分为两类\", \"左情境：抽象人物周围松散压力带\": \"缓解和减轻症状的影响；不代表量化疗效\", \"右情境：保护性弧面面对远处抽象事件形块\": \"降低未来可能不良健康事件的风险；不代表风险归零\", \"底部整宽说明区\": \"全球临床环境适用与匹配患者需求\"}\nFORBIDDEN IMPLICATIONS: 不画前后状态比较、量值、两目标先后流程、药物、风险归零或治疗到疗效因果箭头。\nEXACT TEXT SEGMENTS: render each exactly ONCE, in order within each original sentence, line wrapping freely. Do NOT print a full sentence and then repeat its clauses; only these segments. No new headings or medical labels.\n[\n  \"前言与方法学\",\n  \"治疗目标与个体化管理\",\n  \"治疗目标分为两类：\",\n  \"一类旨在缓解和减轻症状的影响，\",\n  \"另一类则降低未来可能对患者造成不良健康事件的风险（例如急性加重）。\",\n  \"这种管理方法适用于全球任何临床环境，并将慢性阻塞性肺疾病治疗推向个体化医疗——使患者的治疗更紧密地匹配其需求。\",\n  \"来源：00_前言和方法学 第1页\",\n  \"02\"\n]\nThe only extra text allowed is the small nature marker: 概念示意，非研究数据. Sources and original page number at bottom, clearly legible. All qualifiers, negatives, operators and numerals preserved. A concept drawing is not medical approval.",
+        "status": "generated_inspected",
+        "calls": [
+          {
+            "tool": "builtin image_gen",
+            "tool_call_id": "UNKNOWN",
+            "output_identifier": "exec-8db8383b-5bd4-4917-944a-3c6072c80871.png",
+            "outer_wait_seconds": 61.932,
+            "elapsed_seconds": null,
+            "timing_status": "outer_wait_not_tool_duration",
+            "output_hint": "Generated images are saved to C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b as C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b\\exec-8db8383b-5bd4-4917-944a-3c6072c80871.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.",
+            "output_sha256": "42a4c40e8f540217add3ff8b98b956b93de17485fcac1fa62c8dcc5d0bf166f5",
+            "workspace_output": "E:\\FactPPTv2\\output\\visual_model_ab_explanatory\\sol\\02.png"
+          }
+        ],
+        "inspection": {
+          "viewed_actual_output": true,
+          "notes": "实际查看：两类分叉分类括号、症状压力带/未来风险防护场景形成主体，标题正确第一层，原句按三段只出现一次，个体化句完整可见。问题：右场景生成了类似病毒的刺球，可能暗示未经来源支持的感染病因；屏障偏封闭可能暗示完全阻止风险。右目标字体较小。初稿保留用于对照，未批准医学含义。",
+          "approved": false,
+          "text_accuracy": "visual_only_not_content_authority"
+        },
+        "retry_records": [],
+        "design_author": "gpt-6.1-sol",
+        "reference_policy": "common template only",
+        "output": "E:\\FactPPTv2\\output\\visual_model_ab_explanatory\\sol\\02.png",
+        "output_sha256": "42a4c40e8f540217add3ff8b98b956b93de17485fcac1fa62c8dcc5d0bf166f5",
+        "prompt_sha256": "908ae2b8ad021ff51caac6e30bfd2801d00b84ce97c772ca9c539335eb936cfe",
+        "preview": "sol/02.png"
+      },
+      {
+        "id": "s1_p04",
+        "page": 5,
+        "方案": "两条等权概念示意带，用重复结构对齐与不齐表达一致/差异；不画数据点或坐标。原句拆为起句与i/ii两项，各一次。",
+        "visual_parts": {
+          "上示意带：重复薄片的相同抽象形态沿同一基线对齐": "不同研究中保持一致，需确定共同效应",
+          "下示意带：同类薄片内部抽象形态分散且不齐": "不同研究间存在差异，需找出变异原因",
+          "图形性质标记": "概念示意，非研究数据；数量/位置不代表实际研究或效应量"
+        },
+        "forbidden_implications": "不画刻度、量值轴、森林图、试验名称、固定研究例数或优劣排序；形态不是实际数据。",
+        "prompt": "Use case: scientific-educational. Generate ONE complete 16:9 Chinese undergraduate teaching slide. This experiment must use substantial explanatory diagram geometry as the main visual, not decorative icons, not a campus/book illustration. The common reference image supplies ivory #F8F6EE, forest-green #183A29/#355A42, sage, quiet academic typography only. No copied reference wording. Main substantive title is biggest; 前言与方法学 if present is small navigation eyebrow. Readable Chinese sans body, restrained academic title. No botanical/book/campus decoration.\nEXPLANATORY COMPOSITION: Two equal horizontal explanatory concept bands, one above the other. Each contains a large continuous schematic field of many partially overlapping translucent paper slivers that extend beyond the edge (not a countable set of studies). Upper field: repeated identical internal abstract motifs visibly aligned in a coherent common pattern. Lower field: same-weight paper field but internal motifs vary and scatter visibly. This is a pattern demonstration of consistency versus heterogeneity, NOT a statistical plot: no dots, bars, axes, ticks, scales, numeric values or named studies. Place each exact i)/ii) clause alongside its own field once. The complete introductory clause alone above both. Add small exact nature label 概念示意，非研究数据.\nVISUAL MEANINGS: {\"上示意带：重复薄片的相同抽象形态沿同一基线对齐\": \"不同研究中保持一致，需确定共同效应\", \"下示意带：同类薄片内部抽象形态分散且不齐\": \"不同研究间存在差异，需找出变异原因\", \"图形性质标记\": \"概念示意，非研究数据；数量/位置不代表实际研究或效应量\"}\nFORBIDDEN IMPLICATIONS: 不画刻度、量值轴、森林图、试验名称、固定研究例数或优劣排序；形态不是实际数据。\nEXACT TEXT SEGMENTS: render each exactly ONCE, in order within each original sentence, line wrapping freely. Do NOT print a full sentence and then repeat its clauses; only these segments. No new headings or medical labels.\n[\n  \"前言与方法学\",\n  \"荟萃分析的方法学问题\",\n  \"当出现以下情况时，我们仔细考虑了使用荟萃分析证据的方法学问题：\",\n  \"i)治疗效果（或效应量）在不同研究中保持一致，需要确定共同效应；\",\n  \"ii)效应在不同研究间存在差异，需找出变异原因。\",\n  \"来源：00_前言和方法学 第2页\",\n  \"05\"\n]\nThe only extra text allowed is the small nature marker: 概念示意，非研究数据. Sources and original page number at bottom, clearly legible. All qualifiers, negatives, operators and numerals preserved. A concept drawing is not medical approval.",
+        "status": "generated_inspected",
+        "calls": [
+          {
+            "tool": "builtin image_gen",
+            "tool_call_id": "UNKNOWN",
+            "output_identifier": "exec-1b4941fe-a3ca-48bd-b6e1-9bd2356dee39.png",
+            "outer_wait_seconds": 54.343,
+            "elapsed_seconds": null,
+            "timing_status": "outer_wait_not_tool_duration",
+            "output_hint": "Generated images are saved to C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b as C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b\\exec-1b4941fe-a3ca-48bd-b6e1-9bd2356dee39.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.",
+            "output_sha256": "55702578df2e82b05ee34878b156d4faccd0a0fd08ebda75db6945a27c62cca4",
+            "workspace_output": "E:\\FactPPTv2\\output\\visual_model_ab_explanatory\\sol\\05.png"
+          }
+        ],
+        "inspection": {
+          "viewed_actual_output": true,
+          "notes": "实际查看：i/ii两情形通过上带对齐形态、下带不齐形态可见，原句分为起句与两项各出现一次，标题主体层级正确。问题：模型把抽象形态生成类似分布曲线并画虚线基准，仍可能被误读为效应数据；虽标概念示意非研究数据，仍需改成非曲线抽象结构。新增数量/位置不代表实际研究或效应量说明超出仅允许性质标记的文字合同。未批准，保留初稿对照。",
+          "approved": false,
+          "text_accuracy": "visual_only_not_content_authority"
+        },
+        "retry_records": [],
+        "design_author": "gpt-6.1-sol",
+        "reference_policy": "common template only",
+        "interruption_record": {
+          "point": "after lock acquired, before imagegen call",
+          "actual_tool_call_issued": false,
+          "recovery": "expired prior lock released; reacquire before original prompt"
+        },
+        "output": "E:\\FactPPTv2\\output\\visual_model_ab_explanatory\\sol\\05.png",
+        "output_sha256": "55702578df2e82b05ee34878b156d4faccd0a0fd08ebda75db6945a27c62cca4",
+        "prompt_sha256": "b7490b82933e19eba984b518ac620011a62817ec14ca8ea11a7fddbe881c9cd4",
+        "preview": "sol/05.png"
+      },
+      {
+        "id": "a_s2_04_04",
+        "page": 9,
+        "方案": "两个等权条件空间横向对照，左表示结构/生理异常与无气流阻塞可共存，右用外层临床背景范围包住肺功能条件和确诊文字。比较符号只在原句中出现。",
+        "visual_parts": {
+          "左条件空间中的两个叠置但不互为包含的轮廓": "结构性或生理功能异常与而无气流阻塞并存，非所有疾病排除",
+          "右外层界线及顶部原文临床背景": "确诊条件限定在适当临床背景内",
+          "右内部同一区域中的肺功能条件及原文结尾": "<0.7不脱离临床背景单独作为充分条件",
+          "左右分隔空隙": "原文对比，不是必然进展"
+        },
+        "forbidden_implications": "不画>=0.7排除所有疾病，不将<0.7单独呈现成诊断充分条件；不画病变解剖机制或两情形进展箭头。",
+        "prompt": "Use case: scientific-educational. Generate ONE complete 16:9 Chinese undergraduate teaching slide. This experiment must use substantial explanatory diagram geometry as the main visual, not decorative icons, not a campus/book illustration. The common reference image supplies ivory #F8F6EE, forest-green #183A29/#355A42, sage, quiet academic typography only. No copied reference wording. Main substantive title is biggest; 前言与方法学 if present is small navigation eyebrow. Readable Chinese sans body, restrained academic title. No botanical/book/campus decoration.\nEXPLANATORY COMPOSITION: Two equally sized large CONDITION SPACES, side by side, rather than ordinary rectangular text cards. Left: broad paired gently overlapping contour regions express coexisting structural/physiological abnormalities and absence of airflow obstruction; whole first original sentence is embedded in this one space. Keep contour shapes abstract and unlabelled: not anatomy, not Venn percentages, no invented labels. Right: a visibly closed outer dark green thin condition boundary encloses ALL original second sentence. The exact clinical-context opening sits at the top INSIDE the outer boundary, with a smaller nested condition chamber BELOW holding the lung-function clause and diagnosis ending, without arrows. The outer contextual boundary must visibly encompass the inner lung-function criterion so <0.7 cannot stand alone. No progression connector between left/right; equivalent visual weights. Render ≥ and < correctly only where they occur in original text. Geometry explains coexistence and necessary contextual scope; text gives medical meaning.\nVISUAL MEANINGS: {\"左条件空间中的两个叠置但不互为包含的轮廓\": \"结构性或生理功能异常与而无气流阻塞并存，非所有疾病排除\", \"右外层界线及顶部原文临床背景\": \"确诊条件限定在适当临床背景内\", \"右内部同一区域中的肺功能条件及原文结尾\": \"<0.7不脱离临床背景单独作为充分条件\", \"左右分隔空隙\": \"原文对比，不是必然进展\"}\nFORBIDDEN IMPLICATIONS: 不画>=0.7排除所有疾病，不将<0.7单独呈现成诊断充分条件；不画病变解剖机制或两情形进展箭头。\nEXACT TEXT SEGMENTS: render each exactly ONCE, in order within each original sentence, line wrapping freely. Do NOT print a full sentence and then repeat its clauses; only these segments. No new headings or medical labels.\n[\n  \"肺部异常与气流阻塞\",\n  \"但部分患者可能仅表现为肺部结构性病变（如肺气肿）和/或生理功能异常（包括FEV1降低、气体潴留、过度充气、肺弥散功能下降和/或FEV1快速下降）而无气流阻塞（支气管扩张后FEV1/FVC≥ 0.7）。\",\n  \"在适当的临床背景下（参见上文'定义'及'病因与危险因素'），通过肺功能测定检测到不完全可逆气流受限（支气管扩张后FEV1/FVC< 0.7）即可确诊慢性阻塞性肺疾病。\",\n  \"来源：01_第1章_定义和概述 第4页\",\n  \"09\"\n]\nNo extra text. Sources and original page number at bottom, clearly legible. All qualifiers, negatives, operators and numerals preserved. A concept drawing is not medical approval.",
+        "status": "generated_inspected",
+        "calls": [
+          {
+            "tool": "builtin image_gen",
+            "tool_call_id": "UNKNOWN",
+            "output_identifier": "exec-938c6cc0-6ab7-4c7c-a841-3d226ad44bcf.png",
+            "outer_wait_seconds": 125.898,
+            "elapsed_seconds": null,
+            "timing_status": "outer_wait_not_tool_duration",
+            "output_hint": "Generated images are saved to C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b as C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b\\exec-938c6cc0-6ab7-4c7c-a841-3d226ad44bcf.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.",
+            "output_sha256": "39fc243e5c97d58823bf614a6df6e1dd33e77de7daadf08b02ebe92dfedcf7f3",
+            "workspace_output": "E:\\FactPPTv2\\output\\visual_model_ab_explanatory\\sol\\09.png"
+          }
+        ],
+        "inspection": {
+          "viewed_actual_output": true,
+          "notes": "实际查看：右外层临床背景包住内层肺功能条件及确诊句，范围关系可见；左抽象叠置轮廓表示异常与无阻塞并存，不画进展箭头。两阈值≥0.7和<0.7方向正确。缺陷：左原文肺弥散功能下降似被生成为肺弥散功能降，漏下；模型新增前言与方法学导航，原页9没有该章节名。左叠置轮廓未明确各自范围，可能像集合图而含义不清。未批准，保留比较稿。",
+          "approved": false,
+          "text_accuracy": "visual_only_not_content_authority"
+        },
+        "retry_records": [],
+        "design_author": "gpt-6.1-sol",
+        "reference_policy": "common template only",
+        "output": "E:\\FactPPTv2\\output\\visual_model_ab_explanatory\\sol\\09.png",
+        "output_sha256": "39fc243e5c97d58823bf614a6df6e1dd33e77de7daadf08b02ebe92dfedcf7f3",
+        "prompt_sha256": "540b9677e2c370b90dc7502880da4d77c7a53091e86fbcf7e28b3854d1510b88",
+        "preview": "sol/09.png"
+      }
+    ],
+    "luna": [
+      {
+        "page": 2,
+        "id": "s1_p01",
+        "concept": "两类治疗目标与个体化管理",
+        "prompt": "Create a complete, legible 16:9 Chinese undergraduate medical teaching slide, 1280x720. Follow the attached shared template reference: warm ivory paper, muted deep forest green, restrained sage, generous whitespace, clear academic typography. The explanatory diagram is the visual subject; the main content title is prominent and larger than chapter navigation. Use drawn forms that explain the stated classification, comparison, or condition; decoration is secondary. Reproduce every locked string below exactly once, in reading order, including punctuation, negation, qualifiers and symbols. Each clause must appear in exactly one place in the slide. Do not duplicate a clause or show a full sentence together with fragments. Do not add words, abbreviations, headings, captions or labels beyond the locked text. Preserve source and page marker.\nCONCEPT: 两类治疗目标与个体化管理\nGRAPHIC PARTS AND SOURCE MEANING:\n- Use the opening clause of the locked body as a small lead above two equal goal areas.\n- Put the first goal clause only in the left area and the second goal clause only in the right area. Pair the left with a calm, open breathing-space illustration and the right with an unnumbered horizon marker enclosed by a boundary. These are abstract illustrations, not outcomes or data. Keep the two goals equal; no arrow between them.\n- Use the global-scope clause once as the enclosing frame for both goals and the management-fit region.\n- Place the individualization clause once in the lower band. Use interlocking alignment shapes to show the explicitly stated fit between treatment and needs, with no extra text.\nPROHIBITED IMPLICATIONS:\n不画两类目标先后步骤、治疗效果数值、因果箭头或新增疗法；不画药物、器械、解剖或明确临床结局；不让图标替代目标关系；不重复主句或分句；不添加非锁定标签。\nLOCKED TEXT, each string once:\n“前言与方法学”\n“治疗目标与个体化管理”\n“治疗目标分为两类：一类旨在缓解和减轻症状的影响，另一类则降低未来可能对患者造成不良健康事件的风险（例如急性加重）。”\n“这种管理方法适用于全球任何临床环境，并将慢性阻塞性肺疾病治疗推向个体化医疗——使患者的治疗更紧密地匹配其需求。”\n“来源：00_前言和方法学 第1页”\n“02”",
+        "visual_parts": {
+          "interpretation": [
+            "“治疗目标分为两类：”作为两分支起点。",
+            "左分支“一类旨在缓解和减轻症状的影响，”对应开放气流和舒展空间的抽象场景；右分支“另一类则降低未来可能对患者造成不良健康事件的风险（例如急性加重）。”对应未标刻度的远景事件标记和包围边界。两区等权，不用箭头连接两类目标。",
+            "“这种管理方法适用于全球任何临床环境，”作为覆盖目标区与个体化区的范围外框。",
+            "底部将“并将慢性阻塞性肺疾病治疗推向个体化医疗——”与“使患者的治疗更紧密地匹配其需求。”以对齐嵌合形状表达原句明示的匹配。"
+          ],
+          "prompt_mapping_note": "The first prompt repeated source phrases in its diagram mapping. The revision instead uses clause ordinals. The observed duplication persisted; any relation to wording is unverified."
+        },
+        "prohibited_implications": "不画两类目标先后步骤、治疗效果数值、因果箭头或新增疗法；不画药物、器械、解剖或明确临床结局；不让图标替代目标关系；不重复主句或分句；不添加非锁定标签。",
+        "status": "GENERATED_INSPECTED_WITH_TEXT_DUPLICATION",
+        "calls": [
+          {
+            "call_id": "exec-ac1091fc-4882-441c-8ee3-835ecf8a51e5.png",
+            "status": "SUCCESS_INITIAL_RETAINED",
+            "outer_wall_seconds": 141,
+            "provider_elapsed_seconds": null,
+            "timing_status": "OUTER_WALL_CLOCK",
+            "output_path": "output/visual_model_ab_explanatory/luna/02_attempt1.png",
+            "sha256": "F2D0D74AF7AA24C97A42188AD78A54F8671B0779C9ED84ABC0506AF3820B10D5",
+            "prompt": "Original prompt design explicitly paired goal clauses with left/right illustrations and global/individualization areas. The exact original pre-call prompt was not persisted. Reconstructed from saved pre-call prompt text; see 02_attempt1.prompt.txt.",
+            "prompt_record_status": "RECONSTRUCTED_FROM_PRECALL_TEXT; exact original prompt not persisted at call time"
+          },
+          {
+            "call_id": "exec-3ce3af2b-947f-46b5-a1fd-d1a5d9510755.png",
+            "status": "SUCCESS_TARGETED_REVISION_DEFECT_REMAINS",
+            "outer_wall_seconds": 83,
+            "provider_elapsed_seconds": null,
+            "timing_status": "OUTER_WALL_CLOCK",
+            "started_at_utc": "2026-10-11 15:40:17 UTC",
+            "ended_at_utc": "2026-10-11 15:41:40 UTC",
+            "output_path": "output/visual_model_ab_explanatory/luna/02.png",
+            "sha256": "5E60F70B8B906231A2C74C99140C0A944FFF52E58B316B3DF2B5CCC56B3F38A0",
+            "prompt": "Create a complete, legible 16:9 Chinese undergraduate medical teaching slide, 1280x720. Follow the attached shared template reference: warm ivory paper, muted deep forest green, restrained sage, generous whitespace, clear academic typography. The explanatory diagram is the visual subject; the main content title is prominent and larger than chapter navigation. Use drawn forms that explain the stated classification, comparison, or condition; decoration is secondary. Reproduce every locked string below exactly once, in reading order, including punctuation, negation, qualifiers and symbols. Each clause must appear in exactly one place in the slide. Do not duplicate a clause or show a full sentence together with fragments. Do not add words, abbreviations, headings, captions or labels beyond the locked text. Preserve source and page marker.\nCONCEPT: 两类治疗目标与个体化管理\nGRAPHIC PARTS AND SOURCE MEANING:\n- Use the opening clause of the locked body as a small lead above two equal goal areas.\n- Put the first goal clause only in the left area and the second goal clause only in the right area. Pair the left with a calm, open breathing-space illustration and the right with an unnumbered horizon marker enclosed by a boundary. These are abstract illustrations, not outcomes or data. Keep the two goals equal; no arrow between them.\n- Use the global-scope clause once as the enclosing frame for both goals and the management-fit region.\n- Place the individualization clause once in the lower band. Use interlocking alignment shapes to show the explicitly stated fit between treatment and needs, with no extra text.\nPROHIBITED IMPLICATIONS:\n不画两类目标先后步骤、治疗效果数值、因果箭头或新增疗法；不画药物、器械、解剖或明确临床结局；不让图标替代目标关系；不重复主句或分句；不添加非锁定标签。\nLOCKED TEXT, each string once:\n“前言与方法学”\n“治疗目标与个体化管理”\n“治疗目标分为两类：一类旨在缓解和减轻症状的影响，另一类则降低未来可能对患者造成不良健康事件的风险（例如急性加重）。”\n“这种管理方法适用于全球任何临床环境，并将慢性阻塞性肺疾病治疗推向个体化医疗——使患者的治疗更紧密地匹配其需求。”\n“来源：00_前言和方法学 第1页”\n“02”",
+            "lock_token": "PJRt-Y4XKOE0pDekgz_jjgZh65jlOKoB"
+          }
+        ],
+        "inspection": "修订图实际检查：正文两类目标完整句置于上方，同时两个卡片又分别重复显示目标分句，缺陷仍在；未再重试。页标题、两类对比结构、底部全球适用及个体化匹配图形可见，未发现额外医学标签；底部句子似乎保留主要文字，但图像阅读不能替代逐字校验。提示词图形映射段避免逐字重述锁定分句；重复原因不能确认。",
+        "planned_prompt": "Create a complete, legible 16:9 Chinese undergraduate medical teaching slide, 1280x720. Follow the attached shared template reference: warm ivory paper, muted deep forest green, restrained sage, generous whitespace, clear academic typography. The explanatory diagram is the visual subject; the main content title is prominent and larger than chapter navigation. Use drawn forms that explain the stated classification, comparison, or condition; decoration is secondary. Reproduce every locked string below exactly once, in reading order, including punctuation, negation, qualifiers and symbols. Each clause must appear in exactly one place in the slide. Do not duplicate a clause or show a full sentence together with fragments. Do not add words, abbreviations, headings, captions or labels beyond the locked text. Preserve source and page marker.\nCONCEPT: 两类治疗目标与个体化管理\nGRAPHIC PARTS AND SOURCE MEANING:\n- Use the opening clause of the locked body as a small lead above two equal goal areas.\n- Put the first goal clause only in the left area and the second goal clause only in the right area. Pair the left with a calm, open breathing-space illustration and the right with an unnumbered horizon marker enclosed by a boundary. These are abstract illustrations, not outcomes or data. Keep the two goals equal; no arrow between them.\n- Use the global-scope clause once as the enclosing frame for both goals and the management-fit region.\n- Place the individualization clause once in the lower band. Use interlocking alignment shapes to show the explicitly stated fit between treatment and needs, with no extra text.\nPROHIBITED IMPLICATIONS:\n不画两类目标先后步骤、治疗效果数值、因果箭头或新增疗法；不画药物、器械、解剖或明确临床结局；不让图标替代目标关系；不重复主句或分句；不添加非锁定标签。\nLOCKED TEXT, each string once:\n“前言与方法学”\n“治疗目标与个体化管理”\n“治疗目标分为两类：一类旨在缓解和减轻症状的影响，另一类则降低未来可能对患者造成不良健康事件的风险（例如急性加重）。”\n“这种管理方法适用于全球任何临床环境，并将慢性阻塞性肺疾病治疗推向个体化医疗——使患者的治疗更紧密地匹配其需求。”\n“来源：00_前言和方法学 第1页”\n“02”",
+        "preview": "luna/02.png"
+      },
+      {
+        "page": 5,
+        "id": "s1_p04",
+        "concept": "不同研究间效应一致与效应差异的两种方法学情形",
+        "prompt": "Create a complete, legible 16:9 Chinese undergraduate medical teaching slide, 1280x720. Follow the attached shared template reference: warm ivory paper, muted deep forest green, restrained sage, generous whitespace, clear academic typography. The explanatory diagram is the visual subject; the main content title is prominent and larger than chapter navigation. Use drawn forms that explain the stated classification, comparison, or condition; decoration is secondary. Reproduce every locked string below exactly once, in reading order, including punctuation, negation, qualifiers and symbols. Each clause must appear in exactly one place in the slide. Do not duplicate a clause or show a full sentence together with fragments. Do not add words, abbreviations, headings, captions or labels beyond the locked text, except the permitted exact diagram nature note “概念示意，非研究数据”. Preserve source and page marker.\nCONCEPT: 不同研究间效应一致与效应差异的两种方法学情形\nGRAPHIC PARTS AND SOURCE MEANING:\n- Use the opening clause of the locked body once as a short introduction above two equal condition lanes.\n- Put the first case clause only in the left lane beside a cluster of unnumbered abstract study-like forms that repeat with matching contours and align evenly.\n- Put the second case clause only in the right lane beside a cluster of unnumbered abstract forms with visibly varied contours and spacing. The repeated and varied patterns depict consistency versus difference; no chart axes, plotted points, quantitative scaling, trend or causal arrow.\n- Include the permitted note “概念示意，非研究数据” once, small and separate from the source text.\nPROHIBITED IMPLICATIONS:\n不表示真实研究数据、研究数量、效应大小或临床疗效优劣；不得另造概括标签；不画坐标轴、数值、试验名称、测量刻度、趋势线或箭头；不重复整句和分句。\nLOCKED TEXT, each string once:\n“前言与方法学”\n“荟萃分析的方法学问题”\n“当出现以下情况时，我们仔细考虑了使用荟萃分析证据的方法学问题：i)治疗效果（或效应量）\n在不同研究中保持一致，需要确定共同效应；ii)效应在不同研究间存在差异，需找出变异原因。”\n“来源：00_前言和方法学 第2页”\n“05”",
+        "visual_parts": {
+          "interpretation": [
+            "“当出现以下情况时，我们仔细考虑了使用荟萃分析证据的方法学问题：”作为两种情形共同引入。",
+            "左侧等权情形以“i)治疗效果（或效应量）在不同研究中保持一致，需要确定共同效应；”对应无刻度的重复对齐图形；不同研究保持一致用重复/重合的形状表达，共同效应用原文文字说明。",
+            "右侧等权情形以“ii)效应在不同研究间存在差异，需找出变异原因。”对应彼此不同的抽象轮廓；只表达差异，不用箭头或因果链。",
+            "加说明“概念示意，非研究数据”，表明图形不是统计数据。"
+          ],
+          "prompt_mapping_note": "Actual prompt contains no repeated verbatim source fragment outside the single locked-text list."
+        },
+        "prohibited_implications": "不表示真实研究数据、研究数量、效应大小或临床疗效优劣；不得另造概括标签；不画坐标轴、数值、试验名称、测量刻度、趋势线或箭头；不重复整句和分句。",
+        "status": "GENERATED_INSPECTED",
+        "calls": [
+          {
+            "call_id": "exec-72c17dd2-8e8a-42e6-9af9-59e58c81fb6d.png",
+            "status": "SUCCESS_INITIAL",
+            "outer_wall_seconds": 96,
+            "provider_elapsed_seconds": null,
+            "timing_status": "OUTER_WALL_CLOCK",
+            "started_at_utc": "2026-10-11 15:42:57 UTC",
+            "ended_at_utc": "2026-10-11 15:44:33 UTC",
+            "output_path": "output/visual_model_ab_explanatory/luna/05.png",
+            "sha256": "14EE1E99DE862E4017332BA370F902A6EFC93001A6FACEA834186F73985EDF70",
+            "prompt": "Create a complete, legible 16:9 Chinese undergraduate medical teaching slide, 1280x720. Follow the attached shared template reference: warm ivory paper, muted deep forest green, restrained sage, generous whitespace, clear academic typography. The explanatory diagram is the visual subject; the main content title is prominent and larger than chapter navigation. Use drawn forms that explain the stated classification, comparison, or condition; decoration is secondary. Reproduce every locked string below exactly once, in reading order, including punctuation, negation, qualifiers and symbols. Each clause must appear in exactly one place in the slide. Do not duplicate a clause or show a full sentence together with fragments. Do not add words, abbreviations, headings, captions or labels beyond the locked text, except the permitted exact diagram nature note “概念示意，非研究数据”. Preserve source and page marker.\nCONCEPT: 不同研究间效应一致与效应差异的两种方法学情形\nGRAPHIC PARTS AND SOURCE MEANING:\n- Use the opening clause of the locked body once as a short introduction above two equal condition lanes.\n- Put the first case clause only in the left lane beside a cluster of unnumbered abstract study-like forms that repeat with matching contours and align evenly.\n- Put the second case clause only in the right lane beside a cluster of unnumbered abstract forms with visibly varied contours and spacing. The repeated and varied patterns depict consistency versus difference; no chart axes, plotted points, quantitative scaling, trend or causal arrow.\n- Include the permitted note “概念示意，非研究数据” once, small and separate from the source text.\nPROHIBITED IMPLICATIONS:\n不表示真实研究数据、研究数量、效应大小或临床疗效优劣；不得另造概括标签；不画坐标轴、数值、试验名称、测量刻度、趋势线或箭头；不重复整句和分句。\nLOCKED TEXT, each string once:\n“前言与方法学”\n“荟萃分析的方法学问题”\n“当出现以下情况时，我们仔细考虑了使用荟萃分析证据的方法学问题：i)治疗效果（或效应量）\n在不同研究中保持一致，需要确定共同效应；ii)效应在不同研究间存在差异，需找出变异原因。”\n“来源：00_前言和方法学 第2页”\n“05”",
+            "lock_token": "J14f6mI49p0gulBvIZSjvTdzWNUZerV1"
+          }
+        ],
+        "inspection": "实际查看：开场方法学句位于上方；左右两个等宽区域分别呈现重复对齐形状与轮廓/位置不同的形状，图形承担一致与差异的说明；概念示意说明位于页脚。未见坐标轴、数值、趋势线、箭头或额外概括标签。抽象误差线样式可能被读成效应估计图，页脚注明非研究数据，但这不能验证正文所有字符逐字准确。 另补记：图中横竖误差线样式可能被读作原文未提供的统计不确定性区间；因此不声称图形含义完全由来源支持。",
+        "planned_prompt": "Create a complete, legible 16:9 Chinese undergraduate medical teaching slide, 1280x720. Follow the attached shared template reference: warm ivory paper, muted deep forest green, restrained sage, generous whitespace, clear academic typography. The explanatory diagram is the visual subject; the main content title is prominent and larger than chapter navigation. Use drawn forms that explain the stated classification, comparison, or condition; decoration is secondary. Reproduce every locked string below exactly once, in reading order, including punctuation, negation, qualifiers and symbols. Each clause must appear in exactly one place in the slide. Do not duplicate a clause or show a full sentence together with fragments. Do not add words, abbreviations, headings, captions or labels beyond the locked text, except the permitted exact diagram nature note “概念示意，非研究数据”. Preserve source and page marker.\nCONCEPT: 不同研究间效应一致与效应差异的两种方法学情形\nGRAPHIC PARTS AND SOURCE MEANING:\n- Use the opening clause of the locked body once as a short introduction above two equal condition lanes.\n- Put the first case clause only in the left lane beside a cluster of unnumbered abstract study-like forms that repeat with matching contours and align evenly.\n- Put the second case clause only in the right lane beside a cluster of unnumbered abstract forms with visibly varied contours and spacing. The repeated and varied patterns depict consistency versus difference; no chart axes, plotted points, quantitative scaling, trend or causal arrow.\n- Include the permitted note “概念示意，非研究数据” once, small and separate from the source text.\nPROHIBITED IMPLICATIONS:\n不表示真实研究数据、研究数量、效应大小或临床疗效优劣；不得另造概括标签；不画坐标轴、数值、试验名称、测量刻度、趋势线或箭头；不重复整句和分句。\nLOCKED TEXT, each string once:\n“前言与方法学”\n“荟萃分析的方法学问题”\n“当出现以下情况时，我们仔细考虑了使用荟萃分析证据的方法学问题：i)治疗效果（或效应量）\n在不同研究中保持一致，需要确定共同效应；ii)效应在不同研究间存在差异，需找出变异原因。”\n“来源：00_前言和方法学 第2页”\n“05”",
+        "preview": "luna/05.png"
+      },
+      {
+        "page": 9,
+        "id": "a_s2_04_04",
+        "concept": "有结构/生理异常而无气流阻塞与给定临床背景下的确诊条件",
+        "prompt": "Create a complete, legible 16:9 Chinese undergraduate medical teaching slide, 1280x720. Follow the attached shared template reference: warm ivory paper, muted deep forest green, restrained sage, generous whitespace, clear academic typography. The explanatory diagram is the visual subject; the main content title is prominent and larger than chapter navigation. Use drawn forms that explain the stated classification, comparison, or condition; decoration is secondary. Reproduce every locked string below exactly once, in reading order, including punctuation, negation, qualifiers and symbols. Each clause must appear in exactly one place in the slide. Do not duplicate a clause or show a full sentence together with fragments. Do not add words, abbreviations, headings, captions or labels beyond the locked text. Preserve source and page marker.\nCONCEPT: 有结构/生理异常而无气流阻塞与给定临床背景下的确诊条件\nGRAPHIC PARTS AND SOURCE MEANING:\n- In the left condition zone, place the full first body string once. Show one shared boundary containing two sibling abstract fields for structural abnormality and physiological abnormality, joined with a simple and/or overlap mark. Keep its no-obstruction condition and threshold in that same zone. No anatomy drawing.\n- In the right condition zone, place the full second body string once. Make the clinical-context qualifier an enclosing band over the full test-to-diagnosis relation. Place the test finding and its threshold inside that band; one arrow from finding toward diagnosis is supported by the sentence.\n- Give both condition zones equal area. Use bounded condition panels rather than a continuous measurement scale.\nPROHIBITED IMPLICATIONS:\n不能把≥0.7画成排除所有疾病，也不能把<0.7画成单独足够的诊断条件。不得编造解剖病变机制或把两种情形画成必然进展；不得添加非锁定医学标签或量值轴。\nLOCKED TEXT, each string once:\n“肺部异常与气流阻塞”\n“但部分患者可能仅表现为肺部结构性病变（如肺气肿）和/或生理功能异常\n（包括FEV1降低、气体潴留、过度充气、肺弥散功能下降和/或FEV1快速下降）而无\n气流阻塞（支气管扩张后FEV1/FVC≥ 0.7）。”\n“在适当的临床背景下（参见上文'定义'及'病因与危险因素'），通过肺功能测定检测到不完全可逆气流受限\n（支气管扩张后FEV1/FVC< 0.7）即可确诊慢性阻塞性肺疾病。”\n“来源：01_第1章_定义和概述 第4页”\n“09”",
+        "visual_parts": {
+          "interpretation": [
+            "左侧条件区用同一边界括住“肺部结构性病变（如肺气肿）”与“生理功能异常”两个并列部分，正文保留“可能仅”“和/或”“而无气流阻塞”；列出的生理异常与≥0.7阈值同处该区。",
+            "右侧等权条件区用完整临床背景限定整个检查判定关系；肺功能测定与<0.7在限定框内，之后用一条受原文支持的单向箭头指向“即可确诊慢性阻塞性肺疾病”。",
+            "两区用边界与层级表达差异；不把≥0.7画成排除疾病，也不把<0.7单独画成诊断；不显示连续量值轴。"
+          ],
+          "prompt_mapping_note": "一次针对性修订要求锁定句只出现于正文文本区，并用无标签图形表达关系；实际检查可见修订图未重复句子，并把临床背景包围整个右侧测试到诊断图形。"
+        },
+        "prohibited_implications": "不能把≥0.7画成排除所有疾病，也不能把<0.7画成单独足够的诊断条件。不得编造解剖病变机制或把两种情形画成必然进展；不得添加非锁定医学标签或量值轴。",
+        "status": "GENERATED_INSPECTED",
+        "calls": [
+          {
+            "call_id": "exec-a6493929-6185-4b31-a2c2-e23ddf9f858d.png",
+            "status": "SUCCESS_INITIAL_RETAINED",
+            "outer_wall_seconds": 117,
+            "provider_elapsed_seconds": null,
+            "timing_status": "OUTER_WALL_CLOCK",
+            "started_at_utc": "2026-10-11 15:46:38 UTC",
+            "ended_at_utc": "2026-10-11 15:48:35 UTC",
+            "output_path": "output/visual_model_ab_explanatory/luna/09.png",
+            "sha256": "DED831C2615E7556B98A07E2CCAE812DF1E7343AB2ACDC9DF14BA00C5F913E82",
+            "prompt": "Create a complete, legible 16:9 Chinese undergraduate medical teaching slide, 1280x720. Follow the attached shared template reference: warm ivory paper, muted deep forest green, restrained sage, generous whitespace, clear academic typography. The explanatory diagram is the visual subject; the main content title is prominent and larger than chapter navigation. Use drawn forms that explain the stated classification, comparison, or condition; decoration is secondary. Reproduce every locked string below exactly once, in reading order, including punctuation, negation, qualifiers and symbols. Each clause must appear in exactly one place in the slide. Do not duplicate a clause or show a full sentence together with fragments. Do not add words, abbreviations, headings, captions or labels beyond the locked text. Preserve source and page marker.\nCONCEPT: 有结构/生理异常而无气流阻塞与给定临床背景下的确诊条件\nGRAPHIC PARTS AND SOURCE MEANING:\n- In the left condition zone, place the full first body string once. Show one shared boundary containing two sibling abstract fields for structural abnormality and physiological abnormality, joined with a simple and/or overlap mark. Keep its no-obstruction condition and threshold in that same zone. No anatomy drawing.\n- In the right condition zone, place the full second body string once. Make the clinical-context qualifier an enclosing band over the full test-to-diagnosis relation. Place the test finding and its threshold inside that band; one arrow from finding toward diagnosis is supported by the sentence.\n- Give both condition zones equal area. Use bounded condition panels rather than a continuous measurement scale.\nPROHIBITED IMPLICATIONS:\n不能把≥0.7画成排除所有疾病，也不能把<0.7画成单独足够的诊断条件。不得编造解剖病变机制或把两种情形画成必然进展；不得添加非锁定医学标签或量值轴。\nLOCKED TEXT, each string once:\n“肺部异常与气流阻塞”\n“但部分患者可能仅表现为肺部结构性病变（如肺气肿）和/或生理功能异常\n（包括FEV1降低、气体潴留、过度充气、肺弥散功能下降和/或FEV1快速下降）而无\n气流阻塞（支气管扩张后FEV1/FVC≥ 0.7）。”\n“在适当的临床背景下（参见上文'定义'及'病因与危险因素'），通过肺功能测定检测到不完全可逆气流受限\n（支气管扩张后FEV1/FVC< 0.7）即可确诊慢性阻塞性肺疾病。”\n“来源：01_第1章_定义和概述 第4页”\n“09”",
+            "lock_token": "GcKQQL_breHodiRp0irvkKLcx1aYMRL6"
+          },
+          {
+            "call_id": "exec-241fb977-3df9-44bd-8bb1-0dce2e8700c6.png",
+            "status": "SUCCESS_TARGETED_REVISION",
+            "outer_wall_seconds": 158,
+            "provider_elapsed_seconds": null,
+            "timing_status": "OUTER_WALL_CLOCK",
+            "started_at_utc": "2026-10-11 15:52:14 UTC",
+            "ended_at_utc": "2026-10-11 15:54:52 UTC",
+            "output_path": "output/visual_model_ab_explanatory/luna/09.png",
+            "sha256": "55B264CA69E81A4E508DEB6ABF25CE2B39229FF62D91EE3BCE31A0A03CC46B5C",
+            "prompt": "Create a complete, legible 16:9 Chinese undergraduate medical teaching slide, 1280x720. Use the shared reference style: warm ivory, deep forest green, muted sage, generous whitespace. Keep the locked main title prominent. Make the diagram the explanatory subject, with two equal condition panels. Reproduce each locked string below exactly once. Each source clause must occur in exactly one location: do not show a full sentence plus fragments, and do not repeat any wording inside the diagram. Use no extra captions or labels beyond locked text.\nVISUAL STRUCTURE:\n- Put the first full body string one time in the left panel as a single text block. Below it, show only abstract, unlabeled visual forms within one shared boundary: two sibling fields linked by an “and/or” overlap shape, visually grouped with the no-obstruction threshold already in the text block. Do not draw lungs, anatomy, or disease mechanisms. Do not repeat any words, numbers, or symbols from the body text in the graphic.\n- Put the second full body string one time in the right panel, keeping the opening clinical-context qualifier visually prominent as the top band that encloses the entire diagram beneath it. Beneath that band, use only unlabeled abstract test and diagnosis symbols connected by one arrow. The context band must visibly contain both symbols and the arrow, so the clinical context governs the whole test-to-diagnosis relationship. Do not repeat any words, numbers, or symbols from the body text in the graphic.\n- Keep both panels equal in area and visually separate. Do not create a continuous measurement axis or imply progression from left panel to right panel.\nPROHIBITED IMPLICATIONS:\nDo not imply ≥0.7 excludes every disease, or <0.7 alone is sufficient for diagnosis. No fabricated anatomy or pathophysiology, no progression, no extra medical labels.\nLOCKED TEXT, each string once:\n“肺部异常与气流阻塞”\n“但部分患者可能仅表现为肺部结构性病变（如肺气肿）和/或生理功能异常\n（包括FEV1降低、气体潴留、过度充气、肺弥散功能下降和/或FEV1快速下降）而无\n气流阻塞（支气管扩张后FEV1/FVC≥ 0.7）。”\n“在适当的临床背景下（参见上文'定义'及'病因与危险因素'），通过肺功能测定检测到不完全可逆气流受限\n（支气管扩张后FEV1/FVC< 0.7）即可确诊慢性阻塞性肺疾病。”\n“来源：01_第1章_定义和概述 第4页”\n“09”",
+            "lock_token": "LIHBrOTM8t9D1JVdp8HMphe2GtHS4FUC"
+          }
+        ],
+        "inspection": "修订图实际检查：左右各一条完整锁定正文，各出现一次，没有在图标中重复文字。左侧用共享边界、两个并列视觉场和交叠区域表达结构/生理异常及和/或条件；右侧完整临床背景句位于包围下方检查图标、箭头和诊断图标的深绿色带中，因此限定语覆盖整个关系。未发现额外医学标签、数值轴或由左到右进展暗示。视觉隐喻仍可能被读出原文没有的细节，无法据图确认逐字字符准确。首图保存在09_attempt1.png并保留其调用记录。",
+        "planned_prompt": "Create a complete, legible 16:9 Chinese undergraduate medical teaching slide, 1280x720. Use the shared reference style: warm ivory, deep forest green, muted sage, generous whitespace. Keep the locked main title prominent. Make the diagram the explanatory subject, with two equal condition panels. Reproduce each locked string below exactly once. Each source clause must occur in exactly one location: do not show a full sentence plus fragments, and do not repeat any wording inside the diagram. Use no extra captions or labels beyond locked text.\nVISUAL STRUCTURE:\n- Put the first full body string one time in the left panel as a single text block. Below it, show only abstract, unlabeled visual forms within one shared boundary: two sibling fields linked by an “and/or” overlap shape, visually grouped with the no-obstruction threshold already in the text block. Do not draw lungs, anatomy, or disease mechanisms. Do not repeat any words, numbers, or symbols from the body text in the graphic.\n- Put the second full body string one time in the right panel, keeping the opening clinical-context qualifier visually prominent as the top band that encloses the entire diagram beneath it. Beneath that band, use only unlabeled abstract test and diagnosis symbols connected by one arrow. The context band must visibly contain both symbols and the arrow, so the clinical context governs the whole test-to-diagnosis relationship. Do not repeat any words, numbers, or symbols from the body text in the graphic.\n- Keep both panels equal in area and visually separate. Do not create a continuous measurement axis or imply progression from left panel to right panel.\nPROHIBITED IMPLICATIONS:\nDo not imply ≥0.7 excludes every disease, or <0.7 alone is sufficient for diagnosis. No fabricated anatomy or pathophysiology, no progression, no extra medical labels.\nLOCKED TEXT, each string once:\n“肺部异常与气流阻塞”\n“但部分患者可能仅表现为肺部结构性病变（如肺气肿）和/或生理功能异常\n（包括FEV1降低、气体潴留、过度充气、肺弥散功能下降和/或FEV1快速下降）而无\n气流阻塞（支气管扩张后FEV1/FVC≥ 0.7）。”\n“在适当的临床背景下（参见上文'定义'及'病因与危险因素'），通过肺功能测定检测到不完全可逆气流受限\n（支气管扩张后FEV1/FVC< 0.7）即可确诊慢性阻塞性肺疾病。”\n“来源：01_第1章_定义和概述 第4页”\n“09”",
+        "preview": "luna/09.png"
+      }
+    ]
+  }
+}

@@ -63,7 +63,7 @@ class Ctx:
     """What a recipe needs: shown text of each ref, and the body height of this page."""
 
     def __init__(self, page: dict, facts: dict, measured: dict | None = None):
-        self.facts, self.body_h = facts, BODY_H[bool(page.get("lead"))]
+        self.facts, self.body_h = facts, BODY_H[bool(page.get("lead") or page.get("headline"))]
         self.measured = measured or {}          # text heights measured by the browser in a first rendering pass
 
     def height(self, text: str, size: int, width: float, one: bool = False) -> int:
@@ -467,37 +467,51 @@ def date_axis(c: Ctx, s: dict, o: dict) -> list[dict]:
     return out + fb
 
 
+INDENT = 24                  # px per nesting level of a sub-row's first cell
+
+
 def entity_rows(c: Ctx, s: dict, o: dict) -> list[dict]:
     """One row per entity, columns of attributes; a cell is one ref or a list of refs (one per line). Column widths
     follow the longest content of each column; the row height follows its tallest cell."""
     heads, rows = s["headers"], s["rows"]
+    levels = s.get("levels") or [0] * len(rows)          # a sub-row is indented under the row naming its group
     roles = o.get("roles") or ["head"] + ["sub"] * (len(heads) - 1)
     sizes = o.get("sizes") or [17 if r == "head" else (22 if r == "value" else 15) for r in roles]
     fb, foot_top = foot(c, s.get("foot"))
     cells = lambda cell: cell if isinstance(cell, list) else [cell]
-    natural = [max(max(text_px(c.text(r).replace("\n", "") if (o.get("one") or [False] * 9)[j] else max(c.text(r).split("\n"), key=len), sizes[j])
-                       for r in cells(row[j])) for row in rows) + 16 for j in range(len(heads))]
+    natural = [max(max((text_px(c.text(r).replace("\n", "") if (o.get("one") or [False] * 9)[j] else max(c.text(r).split("\n"), key=len), sizes[j])
+                        for r in cells(row[j])), default=0) + (INDENT * lv if j == 0 else 0) for row, lv in zip(rows, levels)) + 16
+               for j in range(len(heads))]
     natural = [max(n, text_px(c.text(h), 13) + 16) for n, h in zip(natural, heads)]
     spare = BODY_W - sum(natural) - 16 * (len(heads) - 1)
-    widths = [n + spare * n / sum(natural) for n in natural] if spare > 0 else [n * (BODY_W - 16 * (len(heads) - 1)) / sum(natural) for n in natural]
+    available = BODY_W - 16 * (len(heads) - 1)
+    requested_widths = o.get("widths")
+    if requested_widths and len(requested_widths) == len(heads) and sum(requested_widths) > 0:
+        widths = [available * float(n) / sum(requested_widths) for n in requested_widths]
+    else:
+        widths = [n + spare * n / sum(natural) for n in natural] if spare > 0 else [n * available / sum(natural) for n in natural]
     xs = [sum(widths[:j]) + 16 * j for j in range(len(heads))]
     out = [T(x, 0, w, line_h(13), h, "label", one=True) for x, w, h in zip(xs, widths, heads)]
     one = o.get("one") or [False] * len(heads)
     tones = o.get("tones") or [None] * len(heads)
     y = line_h(13) + 10
     heights = []
-    for row in rows:
-        hh = max(sum(c.height(c.text(r), sizes[j], widths[j], one[j]) for r in cells(row[j])) for j in range(len(heads)))
+    for row, lv in zip(rows, levels):
+        hh = max(sum(c.height(c.text(r), sizes[j], widths[j] - (INDENT * lv if j == 0 else 0), one[j]) for r in cells(row[j]))
+                 for j in range(len(heads)))
         heights.append(hh + 12)
     room = foot_top - 12 - y
     if sum(heights) > room:
         raise RecipeError(f"entity_rows：{len(rows)} 行需 {sum(heights)} px，版心只剩 {round(room)} px（请拆页）")
     extra = min(16, (room - sum(heights)) / len(rows))
-    for k, (row, hh) in enumerate(zip(rows, heights)):
+    for k, (row, hh, lv) in enumerate(zip(rows, heights, levels)):
         hh += extra
         start = len(out)
-        out.append(L(0, y, BODY_W, 1))
+        if not (k and lv > levels[k - 1]):              # no rule between a group row and its first sub-row
+            out.append(L(0, y, BODY_W, 1))
         for j, (x, w) in enumerate(zip(xs, widths)):
+            if j == 0 and lv:
+                x, w = x + INDENT * lv, w - INDENT * lv
             yy = y + 6 + extra / 2
             for r in cells(row[j]):
                 h = c.height(c.text(r), sizes[j], w, one[j])
@@ -538,7 +552,7 @@ def criteria(c: Ctx, s: dict, o: dict) -> list[dict]:
         notes_h = (line_h(13) + 6 if notes.get("head") else 0) + sum(c.height(c.text(r), 13, BODY_W) + 4 for r in notes["items"]) + 18
     room = foot_top - 12 - y - notes_h
 
-    def need(sizes):
+    def need(sizes, pad, inner):
         ns, vs, ds = sizes
         hs = []
         for it in items:
@@ -554,9 +568,15 @@ def criteria(c: Ctx, s: dict, o: dict) -> list[dict]:
     # a value is one line: cap its size so the longest value fits the cell (28 px is the floor of the scale used here)
     longest = max((it["value"] for it in items if it.get("value")), key=lambda r: c.width(r, 1), default=None)
     fit = next((z for z in (48, 40, 34, 32, 28) if longest is None or c.width(longest, z) <= inner), 28)
-    tiers = [(24, min(48, fit), 20), (22, min(40, fit), 18), (20, min(34, fit), 17), (18, min(28, fit), 15)]
-    sizes = next((t for t in tiers if sum(need(t)) + gut * (nrow - 1) <= room * 0.8), tiers[-1])
-    rows = need(sizes)
+    tiers = [(24, min(48, fit), 20), (22, min(40, fit), 18), (20, min(34, fit), 17), (18, min(28, fit), 15),
+             (17, min(26, fit), 14)]
+    rows, sizes = None, tiers[-1]
+    for pad in (20, 14, 10):                       # when the page is tight the card's own padding gives way first
+        inner = cw - 2 * pad
+        sizes = next((t for t in tiers if sum(need(t, pad, inner)) + gut * (nrow - 1) <= room * 0.8), tiers[-1])
+        rows = need(sizes, pad, inner)
+        if sum(rows) + gut * (nrow - 1) <= room:
+            break
     if sum(rows) + gut * (nrow - 1) > room:
         raise RecipeError(f"criteria：{len(items)} 项需 {round(sum(rows))} px，版心只剩 {round(room)} px（请拆页）")
     spare = (room - sum(rows) - gut * (nrow - 1)) / nrow
@@ -656,7 +676,8 @@ RECIPES = {
                    "legend": [{"key": "a", "label": {"fact": "la"}, "tone": "strong"}, {"key": "b", "label": {"fact": "lb"}, "tone": "accent", "primary": True}],
                    "rows": [{"cells": [{"fact": "o1"}, {"fact": "p1"}], "dates": {"a": {"fact": "d1a"}, "b": {"fact": "d1b"}}}],
                    "foot": [{"fact": "gl"}]}),
-    "entity_rows": (entity_rows, "每个对象一行、属性分列；一格可放多条（每条一行）；栏宽按内容分配，行高按最高的一格",
+    "entity_rows": (entity_rows, "每个对象一行、属性分列；一格可放多条（每条一行）；栏宽按内容分配，行高按最高的一格；"
+                                 "有上下级的行用 levels 给出每行层级（0 为顶层，子项缩进在其上一级行下），上一级单独成行、其余格可为空列表",
                     {"headers": [{"text": "对象"}, {"text": "属性"}], "rows": [[{"fact": "o1"}, [{"fact": "p1"}, {"fact": "p2"}]]],
                      "foot": [{"fact": "gl"}]}),
 }
@@ -664,14 +685,22 @@ RECIPES = {
 
 def expand(page: dict, facts: dict, measured: dict | None = None) -> dict:
     """A recipe page with its blocks placed (the recipe name is kept; slots and options are consumed)."""
-    if page.get("layout") != "composed" or "recipe" not in page:
+    if page.get("layout") != "composed" or ("recipe" not in page and "diagram" not in page):
         return page
-    if page["recipe"] not in RECIPES:
-        raise RecipeError(f"未知构图方案：{page['recipe']}（可用：{'、'.join(RECIPES)}）")
-    fn = RECIPES[page["recipe"]][0]
-    c = Ctx(page, facts, (measured or {}).get(page.get("id")))
-    blocks = fn(c, page.get("slots") or {}, page.get("options") or {}) + list(page.get("blocks") or [])
-    return {**{k: v for k, v in page.items() if k not in ("slots", "options")}, "blocks": blocks}
+    blocks: list[dict] = []
+    if "recipe" in page:
+        if page["recipe"] not in RECIPES:
+            raise RecipeError(f"未知构图方案：{page['recipe']}（可用：{'、'.join(RECIPES)}）")
+        fn = RECIPES[page["recipe"]][0]
+        c = Ctx(page, facts, (measured or {}).get(page.get("id")))
+        blocks = fn(c, page.get("slots") or {}, page.get("options") or {})
+    if page.get("diagram"):
+        from . import figures
+        texts = {fid: (f.get("display") or f.get("quote") or "") for fid, f in facts.items()}
+        blocks = blocks + figures.build(page["diagram"], texts) + list(page.get("blocks") or [])
+    else:
+        blocks = blocks + list(page.get("blocks") or [])
+    return {**{k: v for k, v in page.items() if k not in ("slots", "options", "diagram")}, "blocks": blocks}
 
 
 def expand_deck(deck: dict, facts: dict, measured: dict | None = None) -> tuple[dict, dict[str, str]]:

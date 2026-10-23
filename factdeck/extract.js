@@ -16,8 +16,8 @@
     if (p.length === 4 && p[3] === 0) return null;
     return { hex: p.slice(0, 3).map((v) => Math.round(v).toString(16).padStart(2, '0')).join(''), a: p.length === 4 ? p[3] : 1 };
   };
-  const out = { shapes: [], texts: [], tables: [], lines: [], rasters: [], figures: [],
-    checks: { untracked: [], mismatch: [], overflow: [], bounds: [], overlap: [], figure_distortion: [], hierarchy: [] }, authored: [] };
+  const out = { shapes: [], texts: [], tables: [], lines: [], rasters: [], figures: [], icons: [],
+    checks: { untracked: [], mismatch: [], overflow: [], bounds: [], overlap: [], figure_distortion: [], hierarchy: [], unsupported: [] }, authored: [] };
 
   // ---- runs: walk text nodes, split paragraphs at block-level descendants
   function runsOf(container) {
@@ -39,10 +39,17 @@
         } else if (ch.nodeType === 1) {
           const cs = getComputedStyle(ch);
           if (cs.display === 'none') continue;
+          if (ch.tagName === 'BR') { paras.push([]); continue; }
           const block = cs.display === 'block' || cs.display === 'list-item' || cs.display === 'flex';
           if (block && paras[paras.length - 1].length) paras.push([]);
           walk(ch);
-          if (block) paras.push([]);
+          if (block) {
+            // the gap a block leaves under itself becomes the paragraph's space after
+            const gap = px(cs.marginBottom) + px(cs.paddingBottom);
+            const last = [...paras].reverse().find((p) => p.length);
+            if (gap > 0 && last) last.forEach((r) => { r.after = Math.max(r.after || 0, gap); });
+            paras.push([]);
+          }
         }
       }
     };
@@ -74,7 +81,9 @@
     } else r = rel(el.getBoundingClientRect());
     const bw = [px(cs.borderTopWidth), px(cs.borderRightWidth), px(cs.borderBottomWidth), px(cs.borderLeftWidth)];
     const grp = el.closest('[data-group]');
-    const shape = { ...r, fill: color(cs.backgroundColor), radius: px(cs.borderTopLeftRadius) || px(cs.borderTopRightRadius) || px(cs.borderBottomRightRadius),
+    // a radius in % (50% = a circle) is a share of the shorter side
+    const rad = (v) => (String(v).trim().endsWith('%') ? parseFloat(v) / 100 * Math.min(r.w, r.h) : px(v));
+    const shape = { ...r, fill: color(cs.backgroundColor), radius: rad(cs.borderTopLeftRadius) || rad(cs.borderTopRightRadius) || rad(cs.borderBottomRightRadius),
       line: null, accents: [], group: grp ? slideId + ':' + grp.dataset.group : '' };
     const uniform = bw.every((b) => b === bw[0]);
     if (uniform && bw[0] > 0) shape.line = { w: bw[0], color: color(cs.borderTopColor) };
@@ -103,7 +112,8 @@
     svg.querySelectorAll('polyline').forEach((pl) => {
       const pts = pl.getAttribute('points').trim().split(/\s+/).map((p) => p.split(',').map(Number)).map(([x, y]) => [x + o.x, y + o.y]);
       const stroke = color(getComputedStyle(pl).stroke);
-      out.lines.push({ points: pts, color: stroke ? stroke.hex : '19376d', w: 2, arrow: true, support: pl.dataset.edge,
+      out.lines.push({ points: pts, color: stroke ? stroke.hex : '19376d', w: parseFloat(getComputedStyle(pl).strokeWidth) || 2,
+        arrow: !pl.dataset.plain, support: pl.dataset.edge, dash: getComputedStyle(pl).strokeDasharray !== 'none',
         group: pl.dataset.group ? slideId + ':' + pl.dataset.group : '' });
     });
   });
@@ -126,7 +136,7 @@
   while ((n = walker.nextNode())) {
     if (!n.textContent.trim()) continue;
     const p = n.parentElement;
-    if (p.closest('svg')) continue;
+    if (p.closest('svg, style')) continue;
     if (!p.closest('[data-fact],[data-authored],[data-chrome],[data-mark]')) out.checks.untracked.push(n.textContent.trim().slice(0, 60));
   }
   slide.querySelectorAll('[data-authored]').forEach((el) => out.authored.push(el.textContent.trim()));
@@ -159,6 +169,16 @@
         out.checks.hierarchy.push(text.slice(0, 30));
     });
   }
+  // ---- rings of free pages: drawn natively from the percentages the code computed
+  out.rings = [...slide.querySelectorAll('[data-ring]')].map((el) => {
+    const c = (sel) => { const p = el.querySelector(sel); return p ? color(getComputedStyle(p).stroke) : null; };
+    const pale = el.querySelector('.ring-pale');
+    return { ...rel(el.getBoundingClientRect()), solid: parseFloat(el.dataset.solid), pale: parseFloat(el.dataset.pale),
+      thick: parseFloat(el.dataset.thick), track: c('.ring-track'), tone: c('.ring-solid') || c('.ring-pale'),
+      paleOpacity: pale ? parseFloat(getComputedStyle(pale).strokeOpacity) : 1 };
+  });
+  // ---- icons of composed pages: exported from their files, above the surfaces they sit on
+  slide.querySelectorAll('img[data-icon]').forEach((el) => out.icons.push({ id: el.dataset.icon, ...rel(el.getBoundingClientRect()) }));
   // ---- source figures: exported from the archived original; must be whole, in bounds and uncovered
   slide.querySelectorAll('img[data-figure]').forEach((el) => {
     const r = rel(el.getBoundingClientRect());
@@ -177,6 +197,30 @@
     const r = el.getBoundingClientRect();
     return { fact: el.dataset.bar, length: el.dataset.dir === 'h' ? r.width : r.height, plot: parseFloat(el.dataset.plot) };
   });
+  // free pages: bars (the longer side is the length) and whatever PowerPoint could not show the way the browser does
+  slide.querySelectorAll('[data-value-of]:not([data-ring]):not([data-pictogram])').forEach((el) => {
+    const r = el.getBoundingClientRect();
+    out.chart_bars.push({ fact: el.dataset.valueOf, scale: el.dataset.scale, length: Math.max(r.width, r.height) });
+  });
+  if (slide.classList.contains('L-free')) {
+    slide.querySelectorAll('.body *').forEach((el) => {
+      if (el.closest('svg') && el.tagName.toLowerCase() !== 'svg') return;
+      const cs = getComputedStyle(el), what = (el.textContent || el.tagName).trim().slice(0, 20);
+      const bad = [];
+      if (cs.boxShadow !== 'none') bad.push('阴影');
+      if (cs.transform !== 'none') bad.push('变换');
+      if (parseFloat(cs.opacity) < 1) bad.push('透明度');
+      if (cs.backgroundImage !== 'none') bad.push('背景图/渐变');
+      if (cs.textShadow !== 'none') bad.push('文字阴影');
+      if (cs.filter !== 'none') bad.push('滤镜');
+      if (cs.fontStyle === 'italic') bad.push('斜体');
+      if (cs.textDecorationLine !== 'none') bad.push('下划线/删除线');
+      if (cs.letterSpacing !== 'normal' && px(cs.letterSpacing) !== 0) bad.push('字距');
+      const painted = color(cs.backgroundColor) || ['Top', 'Right', 'Bottom', 'Left'].some((s) => px(cs['border' + s + 'Width']) > 0 && cs['border' + s + 'Style'] !== 'none');
+      if (painted && !el.hasAttribute('data-shape') && el.tagName.toLowerCase() !== 'svg') bad.push('有填充或边框却没有 data-shape（不会导出）');
+      if (bad.length) out.checks.unsupported.push(what + '：' + bad.join('、'));
+    });
+  }
   // ---- occupancy: how far down the body's content reaches, as a share of the body's height (the body is top-anchored,
   // so a low share means an empty lower part of the page)
   const bodyEl = slide.querySelector('.body');

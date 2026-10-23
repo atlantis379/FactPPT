@@ -1,0 +1,269 @@
+{
+  "route": "A_NATIVE_VECTOR",
+  "renderer_version": "factdeck.visual-native-export.5",
+  "hard_errors": 0,
+  "slides": [
+    {
+      "id": "s1_cover",
+      "overflow": [],
+      "overlap": [],
+      "table_dimensions": [],
+      "design": {
+        "first": "原资料标题",
+        "then": "进入章节内容",
+        "reference": "无",
+        "strong": "以原题作为唯一文字焦点"
+      },
+      "signals": [],
+      "review": [],
+      "vector": {
+        "raw_paths": 163,
+        "native_paths": 157,
+        "commands": 4062,
+        "paper_paths_omitted": 6,
+        "differences": [
+          "近白纸张颗粒省略；颜色按4级量化；组件按指定区域归组。",
+          "保留原始路径的绘制顺序。"
+        ]
+      },
+      "fontmetric_adjustments": [],
+      "typographic_adjustments": []
+    },
+    {
+      "id": "s1_p01",
+      "overflow": [],
+      "overlap": [],
+      "table_dimensions": [],
+      "design": {
+        "first": "治疗目标的原文表述",
+        "then": "个体化管理的说明",
+        "reference": "无",
+        "strong": "原文目标句作为主体，补充个体化管理"
+      },
+      "signals": [],
+      "review": [],
+      "vector": {
+        "raw_paths": 255,
+        "native_paths": 176,
+        "commands": 3807,
+        "paper_paths_omitted": 18,
+        "differences": [
+          "近白纸张颗粒省略；颜色按4级量化；组件按指定区域归组。",
+          "同色路径合并，交叠色面的绘制顺序可能轻微变化。"
+        ]
+      },
+      "fontmetric_adjustments": [],
+      "typographic_adjustments": []
+    },
+    {
+      "id": "s1_p04",
+      "overflow": [],
+      "overlap": [],
+      "table_dimensions": [],
+      "design": {
+        "first": "共同效应与研究间差异",
+        "then": "各自对应的分析问题",
+        "reference": "无",
+        "strong": "保留原文的 i / ii 两项结构与限定"
+      },
+      "signals": [],
+      "review": [],
+      "vector": {
+        "raw_paths": 51,
+        "native_paths": 37,
+        "commands": 928,
+        "paper_paths_omitted": 5,
+        "differences": [
+          "近白纸张颗粒省略；颜色按4级量化；组件按指定区域归组。",
+          "同色路径合并，交叠色面的绘制顺序可能轻微变化。"
+        ]
+      },
+      "fontmetric_adjustments": [],
+      "typographic_adjustments": []
+    },
+    {
+      "id": "a_s2_04_04",
+      "overflow": [],
+      "overlap": [],
+      "table_dimensions": [],
+      "design": {
+        "first": "结构或生理异常",
+        "then": "核对“而无气流阻塞”条件",
+        "reference": "先读肺功能确诊条件，再读无气流阻塞时仍可能出现的结构/生理异常。",
+        "strong": "把同段“确诊条件”与“但部分患者…”并置，保留原文转折。"
+      },
+      "signals": [],
+      "review": [],
+      "vector": {
+        "raw_paths": 106,
+        "native_paths": 72,
+        "commands": 1990,
+        "paper_paths_omitted": 19,
+        "differences": [
+          "近白纸张颗粒省略；颜色按4级量化；组件按指定区域归组。",
+          "同色路径合并，交叠色面的绘制顺序可能轻微变化。"
+        ]
+      },
+      "fontmetric_adjustments": [],
+      "typographic_adjustments": []
+    },
+    {
+      "id": "a_s3_07_15",
+      "overflow": [],
+      "overlap": [],
+      "table_dimensions": [
+        {
+          "index": 0,
+          "width": 1218,
+          "height": 292.5,
+          "locked_width": 1218,
+          "locked_height": 292
+        }
+      ],
+      "design": {
+        "first": "图2.13适用人群范围",
+        "then": "随后读取急性加重史与E组的同行关系",
+        "reference": "图2.13前的正文限定用于说明该图建议的适用人群",
+        "strong": "先呈现未接受过药物治疗这一范围，再用表格保留原图同行对应",
+        "exceptions": [
+          "视觉核对：02_第2章_诊断评估和监测.pdf 物理第23页（印刷第43页）图2.13。f025与E框处于同一上行，图中没有两格间的箭头；用表格表达可视的行关系，不表达方向。",
+          "范围事实来自图前正文，不把E组条件扩展为所有治疗阶段的普遍建议。"
+        ]
+      },
+      "signals": [],
+      "review": [],
+      "vector": {
+        "raw_paths": 37,
+        "native_paths": 29,
+        "commands": 542,
+        "paper_paths_omitted": 8,
+        "differences": [
+          "近白纸张颗粒省略；颜色按4级量化；组件按指定区域归组。",
+          "同色路径合并，交叠色面的绘制顺序可能轻微变化。"
+        ]
+      },
+      "fontmetric_adjustments": [],
+      "typographic_adjustments": []
+    },
+    {
+      "id": "a_s3_08_16",
+      "overflow": [],
+      "overlap": [],
+      "table_dimensions": [],
+      "design": {
+        "first": "来源所述不一致条件",
+        "then": "进一步评估范围",
+        "reference": "完整原文直接支持条件与进一步评估之间的关系。",
+        "strong": "原句明确支持的条件关系用单向路径呈现"
+      },
+      "signals": [],
+      "review": [],
+      "vector": {
+        "raw_paths": 64,
+        "native_paths": 50,
+        "commands": 947,
+        "paper_paths_omitted": 5,
+        "differences": [
+          "近白纸张颗粒省略；颜色按4级量化；组件按指定区域归组。",
+          "同色路径合并，交叠色面的绘制顺序可能轻微变化。"
+        ]
+      },
+      "fontmetric_adjustments": [],
+      "typographic_adjustments": []
+    }
+  ],
+  "font": "Microsoft YaHei",
+  "office": {
+    "engine": "Microsoft PowerPoint",
+    "seconds": 9.467,
+    "editability": [
+      {
+        "page": 1,
+        "group_move": true,
+        "fill_recolor": true,
+        "contour_edit": true
+      },
+      {
+        "page": 2,
+        "group_move": true,
+        "fill_recolor": true,
+        "contour_edit": true
+      },
+      {
+        "page": 3,
+        "group_move": true,
+        "fill_recolor": true,
+        "contour_edit": true
+      },
+      {
+        "page": 4,
+        "group_move": true,
+        "fill_recolor": true,
+        "contour_edit": true
+      },
+      {
+        "page": 5,
+        "group_move": true,
+        "fill_recolor": true,
+        "contour_edit": true
+      },
+      {
+        "page": 6,
+        "group_move": true,
+        "fill_recolor": true,
+        "contour_edit": true
+      }
+    ],
+    "text_bounds": [
+      {
+        "page": 1,
+        "text_boxes_measured": 3,
+        "overflow": [],
+        "fontmetric_ink_overhang": []
+      },
+      {
+        "page": 2,
+        "text_boxes_measured": 8,
+        "overflow": [],
+        "fontmetric_ink_overhang": []
+      },
+      {
+        "page": 3,
+        "text_boxes_measured": 9,
+        "overflow": [],
+        "fontmetric_ink_overhang": []
+      },
+      {
+        "page": 4,
+        "text_boxes_measured": 13,
+        "overflow": [],
+        "fontmetric_ink_overhang": []
+      },
+      {
+        "page": 5,
+        "text_boxes_measured": 4,
+        "overflow": [],
+        "fontmetric_ink_overhang": []
+      },
+      {
+        "page": 6,
+        "text_boxes_measured": 9,
+        "overflow": [],
+        "fontmetric_ink_overhang": []
+      }
+    ],
+    "fontmetric_adjustments": []
+  },
+  "summary": {
+    "slides": 6,
+    "generated_picture_objects": 0,
+    "native_paths": 521,
+    "overflow": 0,
+    "overlap": 0,
+    "content_mismatch": 0
+  },
+  "seconds": 15.657,
+  "warnings": [
+    "浏览器预览与 PowerPoint 实际渲染均已存档，视觉差异及残字仍需逐页人工核对。"
+  ]
+}

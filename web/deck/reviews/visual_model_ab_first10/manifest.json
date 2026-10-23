@@ -1,0 +1,668 @@
+{
+  "pages": [
+    {
+      "number": 1,
+      "id": "s1_cover",
+      "title": "s1_cover"
+    },
+    {
+      "number": 2,
+      "id": "s1_p01",
+      "title": "s1_p01"
+    },
+    {
+      "number": 3,
+      "id": "s1_p02",
+      "title": "s1_p02"
+    },
+    {
+      "number": 4,
+      "id": "s1_p03",
+      "title": "s1_p03"
+    },
+    {
+      "number": 5,
+      "id": "s1_p04",
+      "title": "s1_p04"
+    },
+    {
+      "number": 6,
+      "id": "a_s2_01_01",
+      "title": "a_s2_01_01"
+    },
+    {
+      "number": 7,
+      "id": "a_s2_02_02",
+      "title": "a_s2_02_02"
+    },
+    {
+      "number": 8,
+      "id": "a_s2_03_03",
+      "title": "a_s2_03_03"
+    },
+    {
+      "number": 9,
+      "id": "a_s2_04_04",
+      "title": "a_s2_04_04"
+    },
+    {
+      "number": 10,
+      "id": "a_s2_05_05",
+      "title": "a_s2_05_05"
+    }
+  ],
+  "arms": {
+    "sol": [
+      {
+        "id": "s1_cover",
+        "page": 1,
+        "prompt": "Use case: productivity-visual. Create ONE complete 16:9 high-resolution Chinese undergraduate teaching presentation slide, with all locked text rendered. Input image is style reference only: reproduce its warm ivory paper, forest green academic typography, sage rounded panels, subtle botanical/book motifs, restrained editorial polish. Palette #F8F6EE #183A29 #355A42. Clear Microsoft YaHei style body text, confident Chinese title. No replacement or copied reference text.\nComposition: Editorial cover: original long source title is the dominant dark green typography on left, smaller course-intro eyebrow above. Right third open-book and leafy sprig illustration, bottom rolling forest-green paper landscape. Traceability statement discreet bottom left. No medical illustration.\nLOCKED TEXT BLOCKS (each render exactly once, in order within its block; natural reflow permitted; no paraphrase, omitted words, extra labels or guessed content):\n[\n  \"课程导入\",\n  \"慢性阻塞性肺疾病诊断、管理和预防全球策略\",\n  \"原始资料 8 份 · 页面中每一条内容均可追溯到原文位置\"\n]\nControl character U+0001 in the input is nonprinting: retain surrounding visible text exactly, do not print a box. Source footer and page number must remain legible at bottom. No extra text. No clinical mechanisms or relationships beyond locked original text. This is a visual design draft, not medical authority.",
+        "方案": "Editorial cover: original long source title is the dominant dark green typography on left, smaller course-intro eyebrow above. Right third open-book and leafy sprig illustration, bottom rolling forest-green paper landscape. Traceability statement discreet bottom left. No medical illustration.",
+        "status": "generated_inspected",
+        "calls": [
+          {
+            "tool": "builtin image_gen",
+            "tool_call_id": "UNKNOWN",
+            "call_id_status": "not_returned",
+            "elapsed_seconds": null,
+            "timing_status": "outer_exec_wall_time_not_tool_timing",
+            "error": "image generation failed: connection failed: error sending request",
+            "output_paths": [],
+            "output_hashes": [],
+            "outer_wait_seconds": 13.5
+          },
+          {
+            "tool": "builtin image_gen",
+            "tool_call_id": "UNKNOWN",
+            "output_identifier": "exec-b410e593-6387-47e2-acac-8b3a1544a15b",
+            "elapsed_seconds": null,
+            "timing_status": "not_returned_by_tool",
+            "output_hint": "Generated images are saved to C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b as C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b\\exec-b410e593-6387-47e2-acac-8b3a1544a15b.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.",
+            "reference_paths": [
+              "E:\\FactPPTv2\\output\\visual_model_ab_first10\\template_reference.png"
+            ],
+            "retry_reason": "transport recovery; not visual revision",
+            "output_sha256": "c7265c9248dc7f62a86a51b7de0d4251106d52508ef6663b2665b47d2b28e544",
+            "workspace_output": "E:\\FactPPTv2\\output\\visual_model_ab_first10\\sol\\01.png"
+          }
+        ],
+        "inspection": {
+          "viewed_actual_output": true,
+          "visual_notes": "实际查看：三个锁定文本均可见，主标题完整但重排换行，正文来源说明可读；右侧书本叶片及底部校园延续参考风格，无医学图像或新增关系。视觉字形未作机器逐字保证。",
+          "text_accuracy_status": "visual_review_only_not_content_authority"
+        },
+        "retry_records": [
+          {
+            "kind": "transport_retry",
+            "reason": "connection failed; root authorized one bounded retry",
+            "outcome": "success",
+            "quality_revision": false
+          }
+        ],
+        "output": "E:\\FactPPTv2\\output\\visual_model_ab_first10\\sol\\01.png",
+        "output_sha256": "c7265c9248dc7f62a86a51b7de0d4251106d52508ef6663b2665b47d2b28e544",
+        "design_author": "gpt-6.1-sol",
+        "tool_executor": "Sol agent",
+        "reference_policy": "common template only; no own design reuse",
+        "prompt_sha256": "97bcc4a7c8da377e03c406e33f7b6035b52e84b9c78d6da4fd710852f2f4f8db",
+        "preview": "sol/01.png"
+      },
+      {
+        "id": "s1_p01",
+        "page": 2,
+        "prompt": "Use case: productivity-visual. Create ONE complete 16:9 high-resolution Chinese undergraduate teaching presentation slide, with all locked text rendered. Input image is style reference only: reproduce its warm ivory paper, forest green academic typography, sage rounded panels, subtle botanical/book motifs, restrained editorial polish. Palette #F8F6EE #183A29 #355A42. Clear Microsoft YaHei style body text, confident Chinese title. No replacement or copied reference text.\nComposition: Two-level teaching spread: large dark green inset quotation panel holds the complete treatment goal sentence, naturally line-wrapped; the individualised-care sentence is a distinct pale sage lower panel. No duplicate text, no new labels or arrows. Small botanical margin detail.\nLOCKED TEXT BLOCKS (each render exactly once, in order within its block; natural reflow permitted; no paraphrase, omitted words, extra labels or guessed content):\n[\n  \"前言与方法学\",\n  \"治疗目标与个体化管理\",\n  \"治疗目标分为两类：一类旨在缓解和减轻症状的影响，另一类则降低未来可能对患者造成不良健康事件的风险（例如急性加重）。\",\n  \"这种管理方法适用于全球任何临床环境，并将慢性阻塞性肺疾病治疗推向个体化医疗——使患者的治疗更紧密地匹配其需求。\",\n  \"来源：00_前言和方法学 第1页\",\n  \"02\"\n]\nControl character U+0001 in the input is nonprinting: retain surrounding visible text exactly, do not print a box. Source footer and page number must remain legible at bottom. No extra text. No clinical mechanisms or relationships beyond locked original text. This is a visual design draft, not medical authority.",
+        "方案": "Two-level teaching spread: large dark green inset quotation panel holds the complete treatment goal sentence, naturally line-wrapped; the individualised-care sentence is a distinct pale sage lower panel. No duplicate text, no new labels or arrows. Small botanical margin detail.",
+        "status": "generated_inspected",
+        "calls": [
+          {
+            "tool": "builtin image_gen",
+            "tool_call_id": "UNKNOWN",
+            "output_identifier": "exec-d2c357e5-d87f-4e22-b8b2-8c2c2aebe5f9",
+            "elapsed_seconds": null,
+            "outer_wait_seconds": 153.238,
+            "timing_status": "outer_wait_measured_not_tool_timing",
+            "output_hint": "Generated images are saved to C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b as C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b\\exec-d2c357e5-d87f-4e22-b8b2-8c2c2aebe5f9.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.",
+            "reference_paths": [
+              "E:\\FactPPTv2\\output\\visual_model_ab_first10\\template_reference.png"
+            ],
+            "output_sha256": "e67036d89bec9f851a697c34b5be4d507f1f879525634b19cf740be0faf2167a",
+            "workspace_output": "E:\\FactPPTv2\\output\\visual_model_ab_first10\\sol\\02.png"
+          }
+        ],
+        "inspection": {
+          "viewed_actual_output": true,
+          "visual_notes": "实际查看：锁定正文、个体化句、来源及02均可见；章节名被放大为第一焦点，弱化了原定治疗目标标题；校园背景进入深绿主卡片，装饰较重，主句仍可读。生成图额外引号为装饰，未新增医学关系；未声称逐字机器核对。",
+          "text_accuracy_status": "visual_review_only_not_content_authority"
+        },
+        "retry_records": [],
+        "output": "E:\\FactPPTv2\\output\\visual_model_ab_first10\\sol\\02.png",
+        "output_sha256": "e67036d89bec9f851a697c34b5be4d507f1f879525634b19cf740be0faf2167a",
+        "design_author": "gpt-6.1-sol",
+        "tool_executor": "Sol agent",
+        "reference_policy": "common template only; no own design reuse",
+        "prompt_sha256": "3535e21e4ecf8a42ad02e101df8675d17558214d0f251833aa832b0790fb9ea6",
+        "preview": "sol/02.png"
+      },
+      {
+        "id": "s1_p02",
+        "page": 3,
+        "prompt": "Use case: productivity-visual. Create ONE complete 16:9 high-resolution Chinese undergraduate teaching presentation slide, with all locked text rendered. Input image is style reference only: reproduce its warm ivory paper, forest green academic typography, sage rounded panels, subtle botanical/book motifs, restrained editorial polish. Palette #F8F6EE #183A29 #355A42. Clear Microsoft YaHei style body text, confident Chinese title. No replacement or copied reference text.\nComposition: Single-statement editorial page: headline top left; broad ivory quotation card centred with a slim dark green vertical rule and large easily readable complete statement. Restrained campus/book decorative vignette at lower right without medical symbols. Emphasise existing negation and limitation typographically only.\nLOCKED TEXT BLOCKS (each render exactly once, in order within its block; natural reflow permitted; no paraphrase, omitted words, extra labels or guessed content):\n[\n  \"前言与方法学\",\n  \"诊疗资源可及性\",\n  \"诊断性肺功能检测服务并不普及，且在获取可负担的质量保证的药物治疗和非药物治疗方面存在重大问题。\",\n  \"来源：00_前言和方法学 第2页\",\n  \"03\"\n]\nControl character U+0001 in the input is nonprinting: retain surrounding visible text exactly, do not print a box. Source footer and page number must remain legible at bottom. No extra text. No clinical mechanisms or relationships beyond locked original text. This is a visual design draft, not medical authority.",
+        "方案": "Single-statement editorial page: headline top left; broad ivory quotation card centred with a slim dark green vertical rule and large easily readable complete statement. Restrained campus/book decorative vignette at lower right without medical symbols. Emphasise existing negation and limitation typographically only.",
+        "status": "generated_inspected",
+        "calls": [
+          {
+            "tool": "builtin image_gen",
+            "tool_call_id": "UNKNOWN",
+            "output_identifier": "exec-5e7c7cb4-66f4-44c7-98aa-6783ffa95bc8",
+            "elapsed_seconds": null,
+            "outer_wait_seconds": 54.799,
+            "timing_status": "outer_wait_measured_not_tool_timing",
+            "output_hint": "Generated images are saved to C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b as C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b\\exec-5e7c7cb4-66f4-44c7-98aa-6783ffa95bc8.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.",
+            "reference_paths": [
+              "E:\\FactPPTv2\\output\\visual_model_ab_first10\\template_reference.png"
+            ],
+            "output_sha256": "10b8ef7fb0428164cd5f3dd3e4926c9d2afce9af354420f1a555c565b75844c3",
+            "workspace_output": "E:\\FactPPTv2\\output\\visual_model_ab_first10\\sol\\03.png"
+          }
+        ],
+        "inspection": {
+          "viewed_actual_output": true,
+          "visual_notes": "实际查看：全部正文和来源03可见，未发现明显丢字；章节名仍大于页面主题，主题放入主卡片；底部校园书本装饰占约四分之一，正文宽松可读，未新增医学关系。",
+          "text_accuracy_status": "visual_review_only_not_content_authority"
+        },
+        "retry_records": [],
+        "output": "E:\\FactPPTv2\\output\\visual_model_ab_first10\\sol\\03.png",
+        "output_sha256": "10b8ef7fb0428164cd5f3dd3e4926c9d2afce9af354420f1a555c565b75844c3",
+        "design_author": "gpt-6.1-sol",
+        "tool_executor": "Sol agent",
+        "reference_policy": "common template only; no own design reuse",
+        "prompt_sha256": "45970bfa73e60304706335a7c7f71d626ff72de6e5bc7653f16bccb5bae7e2bb",
+        "preview": "sol/03.png"
+      },
+      {
+        "id": "s1_p03",
+        "page": 4,
+        "prompt": "Use case: productivity-visual. Create ONE complete 16:9 high-resolution Chinese undergraduate teaching presentation slide, with all locked text rendered. Input image is style reference only: reproduce its warm ivory paper, forest green academic typography, sage rounded panels, subtle botanical/book motifs, restrained editorial polish. Palette #F8F6EE #183A29 #355A42. Clear Microsoft YaHei style body text, confident Chinese title. No replacement or copied reference text.\nComposition: Evidence example spread: top introductory statements full width; lower two thirds a deep green circular A seal at left, English RCT title and complete English definition in generous ivory panel to right. Every statement once; A is an example only, no invented evidence ladder.\nLOCKED TEXT BLOCKS (each render exactly once, in order within its block; natural reflow permitted; no paraphrase, omitted words, extra labels or guessed content):\n[\n  \"前言与方法学\",\n  \"证据等级：以A类为例\",\n  \"在适当情况下，循证建议已被赋予证据等级（表A）。\",\n  \"证据等级以加粗字体显示在相关陈述后的括号内，例如（证据A）。\",\n  \"A\",\n  \"Randomized controlled trials (RCTs)\",\n  \"Evidence is from endpoints of well-designed RCTs that provide consistent findings in the population for which the recommendation is made without any important limitations.\",\n  \"来源：00_前言和方法学 第2、3页\",\n  \"04\"\n]\nControl character U+0001 in the input is nonprinting: retain surrounding visible text exactly, do not print a box. Source footer and page number must remain legible at bottom. No extra text. No clinical mechanisms or relationships beyond locked original text. This is a visual design draft, not medical authority.",
+        "方案": "Evidence example spread: top introductory statements full width; lower two thirds a deep green circular A seal at left, English RCT title and complete English definition in generous ivory panel to right. Every statement once; A is an example only, no invented evidence ladder.",
+        "status": "generated_inspected",
+        "calls": [
+          {
+            "tool": "builtin image_gen",
+            "tool_call_id": "UNKNOWN",
+            "output_identifier": "exec-5bfee888-51e3-4391-aa57-3274b9a57a74",
+            "elapsed_seconds": null,
+            "outer_wait_seconds": 72.899,
+            "timing_status": "outer_wait_measured_not_tool_timing",
+            "output_hint": "Generated images are saved to C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b as C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b\\exec-5bfee888-51e3-4391-aa57-3274b9a57a74.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.",
+            "reference_paths": [
+              "E:\\FactPPTv2\\output\\visual_model_ab_first10\\template_reference.png"
+            ],
+            "output_sha256": "b23e7f184a07ee5f165dac9d58deccba1a08e77e4027c16bb86e39b4b80d2f9f",
+            "workspace_output": "E:\\FactPPTv2\\output\\visual_model_ab_first10\\sol\\04.png"
+          }
+        ],
+        "inspection": {
+          "viewed_actual_output": true,
+          "visual_notes": "实际查看：A徽章、中文说明、英文RCT标题及完整英文限制句均可见，来源04可读；未建立其他证据等级，章节名被放大而页主题较小，记录层次偏差。",
+          "text_accuracy_status": "visual_review_only_not_content_authority"
+        },
+        "retry_records": [],
+        "output": "E:\\FactPPTv2\\output\\visual_model_ab_first10\\sol\\04.png",
+        "output_sha256": "b23e7f184a07ee5f165dac9d58deccba1a08e77e4027c16bb86e39b4b80d2f9f",
+        "design_author": "gpt-6.1-sol",
+        "tool_executor": "Sol agent",
+        "reference_policy": "common template only; no own design reuse",
+        "prompt_sha256": "59b630996e8654e933a98b4717c4b9526dea5cba59cdf4a55b08f8a6e87abc05",
+        "preview": "sol/04.png"
+      },
+      {
+        "id": "s1_p04",
+        "page": 5,
+        "prompt": "Use case: productivity-visual. Create ONE complete 16:9 high-resolution Chinese undergraduate teaching presentation slide, with all locked text rendered. Input image is style reference only: reproduce its warm ivory paper, forest green academic typography, sage rounded panels, subtle botanical/book motifs, restrained editorial polish. Palette #F8F6EE #183A29 #355A42. Clear Microsoft YaHei style body text, confident Chinese title. No replacement or copied reference text.\nComposition: Methodology split: introductory clause full width followed by equal size side-by-side numbered i) and ii) panels, preserving the original complete sentence across these three text areas. Small abstract overlapping paper sheets only. Do not invent effect sizes, comparisons, chart marks or connectors.\nLOCKED TEXT BLOCKS (each render exactly once, in order within its block; natural reflow permitted; no paraphrase, omitted words, extra labels or guessed content):\n[\n  \"前言与方法学\",\n  \"荟萃分析的方法学问题\",\n  \"当出现以下情况时，我们仔细考虑了使用荟萃分析证据的方法学问题：i)\\u0001治疗效果（或效应量）在不同研究中保持一致，需要确定共同效应；ii)\\u0001效应在不同研究间存在差异，需找出变异原因。\",\n  \"来源：00_前言和方法学 第2页\",\n  \"05\"\n]\nControl character U+0001 in the input is nonprinting: retain surrounding visible text exactly, do not print a box. Source footer and page number must remain legible at bottom. No extra text. No clinical mechanisms or relationships beyond locked original text. This is a visual design draft, not medical authority.",
+        "方案": "Methodology split: introductory clause full width followed by equal size side-by-side numbered i) and ii) panels, preserving the original complete sentence across these three text areas. Small abstract overlapping paper sheets only. Do not invent effect sizes, comparisons, chart marks or connectors.",
+        "status": "generated_inspected",
+        "calls": [
+          {
+            "tool": "builtin image_gen",
+            "tool_call_id": "UNKNOWN",
+            "output_identifier": "exec-251058d2-6f57-4ca6-b1d5-342d3c70b4fb",
+            "elapsed_seconds": null,
+            "outer_wait_seconds": 76.911,
+            "timing_status": "outer_wait_measured_not_tool_timing",
+            "output_hint": "Generated images are saved to C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b as C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b\\exec-251058d2-6f57-4ca6-b1d5-342d3c70b4fb.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.",
+            "reference_paths": [
+              "E:\\FactPPTv2\\output\\visual_model_ab_first10\\template_reference.png"
+            ],
+            "output_sha256": "eabdf01166d3e1162bd6747ad7ed8db2cfa0ef92917e9b373636a6baac81c024",
+            "workspace_output": "E:\\FactPPTv2\\output\\visual_model_ab_first10\\sol\\05.png"
+          }
+        ],
+        "inspection": {
+          "viewed_actual_output": true,
+          "visual_notes": "实际查看：锁定长句完整显示且i/ii卡片清晰，但模型在主句与卡片重复了两条分句，违背每块仅一次；章节名过大。无新增数值/关系。保留初稿并标明文本重复缺陷，不宣称内容精确。",
+          "text_accuracy_status": "visual_review_only_not_content_authority"
+        },
+        "retry_records": [],
+        "output": "E:\\FactPPTv2\\output\\visual_model_ab_first10\\sol\\05.png",
+        "output_sha256": "eabdf01166d3e1162bd6747ad7ed8db2cfa0ef92917e9b373636a6baac81c024",
+        "design_author": "gpt-6.1-sol",
+        "tool_executor": "Sol agent",
+        "reference_policy": "common template only; no own design reuse",
+        "prompt_sha256": "918dd0e02c29631c67c45efd4527f1f4bdf872656681c9ec06b1eeb9d72d4632",
+        "preview": "sol/05.png"
+      },
+      {
+        "id": "a_s2_01_01",
+        "page": 6,
+        "prompt": "Use case: productivity-visual. Create ONE complete 16:9 high-resolution Chinese undergraduate teaching presentation slide, with all locked text rendered. Input image is style reference only: reproduce its warm ivory paper, forest green academic typography, sage rounded panels, subtle botanical/book motifs, restrained editorial polish. Palette #F8F6EE #183A29 #355A42. Clear Microsoft YaHei style body text, confident Chinese title. No replacement or copied reference text.\nComposition: Definition teaching spread: smaller left type card with disease-type label and full short statement; wider right manifestation card with its label and full long statement. Both same styling, relative widths reflect text capacity. Avoid lungs and arrows because the exact source wording is authoritative.\nLOCKED TEXT BLOCKS (each render exactly once, in order within its block; natural reflow permitted; no paraphrase, omitted words, extra labels or guessed content):\n[\n  \"疾病定义\",\n  \"疾病类型\",\n  \"慢性阻塞性肺病（COPD）是一种异质性肺部疾病\",\n  \"主要表现\",\n  \"主要表现为慢性呼吸系统症状（如呼吸困难，由于气道（支气管炎、细支气管炎）和/或肺泡（肺气肿）异常导致的持续性且通常进行性的气流阻塞，表现为咳嗽、痰液产生和/或急性加重。\",\n  \"来源：01_第1章_定义和概述 第1页\",\n  \"06\"\n]\nControl character U+0001 in the input is nonprinting: retain surrounding visible text exactly, do not print a box. Source footer and page number must remain legible at bottom. No extra text. No clinical mechanisms or relationships beyond locked original text. This is a visual design draft, not medical authority.",
+        "方案": "Definition teaching spread: smaller left type card with disease-type label and full short statement; wider right manifestation card with its label and full long statement. Both same styling, relative widths reflect text capacity. Avoid lungs and arrows because the exact source wording is authoritative.",
+        "status": "generated_inspected",
+        "calls": [
+          {
+            "tool": "builtin image_gen",
+            "tool_call_id": "UNKNOWN",
+            "output_identifier": "exec-b2b575f2-8777-4640-b02e-270c9ee748ed",
+            "elapsed_seconds": null,
+            "outer_wait_seconds": 82.485,
+            "timing_status": "outer_wait_measured_not_tool_timing",
+            "output_hint": "Generated images are saved to C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b as C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b\\exec-b2b575f2-8777-4640-b02e-270c9ee748ed.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.",
+            "reference_paths": [
+              "E:\\FactPPTv2\\output\\visual_model_ab_first10\\template_reference.png"
+            ],
+            "output_sha256": "78b73c7703527128c9f6c85388b8be3227404d8c74811833df718a6e537a17ab",
+            "workspace_output": "E:\\FactPPTv2\\output\\visual_model_ab_first10\\sol\\06.png"
+          }
+        ],
+        "inspection": {
+          "viewed_actual_output": true,
+          "visual_notes": "实际查看：疾病类型及主要表现完整可见，和/或、通常等限定保留；左右不同宽度但同样卡片样式，无临床箭头/肺插画。书本与底部校园为装饰，来源06可读。",
+          "text_accuracy_status": "visual_review_only_not_content_authority"
+        },
+        "retry_records": [],
+        "output": "E:\\FactPPTv2\\output\\visual_model_ab_first10\\sol\\06.png",
+        "output_sha256": "78b73c7703527128c9f6c85388b8be3227404d8c74811833df718a6e537a17ab",
+        "design_author": "gpt-6.1-sol",
+        "tool_executor": "Sol agent",
+        "reference_policy": "common template only; no own design reuse",
+        "prompt_sha256": "e452f05348609df36bc68ad8bfae389d797c33a35a98fd0cf82e3cc52e73e7c5",
+        "preview": "sol/06.png"
+      },
+      {
+        "id": "a_s2_02_02",
+        "page": 7,
+        "prompt": "Use case: productivity-visual. Create ONE complete 16:9 high-resolution Chinese undergraduate teaching presentation slide, with all locked text rendered. Input image is style reference only: reproduce its warm ivory paper, forest green academic typography, sage rounded panels, subtle botanical/book motifs, restrained editorial polish. Palette #F8F6EE #183A29 #355A42. Clear Microsoft YaHei style body text, confident Chinese title. No replacement or copied reference text.\nComposition: Life-course editorial statement: oversized title top left; complete original paragraph in a broad readable central area. Decorative layered green hills along bottom and a very faint circular contour pattern confined right margin; no labelled stages, genes, timelines or clinical arrows.\nLOCKED TEXT BLOCKS (each render exactly once, in order within its block; natural reflow permitted; no paraphrase, omitted words, extra labels or guessed content):\n[\n  \"生命历程中的相互作用\",\n  \"慢性阻塞性肺疾病是基因与环境在个体生命周期中复杂、累积且动态相互作用导致肺损伤和/或改变其正常发育或衰老过程的最终结果。\",\n  \"来源：01_第1章_定义和概述 第8页\",\n  \"07\"\n]\nControl character U+0001 in the input is nonprinting: retain surrounding visible text exactly, do not print a box. Source footer and page number must remain legible at bottom. No extra text. No clinical mechanisms or relationships beyond locked original text. This is a visual design draft, not medical authority.",
+        "方案": "Life-course editorial statement: oversized title top left; complete original paragraph in a broad readable central area. Decorative layered green hills along bottom and a very faint circular contour pattern confined right margin; no labelled stages, genes, timelines or clinical arrows.",
+        "status": "generated_inspected",
+        "calls": [
+          {
+            "tool": "builtin image_gen",
+            "tool_call_id": "UNKNOWN",
+            "output_identifier": "exec-0302a9fe-a6aa-42d6-9a93-04d0f51a891e",
+            "elapsed_seconds": null,
+            "outer_wait_seconds": 87.992,
+            "timing_status": "outer_wait_measured_not_tool_timing",
+            "output_hint": "Generated images are saved to C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b as C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b\\exec-0302a9fe-a6aa-42d6-9a93-04d0f51a891e.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.",
+            "reference_paths": [
+              "E:\\FactPPTv2\\output\\visual_model_ab_first10\\template_reference.png"
+            ],
+            "output_sha256": "428793fe1ee7c0caa541c0062ef6b62debabd1b939c1cde04060309523954f73",
+            "workspace_output": "E:\\FactPPTv2\\output\\visual_model_ab_first10\\sol\\07.png"
+          }
+        ],
+        "inspection": {
+          "viewed_actual_output": true,
+          "visual_notes": "实际查看：单段原文完整可见，复杂、累积、动态、和/或与发育/衰老均保留；未新增生命阶段或基因图表，绿丘装饰占底部，标题/正文/来源07清晰。",
+          "text_accuracy_status": "visual_review_only_not_content_authority"
+        },
+        "retry_records": [],
+        "output": "E:\\FactPPTv2\\output\\visual_model_ab_first10\\sol\\07.png",
+        "output_sha256": "428793fe1ee7c0caa541c0062ef6b62debabd1b939c1cde04060309523954f73",
+        "design_author": "gpt-6.1-sol",
+        "tool_executor": "Sol agent",
+        "reference_policy": "common template only; no own design reuse",
+        "prompt_sha256": "485d2c20e2b9462b9883ff2db647f4311dd84d98d5ff196149f86e60129cd367",
+        "preview": "sol/07.png"
+      },
+      {
+        "id": "a_s2_03_03",
+        "page": 8,
+        "prompt": "Use case: productivity-visual. Create ONE complete 16:9 high-resolution Chinese undergraduate teaching presentation slide, with all locked text rendered. Input image is style reference only: reproduce its warm ivory paper, forest green academic typography, sage rounded panels, subtle botanical/book motifs, restrained editorial polish. Palette #F8F6EE #183A29 #355A42. Clear Microsoft YaHei style body text, confident Chinese title. No replacement or copied reference text.\nComposition: Equal peer panels: two equal-width sage cards, environmental exposure left and other possible factors right, all locked titles and text once. Same visual weight preserves qualifiers. Tiny book-page icons above headers only, no smoking or lung mechanism drawings.\nLOCKED TEXT BLOCKS (each render exactly once, in order within its block; natural reflow permitted; no paraphrase, omitted words, extra labels or guessed content):\n[\n  \"环境与宿主因素\",\n  \"主要环境暴露\",\n  \"导致慢性阻塞性肺疾病的主要环境暴露因素包括吸烟以及吸入来自家庭和室外空气污染的有毒颗粒与气体，\",\n  \"其他可能因素\",\n  \"但其他环境(9,10) 和宿主因素（如肺发育异常及肺加速老化）也可能致病。\",\n  \"来源：01_第1章_定义和概述 第2页\",\n  \"08\"\n]\nControl character U+0001 in the input is nonprinting: retain surrounding visible text exactly, do not print a box. Source footer and page number must remain legible at bottom. No extra text. No clinical mechanisms or relationships beyond locked original text. This is a visual design draft, not medical authority.",
+        "方案": "Equal peer panels: two equal-width sage cards, environmental exposure left and other possible factors right, all locked titles and text once. Same visual weight preserves qualifiers. Tiny book-page icons above headers only, no smoking or lung mechanism drawings.",
+        "status": "generated_inspected",
+        "calls": [
+          {
+            "tool": "builtin image_gen",
+            "tool_call_id": "UNKNOWN",
+            "output_identifier": "exec-0a39d0cd-cd50-40a9-9030-72c9fadc14cc",
+            "elapsed_seconds": null,
+            "outer_wait_seconds": 82.759,
+            "timing_status": "outer_wait_measured_not_tool_timing",
+            "output_hint": "Generated images are saved to C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b as C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b\\exec-0a39d0cd-cd50-40a9-9030-72c9fadc14cc.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.",
+            "reference_paths": [
+              "E:\\FactPPTv2\\output\\visual_model_ab_first10\\template_reference.png"
+            ],
+            "output_sha256": "ae7ef7c16a26bc9ed0292c5f4948b97d44d077df399a8f96553bef06f2e8ff17",
+            "workspace_output": "E:\\FactPPTv2\\output\\visual_model_ab_first10\\sol\\08.png"
+          }
+        ],
+        "inspection": {
+          "viewed_actual_output": true,
+          "visual_notes": "实际查看：两等宽同待遇卡片，主要与也可能及(9,10)可见，左末尾逗号照原片段保留；标题、正文、来源08均可读，无吸烟/肺机制图，无关系箭头。",
+          "text_accuracy_status": "visual_review_only_not_content_authority"
+        },
+        "retry_records": [],
+        "output": "E:\\FactPPTv2\\output\\visual_model_ab_first10\\sol\\08.png",
+        "output_sha256": "ae7ef7c16a26bc9ed0292c5f4948b97d44d077df399a8f96553bef06f2e8ff17",
+        "design_author": "gpt-6.1-sol",
+        "tool_executor": "Sol agent",
+        "reference_policy": "common template only; no own design reuse",
+        "prompt_sha256": "b1152adbc0bc193575fa0b56aae5167ae362a0e352b46a45318842df996c92e3",
+        "preview": "sol/08.png"
+      },
+      {
+        "id": "a_s2_04_04",
+        "page": 9,
+        "prompt": "Use case: productivity-visual. Create ONE complete 16:9 high-resolution Chinese undergraduate teaching presentation slide, with all locked text rendered. Input image is style reference only: reproduce its warm ivory paper, forest green academic typography, sage rounded panels, subtle botanical/book motifs, restrained editorial polish. Palette #F8F6EE #183A29 #355A42. Clear Microsoft YaHei style body text, confident Chinese title. No replacement or copied reference text.\nComposition: Condition-focused reading spread: two broad stacked panels. Upper dark green panel contains the full diagnostic clinical-context sentence; lower pale panel contains the full but-some-patients sentence. Preserve both inequalities, FEV1/FVC, all caveats. No arrows or new summaries; original title remains on top.\nLOCKED TEXT BLOCKS (each render exactly once, in order within its block; natural reflow permitted; no paraphrase, omitted words, extra labels or guessed content):\n[\n  \"肺部异常与气流阻塞\",\n  \"但部分患者可能仅表现为肺部结构性病变（如肺气肿）和/或生理功能异常（包括FEV1降低、气体潴留、过度充气、肺弥散功能下降和/或FEV1快速下降）而无气流阻塞（支气管扩张后FEV1/FVC\\u0001≥ 0.7）。\",\n  \"在适当的临床背景下（参见上文'定义'及'病因与危险因素'），通过肺功能测定检测到不完全可逆气流受限（支气管扩张后FEV1/FVC\\u0001< 0.7）即可确诊慢性阻塞性肺疾病。\",\n  \"来源：01_第1章_定义和概述 第4页\",\n  \"09\"\n]\nControl character U+0001 in the input is nonprinting: retain surrounding visible text exactly, do not print a box. Source footer and page number must remain legible at bottom. No extra text. No clinical mechanisms or relationships beyond locked original text. This is a visual design draft, not medical authority.",
+        "方案": "Condition-focused reading spread: two broad stacked panels. Upper dark green panel contains the full diagnostic clinical-context sentence; lower pale panel contains the full but-some-patients sentence. Preserve both inequalities, FEV1/FVC, all caveats. No arrows or new summaries; original title remains on top.",
+        "status": "generated_inspected",
+        "calls": [
+          {
+            "tool": "builtin image_gen",
+            "tool_call_id": "UNKNOWN",
+            "output_identifier": "exec-e41af424-217d-4498-be20-abfe3eab9635",
+            "elapsed_seconds": null,
+            "outer_wait_seconds": 174.489,
+            "timing_status": "outer_wait_measured_not_tool_timing",
+            "output_hint": "Generated images are saved to C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b as C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b\\exec-e41af424-217d-4498-be20-abfe3eab9635.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.",
+            "reference_paths": [
+              "E:\\FactPPTv2\\output\\visual_model_ab_first10\\template_reference.png"
+            ],
+            "output_sha256": "d725fdff376df9f38480eb7fb4cbe5a780b1315976eb57e14dd322b7e7af6e1b",
+            "workspace_output": "E:\\FactPPTv2\\output\\visual_model_ab_first10\\sol\\09.png"
+          }
+        ],
+        "inspection": {
+          "viewed_actual_output": true,
+          "visual_notes": "实际查看：两完整句按方案上下重排；临床背景、不可逆条件、但部分患者可能仅/而无气流阻塞均可见，两FEV1/FVC阈值<0.7与≥0.7方向正确；生理异常列表可见，无新增箭头或医学图。09来源可读，人工视觉不等于逐字机器验证。",
+          "text_accuracy_status": "visual_review_only_not_content_authority"
+        },
+        "retry_records": [],
+        "output": "E:\\FactPPTv2\\output\\visual_model_ab_first10\\sol\\09.png",
+        "output_sha256": "d725fdff376df9f38480eb7fb4cbe5a780b1315976eb57e14dd322b7e7af6e1b",
+        "design_author": "gpt-6.1-sol",
+        "tool_executor": "Sol agent",
+        "reference_policy": "common template only; no own design reuse",
+        "prompt_sha256": "bf8f4aa666e0f13b32ed78a3a252259b6c3bf82359f237e5d51a962109e45816",
+        "preview": "sol/09.png"
+      },
+      {
+        "id": "a_s2_05_05",
+        "page": 10,
+        "prompt": "Use case: productivity-visual. Create ONE complete 16:9 high-resolution Chinese undergraduate teaching presentation slide, with all locked text rendered. Input image is style reference only: reproduce its warm ivory paper, forest green academic typography, sage rounded panels, subtle botanical/book motifs, restrained editorial polish. Palette #F8F6EE #183A29 #355A42. Clear Microsoft YaHei style body text, confident Chinese title. No replacement or copied reference text.\nComposition: Clinical split spread: two equal-width pale sage cards with symptoms and acute-event headers. Original fragments exactly once even if first fragment ends in 并. Use large readable text, no symptom icons, medical drawings or causal arrows. Botanical accent only at bottom margin.\nLOCKED TEXT BLOCKS (each render exactly once, in order within its block; natural reflow permitted; no paraphrase, omitted words, extra labels or guessed content):\n[\n  \"临床表现\",\n  \"症状\",\n  \"慢性阻塞性肺疾病患者通常主诉呼吸困难、喘息、胸闷、疲劳、活动受限和/或伴或不伴痰液产生的咳嗽，并\",\n  \"急性事件与影响\",\n  \"可能经历以呼吸系统症状加剧为特征的急性事件，称为急性加重，这些事件影响其健康状况和预后，并需要特定的预防和治疗措施。\",\n  \"来源：01_第1章_定义和概述 第4页\",\n  \"10\"\n]\nControl character U+0001 in the input is nonprinting: retain surrounding visible text exactly, do not print a box. Source footer and page number must remain legible at bottom. No extra text. No clinical mechanisms or relationships beyond locked original text. This is a visual design draft, not medical authority.",
+        "方案": "Clinical split spread: two equal-width pale sage cards with symptoms and acute-event headers. Original fragments exactly once even if first fragment ends in 并. Use large readable text, no symptom icons, medical drawings or causal arrows. Botanical accent only at bottom margin.",
+        "status": "generated_inspected",
+        "calls": [
+          {
+            "tool": "builtin image_gen",
+            "tool_call_id": "UNKNOWN",
+            "output_identifier": "exec-478a3811-fc04-4a34-af6c-9300366aee8d",
+            "elapsed_seconds": null,
+            "outer_wait_seconds": 82.515,
+            "timing_status": "outer_wait_measured_not_tool_timing",
+            "output_hint": "Generated images are saved to C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b as C:\\Users\\Lenovo\\.codex\\generated_images\\01a129d9-5988-7bb0-8f15-d1fbbb5d258b\\exec-478a3811-fc04-4a34-af6c-9300366aee8d.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.",
+            "reference_paths": [
+              "E:\\FactPPTv2\\output\\visual_model_ab_first10\\template_reference.png"
+            ],
+            "output_sha256": "4e83e26c71812a5b503ee0379f82647fc217e53cbbe4240b4eb6ce6ab3a978c6",
+            "workspace_output": "E:\\FactPPTv2\\output\\visual_model_ab_first10\\sol\\10.png"
+          }
+        ],
+        "inspection": {
+          "viewed_actual_output": true,
+          "visual_notes": "实际查看：全部锁定正文、症状、急性事件与影响、来源10均可见；首片段末尾并照原文保留，可能/和或/伴或不伴保留。页总标题临床表现被放在左卡而非全页，左右标题层级不完全对等，记录层次偏差。无医学插画或新增箭头。",
+          "text_accuracy_status": "visual_review_only_not_content_authority"
+        },
+        "retry_records": [],
+        "output": "E:\\FactPPTv2\\output\\visual_model_ab_first10\\sol\\10.png",
+        "output_sha256": "4e83e26c71812a5b503ee0379f82647fc217e53cbbe4240b4eb6ce6ab3a978c6",
+        "design_author": "gpt-6.1-sol",
+        "tool_executor": "Sol agent",
+        "reference_policy": "common template only; no own design reuse",
+        "prompt_sha256": "93602a50ef0efa62b93d886bcb962a4b9401e4550efbd0de17c37dfbfe5acedf",
+        "preview": "sol/10.png"
+      }
+    ],
+    "luna": [
+      {
+        "page": 1,
+        "prompt": "Create a complete 16:9 Chinese medical undergraduate teaching PowerPoint slide, 1280x720, page 01. Use the attached shared template reference as the visual system: warm ivory paper, muted deep forest green, restrained sage accents, generous margins, fine quiet linework, highly legible typography, consistent academic teaching style. Page-specific composition: 封面：左侧深绿大色块承载标题，右侧米白区域放克制的肺部抽象线描；副标题和来源说明在下方形成清晰次级层。肺轮廓仅作装饰，不画器官病变或方向关系。 All content below is locked. Reproduce every listed text string exactly, in simplified Chinese/English as given, without omission, paraphrase, correction, or addition. Keep source and page markers if present. The design must accommodate all text legibly; use clear hierarchy, cards/tables as specified, and do not let decoration compete with it. Do not invent medical claims, numbers, labels, causes, comparisons, arrows, chart values, people, logos, or extra text. Generated text is only a visual design reference; content authority remains the locked wording.\nLOCKED TEXT, exact strings (one string per locked textbox; paragraphs joined in reading order):\n“课程导入”\n“慢性阻塞性肺疾病诊断、管理和预防全球策略”\n“原始资料 8 份 · 页面中每一条内容均可追溯到原文位置”",
+        "方案": "封面：左侧深绿大色块承载标题，右侧米白区域放克制的肺部抽象线描；副标题和来源说明在下方形成清晰次级层。肺轮廓仅作装饰，不画器官病变或方向关系。",
+        "status": "GENERATED_INSPECTED",
+        "calls": [
+          {
+            "call_id": null,
+            "status": "FAILED_TRANSPORT",
+            "detail": "首个真实调用报 connection failed: error sending request；无图片。",
+            "prompt": "Create a complete 16:9 Chinese medical undergraduate teaching PowerPoint slide, 1280x720, page 01. Use the attached shared template reference as the visual system: warm ivory paper, muted deep forest green, restrained sage accents, generous margins, fine quiet linework, highly legible typography, consistent academic teaching style. Page-specific composition: 封面：左侧深绿大色块承载标题，右侧米白区域放克制的肺部抽象线描；副标题和来源说明在下方形成清晰次级层。肺轮廓仅作装饰，不画器官病变或方向关系。 All content below is locked. Reproduce every listed text string exactly, in simplified Chinese/English as given, without omission, paraphrase, correction, or addition. Keep source and page markers if present. The design must accommodate all text legibly; use clear hierarchy, cards/tables as specified, and do not let decoration compete with it. Do not invent medical claims, numbers, labels, causes, comparisons, arrows, chart values, people, logos, or extra text. Generated text is only a visual design reference; content authority remains the locked wording.\nLOCKED TEXT, exact strings:\n“课程导入”\n“慢性阻塞性肺疾病诊断、管理和预防全球策略”\n“原始资料 8 份 · 页面中每一条内容均可追溯到原文位置”"
+          },
+          {
+            "call_id": null,
+            "status": "SUCCESS_OUTPUT_NOT_PERSISTED",
+            "detail": "真实成功生成；当时未保存返回路径，未作为交付图。",
+            "prompt": "Create a complete 16:9 Chinese medical undergraduate teaching PowerPoint slide, 1280x720, page 01. Use the attached shared template reference as the visual system: warm ivory paper, muted deep forest green, restrained sage accents, generous margins, fine quiet linework, highly legible typography, consistent academic teaching style. Page-specific composition: 封面：左侧深绿大色块承载标题，右侧米白区域放克制的肺部抽象线描；副标题和来源说明在下方形成清晰次级层。肺轮廓仅作装饰，不画器官病变或方向关系。 All content below is locked. Reproduce every listed text string exactly, in simplified Chinese/English as given, without omission, paraphrase, correction, or addition. Keep source and page markers if present. The design must accommodate all text legibly; use clear hierarchy, cards/tables as specified, and do not let decoration compete with it. Do not invent medical claims, numbers, labels, causes, comparisons, arrows, chart values, people, logos, or extra text. Generated text is only a visual design reference; content authority remains the locked wording.\nLOCKED TEXT, exact strings:\n“课程导入”\n“慢性阻塞性肺疾病诊断、管理和预防全球策略”\n“原始资料 8 份 · 页面中每一条内容均可追溯到原文位置”",
+            "outer_wait_seconds": 67.8,
+            "timing_status": "OUTER_WAIT_ESTIMATE",
+            "provider_elapsed_seconds": null
+          },
+          {
+            "call_id": "exec-db74f82a-dae4-453c-bfc2-d8e11f61fa5b.png",
+            "status": "SUCCESS",
+            "output_path": "output/visual_model_ab_first10/luna/01.png",
+            "sha256": "8A9FBDADA0C1E8F46F0979C284C61263CF34EEDBE4EB7CB2A098C337959D5718",
+            "prompt": "Create a complete 16:9 Chinese medical undergraduate teaching PowerPoint slide, 1280x720, page 01. Use the attached shared template reference as the visual system: warm ivory paper, muted deep forest green, restrained sage accents, generous margins, fine quiet linework, highly legible typography, consistent academic teaching style. Page-specific composition: 封面：左侧深绿大色块承载标题，右侧米白区域放克制的肺部抽象线描；副标题和来源说明在下方形成清晰次级层。肺轮廓仅作装饰，不画器官病变或方向关系。 All content below is locked. Reproduce every listed text string exactly, in simplified Chinese/English as given, without omission, paraphrase, correction, or addition. Keep source and page markers if present. The design must accommodate all text legibly; use clear hierarchy, cards/tables as specified, and do not let decoration compete with it. Do not invent medical claims, numbers, labels, causes, comparisons, arrows, chart values, people, logos, or extra text. Generated text is only a visual design reference; content authority remains the locked wording.\nLOCKED TEXT, exact strings:\n“课程导入”\n“慢性阻塞性肺疾病诊断、管理和预防全球策略”\n“原始资料 8 份 · 页面中每一条内容均可追溯到原文位置”",
+            "outer_wait_seconds": 121.6,
+            "timing_status": "OUTER_WAIT_ESTIMATE",
+            "provider_elapsed_seconds": null
+          }
+        ],
+        "inspection": "实际查看01.png：三行锁定文字完整清晰；米白深绿，肺部线描为装饰，无临床关系。",
+        "preview": "luna/01.png"
+      },
+      {
+        "page": 2,
+        "prompt": "Create a complete 16:9 Chinese medical undergraduate teaching PowerPoint slide, 1280x720, page 02. Use the attached shared template reference as the visual system: warm ivory paper, muted deep forest green, restrained sage accents, generous margins, fine quiet linework, highly legible typography, consistent academic teaching style. Page-specific composition: 双目标并列：上方标题，中央左右两张等宽卡片分别承载两类治疗目标原文；通过不同浅绿底色和简洁分栏建立层级，不用箭头暗示因果。 All content below is locked. Reproduce every listed text string exactly, in simplified Chinese/English as given, without omission, paraphrase, correction, or addition. Keep source and page markers if present. The design must accommodate all text legibly; use clear hierarchy, cards/tables as specified, and do not let decoration compete with it. Do not invent medical claims, numbers, labels, causes, comparisons, arrows, chart values, people, logos, or extra text. Generated text is only a visual design reference; content authority remains the locked wording.\nLOCKED TEXT, exact strings:\n“前言与方法学”\n“治疗目标与个体化管理”\n“治疗目标分为两类：一类旨在缓解和减轻症状的影响，另一类则降低未来可能对患者造成不良健”\n“康事件的风险（例如急性加重）。”\n“这种管理方法适用于全球任何临床环”\n“境，并将慢性阻塞性肺疾病治疗推向个体化医疗——使患者的治疗更紧密地匹配其需求。”\n“来源：00_前言和方法学 第1页”\n“02”",
+        "方案": "双目标并列：上方标题，中央左右两张等宽卡片分别承载两类治疗目标原文；通过不同浅绿底色和简洁分栏建立层级，不用箭头暗示因果。",
+        "status": "GENERATED_INSPECTED",
+        "calls": [
+          {
+            "call_id": "exec-5de37db8-f7e6-4c19-83b3-4c2316718834.png",
+            "status": "SUCCESS_LOCK_UNVERIFIED",
+            "output_path": "output/visual_model_ab_first10/luna/02.png",
+            "note": "初次生成时未确认锁文件存在；保留初图，未因流程偏差重付费。",
+            "prompt": "Create a complete 16:9 Chinese medical undergraduate teaching PowerPoint slide, 1280x720, page 02. Use the attached shared template reference as the visual system: warm ivory paper, muted deep forest green, restrained sage accents, generous margins, fine quiet linework, highly legible typography, consistent academic teaching style. Page-specific composition: 双目标并列：上方标题，中央左右两张等宽卡片分别承载两类治疗目标原文；通过不同浅绿底色和简洁分栏建立层级，不用箭头暗示因果。 All content below is locked. Reproduce every listed text string exactly, in simplified Chinese/English as given, without omission, paraphrase, correction, or addition. Keep source and page markers if present. The design must accommodate all text legibly; use clear hierarchy, cards/tables as specified, and do not let decoration compete with it. Do not invent medical claims, numbers, labels, causes, comparisons, arrows, chart values, people, logos, or extra text. Generated text is only a visual design reference; content authority remains the locked wording.\nLOCKED TEXT, exact strings:\n“前言与方法学”\n“治疗目标与个体化管理”\n“治疗目标分为两类：一类旨在缓解和减轻症状的影响，另一类则降低未来可能对患者造成不良健”\n“康事件的风险（例如急性加重）。”\n“这种管理方法适用于全球任何临床环”\n“境，并将慢性阻塞性肺疾病治疗推向个体化医疗——使患者的治疗更紧密地匹配其需求。”\n“来源：00_前言和方法学 第1页”\n“02”",
+            "outer_wait_seconds": 83.8,
+            "timing_status": "OUTER_WAIT_ESTIMATE",
+            "provider_elapsed_seconds": null
+          }
+        ],
+        "inspection": "实际查看02.png：两卡及来源可读，目标文字完整；米白深绿，装饰景观未承载医学含义。",
+        "planned_prompt": "Create a complete 16:9 Chinese medical undergraduate teaching PowerPoint slide, 1280x720, page 02. Use the attached shared template reference as the visual system: warm ivory paper, muted deep forest green, restrained sage accents, generous margins, fine quiet linework, highly legible typography, consistent academic teaching style. Page-specific composition: 双目标并列：上方标题，中央左右两张等宽卡片分别承载两类治疗目标原文；通过不同浅绿底色和简洁分栏建立层级，不用箭头暗示因果。 All content below is locked. Reproduce every listed text string exactly, in simplified Chinese/English as given, without omission, paraphrase, correction, or addition. Keep source and page markers if present. The design must accommodate all text legibly; use clear hierarchy, cards/tables as specified, and do not let decoration compete with it. Do not invent medical claims, numbers, labels, causes, comparisons, arrows, chart values, people, logos, or extra text. Generated text is only a visual design reference; content authority remains the locked wording.\nLOCKED TEXT, exact strings (one string per locked textbox; paragraphs joined in reading order):\n“前言与方法学”\n“治疗目标与个体化管理”\n“治疗目标分为两类：一类旨在缓解和减轻症状的影响，另一类则降低未来可能对患者造成不良健\n康事件的风险（例如急性加重）。”\n“这种管理方法适用于全球任何临床环\n境，并将慢性阻塞性肺疾病治疗推向个体化医疗——使患者的治疗更紧密地匹配其需求。”\n“来源：00_前言和方法学 第1页”\n“02”",
+        "preview": "luna/02.png"
+      },
+      {
+        "page": 3,
+        "prompt": "Create a complete 16:9 Chinese medical undergraduate teaching PowerPoint slide, 1280x720, page 03. Use the attached shared template reference as the visual system: warm ivory paper, muted deep forest green, restrained sage accents, generous margins, fine quiet linework, highly legible typography, consistent academic teaching style. Page-specific composition: 单句聚焦：大面积留白中置一张横向引文卡，以醒目的“诊断性肺功能检测服务并不普及”完整原文作为视觉核心，来源小字置底。不得新增解释。 All content below is locked. Reproduce every listed text string exactly, in simplified Chinese/English as given, without omission, paraphrase, correction, or addition. Keep source and page markers if present. The design must accommodate all text legibly; use clear hierarchy, cards/tables as specified, and do not let decoration compete with it. Do not invent medical claims, numbers, labels, causes, comparisons, arrows, chart values, people, logos, or extra text. Generated text is only a visual design reference; content authority remains the locked wording.\nLOCKED TEXT, exact strings (one string per locked textbox; paragraphs joined in reading order):\n“前言与方法学”\n“诊疗资源可及性”\n“诊断性肺功能检测服务并不普及，且在获取可负担的质量保证的药物治疗和非药\n物治疗方面存在重大问题。”\n“来源：00_前言和方法学 第2页”\n“03”",
+        "方案": "单句聚焦：大面积留白中置一张横向引文卡，以完整原文作为视觉核心，来源小字置底。不得新增解释。",
+        "status": "GENERATED_INSPECTED",
+        "calls": [
+          {
+            "call_id": "exec-e5d7cb43-729f-44f1-9995-454967053362.png",
+            "status": "SUCCESS",
+            "output_path": "output/visual_model_ab_first10/luna/03.png",
+            "sha256": "AE7ADE534FF7D26B48B761D59A789DC3FDF21315B13DA205850CB3786C6AF1DB",
+            "prompt": "Create a complete 16:9 Chinese medical undergraduate teaching PowerPoint slide, 1280x720, page 03. Use the attached shared template reference as the visual system: warm ivory paper, muted deep forest green, restrained sage accents, generous margins, fine quiet linework, highly legible typography, consistent academic teaching style. Page-specific composition: 单句聚焦：大面积留白中置一张横向引文卡，以醒目的“诊断性肺功能检测服务并不普及”完整原文作为视觉核心，来源小字置底。不得新增解释。 All content below is locked. Reproduce every listed text string exactly, in simplified Chinese/English as given, without omission, paraphrase, correction, or addition. Keep source and page markers if present. The design must accommodate all text legibly; use clear hierarchy, cards/tables as specified, and do not let decoration compete with it. Do not invent medical claims, numbers, labels, causes, comparisons, arrows, chart values, people, logos, or extra text. Generated text is only a visual design reference; content authority remains the locked wording.\nLOCKED TEXT, exact strings (one string per locked textbox; paragraphs joined in reading order):\n“前言与方法学”\n“诊疗资源可及性”\n“诊断性肺功能检测服务并不普及，且在获取可负担的质量保证的药物治疗和非药\n物治疗方面存在重大问题。”\n“来源：00_前言和方法学 第2页”\n“03”",
+            "outer_wall_seconds": 75,
+            "timing_status": "OUTER_WALL_CLOCK",
+            "provider_elapsed_seconds": null
+          }
+        ],
+        "inspection": "实际查看03.png：锁定正文与来源清晰可读完整，米白深绿，装饰图形无新增医学含义。",
+        "preview": "luna/03.png"
+      },
+      {
+        "page": 4,
+        "prompt": "Create a complete 16:9 Chinese medical undergraduate teaching PowerPoint slide, 1280x720, page 04. Use the attached shared template reference as the visual system: warm ivory paper, muted deep forest green, restrained sage accents, generous margins, fine quiet linework, highly legible typography, consistent academic teaching style. Page-specific composition: 证据等级表：上方标题，下方以左窄列“A”与右宽列原文说明构成清晰两列表；英文术语按原文完整显示，层级依靠字号和细分隔线。 All content below is locked. Reproduce every listed text string exactly, in simplified Chinese/English as given, without omission, paraphrase, correction, or addition. Keep source and page markers if present. The design must accommodate all text legibly; use clear hierarchy, cards/tables as specified, and do not let decoration compete with it. Do not invent medical claims, numbers, labels, causes, comparisons, arrows, chart values, people, logos, or extra text. Generated text is only a visual design reference; content authority remains the locked wording.\nLOCKED TEXT, exact strings (one string per locked textbox; paragraphs joined in reading order):\n“前言与方法学”\n“证据等级：以A类为例”\n“在适当情况下，循证建议已被赋予证据等级（表A）。”\n“证据等级以加粗字体显示在相关陈述后的括号内，例\n如（证据A）。”\n“A”\n“Randomized controlled trials (RCTs)”\n“Evidence is from endpoints of well-designed RCTs that provide consistent findings in the population for which the recommendation is made without any important limitations.”\n“来源：00_前言和方法学 第2、3页”\n“04”",
+        "方案": "证据等级表：上方标题，下方以左窄列A与右宽列原文说明构成两列表；英文术语按原文完整显示，层级依靠字号和细分隔线。",
+        "status": "GENERATED_INSPECTED",
+        "calls": [
+          {
+            "call_id": "exec-ddce28aa-1962-4760-93b7-29c5b12cd312.png",
+            "status": "SUCCESS",
+            "wall_start_utc": "2026-10-11 12:48:36 UTC",
+            "wall_end_utc": "2026-10-11 12:50:34 UTC",
+            "output_path": "output/visual_model_ab_first10/luna/04.png",
+            "sha256": "BEE0B3BDA9507D795795B575882ADCD0E23509340CCE0D7AC7E38E109551D56D",
+            "prompt": "Create a complete 16:9 Chinese medical undergraduate teaching PowerPoint slide, 1280x720, page 04. Use the attached shared template reference as the visual system: warm ivory paper, muted deep forest green, restrained sage accents, generous margins, fine quiet linework, highly legible typography, consistent academic teaching style. Page-specific composition: 证据等级表：上方标题，下方以左窄列“A”与右宽列原文说明构成清晰两列表；英文术语按原文完整显示，层级依靠字号和细分隔线。 All content below is locked. Reproduce every listed text string exactly, in simplified Chinese/English as given, without omission, paraphrase, correction, or addition. Keep source and page markers if present. The design must accommodate all text legibly; use clear hierarchy, cards/tables as specified, and do not let decoration compete with it. Do not invent medical claims, numbers, labels, causes, comparisons, arrows, chart values, people, logos, or extra text. Generated text is only a visual design reference; content authority remains the locked wording.\nLOCKED TEXT, exact strings (one string per locked textbox; paragraphs joined in reading order):\n“前言与方法学”\n“证据等级：以A类为例”\n“在适当情况下，循证建议已被赋予证据等级（表A）。”\n“证据等级以加粗字体显示在相关陈述后的括号内，例\n如（证据A）。”\n“A”\n“Randomized controlled trials (RCTs)”\n“Evidence is from endpoints of well-designed RCTs that provide consistent findings in the population for which the recommendation is made without any important limitations.”\n“来源：00_前言和方法学 第2、3页”\n“04”",
+            "outer_wall_seconds": 118,
+            "timing_status": "OUTER_WALL_CLOCK",
+            "provider_elapsed_seconds": null
+          }
+        ],
+        "inspection": "实际查看04.png：标题、中文说明、A类标签和两段英文均可读；表格对比清楚，来源清晰。",
+        "preview": "luna/04.png"
+      },
+      {
+        "page": 5,
+        "prompt": "Create a complete 16:9 Chinese medical undergraduate teaching PowerPoint slide, 1280x720, page 05. Use the attached shared template reference as the visual system: warm ivory paper, muted deep forest green, restrained sage accents, generous margins, fine quiet linework, highly legible typography, consistent academic teaching style. Page-specific composition: 方法学双条件：以两张并列卡片分别呈现 i) 效果一致、确定共同效应，ii) 效应有差异、找出变异原因的完整原文；不自行补充统计关系图。 All content below is locked. Reproduce every listed text string exactly, in simplified Chinese/English as given, without omission, paraphrase, correction, or addition. Keep source and page markers if present. The design must accommodate all text legibly; use clear hierarchy, cards/tables as specified, and do not let decoration compete with it. Do not invent medical claims, numbers, labels, causes, comparisons, arrows, chart values, people, logos, or extra text. Generated text is only a visual design reference; content authority remains the locked wording.\nLOCKED TEXT, exact strings (one string per locked textbox; paragraphs joined in reading order):\n“前言与方法学”\n“荟萃分析的方法学问题”\n“当出现以下情况时，我们仔细考虑了使用荟萃分析证据的方法学问题：i)治疗效果（或效应量）\n在不同研究中保持一致，需要确定共同效应；ii)效应在不同研究间存在差异，需找出变异原因。”\n“来源：00_前言和方法学 第2页”\n“05”",
+        "方案": "方法学双条件：以两张并列卡片分别呈现i)效果一致、确定共同效应，ii)效应有差异、找出变异原因的完整原文；不自行补充统计关系图。",
+        "status": "GENERATED_INSPECTED",
+        "calls": [
+          {
+            "call_id": "exec-bab16657-189a-4fb6-acda-0f84fdfd8007.png",
+            "status": "SUCCESS",
+            "wall_start_utc": "2026-10-11 12:58:49 UTC",
+            "wall_end_utc": "2026-10-11 13:03:44 UTC",
+            "output_path": "output/visual_model_ab_first10/luna/05.png",
+            "sha256": "770FEDFF5B735400178F03643E7B3745A772C09D05AAE5A4050D811927CE825D",
+            "prompt": "Create a complete 16:9 Chinese medical undergraduate teaching PowerPoint slide, 1280x720, page 05. Use the attached shared template reference as the visual system: warm ivory paper, muted deep forest green, restrained sage accents, generous margins, fine quiet linework, highly legible typography, consistent academic teaching style. Page-specific composition: 方法学双条件：以两张并列卡片分别呈现 i) 效果一致、确定共同效应，ii) 效应有差异、找出变异原因的完整原文；不自行补充统计关系图。 All content below is locked. Reproduce every listed text string exactly, in simplified Chinese/English as given, without omission, paraphrase, correction, or addition. Keep source and page markers if present. The design must accommodate all text legibly; use clear hierarchy, cards/tables as specified, and do not let decoration compete with it. Do not invent medical claims, numbers, labels, causes, comparisons, arrows, chart values, people, logos, or extra text. Generated text is only a visual design reference; content authority remains the locked wording.\nLOCKED TEXT, exact strings (one string per locked textbox; paragraphs joined in reading order):\n“前言与方法学”\n“荟萃分析的方法学问题”\n“当出现以下情况时，我们仔细考虑了使用荟萃分析证据的方法学问题：i)治疗效果（或效应量）\n在不同研究中保持一致，需要确定共同效应；ii)效应在不同研究间存在差异，需找出变异原因。”\n“来源：00_前言和方法学 第2页”\n“05”",
+            "outer_wall_seconds": 295,
+            "timing_status": "OUTER_WALL_CLOCK",
+            "provider_elapsed_seconds": null
+          }
+        ],
+        "inspection": "实际查看05.png：锁定长句在上方重复一次、下方分成i)/ii)卡片再次出现；卡片另加“效果一致、确定共同效应”和“效应有差异、找出变异原因”两个概括标签，属于未锁定的重复/标签文字。未重生成。",
+        "preview": "luna/05.png"
+      },
+      {
+        "page": 6,
+        "prompt": "Create a complete 16:9 Chinese medical undergraduate teaching PowerPoint slide, 1280x720, page 06. Use the attached shared template reference as the visual system: warm ivory paper, muted deep forest green, restrained sage accents, generous margins, fine quiet linework, highly legible typography, consistent academic teaching style. Page-specific composition: 定义层级：中央突出“异质性肺部疾病”，下方用两条完整原文层次分别呈现“主要表现”及其症状、气道/肺泡异常和气流阻塞描述；用缩进与边线表达从属，不加新结论。 All content below is locked. Reproduce every listed text string exactly, in simplified Chinese/English as given, without omission, paraphrase, correction, or addition. Keep source and page markers if present. The design must accommodate all text legibly; use clear hierarchy, cards/tables as specified, and do not let decoration compete with it. Do not invent medical claims, numbers, labels, causes, comparisons, arrows, chart values, people, logos, or extra text. Generated text is only a visual design reference; content authority remains the locked wording.\nLOCKED TEXT, exact strings (one string per locked textbox; paragraphs joined in reading order):\n“疾病定义”\n“疾病类型”\n“慢性阻塞性肺病（COPD）是一种异质性肺部疾病”\n“主要表现”\n“主要表现为慢性呼吸系统症状（如呼吸困难，由于气道（支气管炎、细支气管炎）和/或肺泡（肺气肿）异常导致的持续性且通常进行性的气流阻塞，表现为咳嗽、痰液产生和/或急性加重。”\n“来源：01_第1章_定义和概述 第1页”\n“06”",
+        "方案": "定义层级：中央突出“异质性肺部疾病”，下方用两条完整原文层次分别呈现主要表现及症状、气道/肺泡异常和气流阻塞描述；用缩进与边线表达从属，不加新结论。",
+        "status": "GENERATED_INSPECTED",
+        "calls": [
+          {
+            "call_id": "exec-4d1d5507-7a43-44a5-bcd9-5ccbb3f3a4bc.png",
+            "status": "SUCCESS",
+            "wall_start_utc": "2026-10-11 13:06:26 UTC",
+            "wall_end_utc": "2026-10-11 13:08:03 UTC",
+            "output_path": "output/visual_model_ab_first10/luna/06.png",
+            "sha256": "D76923230D9B00BE9958B83AF15D25C1031A9170528A8236C66A22DDDBFA6E1C",
+            "prompt": "Create a complete 16:9 Chinese medical undergraduate teaching PowerPoint slide, 1280x720, page 06. Use the attached shared template reference as the visual system: warm ivory paper, muted deep forest green, restrained sage accents, generous margins, fine quiet linework, highly legible typography, consistent academic teaching style. Page-specific composition: 定义层级：中央突出“异质性肺部疾病”，下方用两条完整原文层次分别呈现“主要表现”及其症状、气道/肺泡异常和气流阻塞描述；用缩进与边线表达从属，不加新结论。 All content below is locked. Reproduce every listed text string exactly, in simplified Chinese/English as given, without omission, paraphrase, correction, or addition. Keep source and page markers if present. The design must accommodate all text legibly; use clear hierarchy, cards/tables as specified, and do not let decoration compete with it. Do not invent medical claims, numbers, labels, causes, comparisons, arrows, chart values, people, logos, or extra text. Generated text is only a visual design reference; content authority remains the locked wording.\nLOCKED TEXT, exact strings (one string per locked textbox; paragraphs joined in reading order):\n“疾病定义”\n“疾病类型”\n“慢性阻塞性肺病（COPD）是一种异质性肺部疾病”\n“主要表现”\n“主要表现为慢性呼吸系统症状（如呼吸困难，由于气道（支气管炎、细支气管炎）和/或肺泡（肺气肿）异常导致的持续性且通常进行性的气流阻塞，表现为咳嗽、痰液产生和/或急性加重。”\n“来源：01_第1章_定义和概述 第1页”\n“06”",
+            "outer_wall_seconds": 97,
+            "timing_status": "OUTER_WALL_CLOCK",
+            "provider_elapsed_seconds": null
+          }
+        ],
+        "inspection": "实际查看06.png：疾病类型和主要表现原文完整可读，来源可见；没有额外医学关系。",
+        "preview": "luna/06.png"
+      },
+      {
+        "page": 7,
+        "prompt": "Create a complete 16:9 Chinese medical undergraduate teaching PowerPoint slide, 1280x720, page 07. Use the attached shared template reference as the visual system: warm ivory paper, muted deep forest green, restrained sage accents, generous margins, fine quiet linework, highly legible typography, consistent academic teaching style. Page-specific composition: 生命历程主题：一条贯穿页面的柔和弧线作为生命周期装饰，正文完整放入中央宽卡。基因、环境、肺损伤、发育或衰老均照原句，不添加具体阶段或新箭头含义。 All content below is locked. Reproduce every listed text string exactly, in simplified Chinese/English as given, without omission, paraphrase, correction, or addition. Keep source and page markers if present. The design must accommodate all text legibly; use clear hierarchy, cards/tables as specified, and do not let decoration compete with it. Do not invent medical claims, numbers, labels, causes, comparisons, arrows, chart values, people, logos, or extra text. Generated text is only a visual design reference; content authority remains the locked wording.\nLOCKED TEXT, exact strings (one string per locked textbox; paragraphs joined in reading order):\n“生命历程中的相互作用”\n“慢性阻塞性肺疾病是基因与环境在个体生命周期中复杂、累积且动态相互作用导致肺损伤和/或改变其正常发\n育或衰老过程的最终结果。”\n“来源：01_第1章_定义和概述 第8页”\n“07”",
+        "方案": "生命历程主题：一条贯穿页面的柔和弧线作为生命周期装饰，正文完整放入中央宽卡；不添加具体阶段或新箭头含义。",
+        "status": "GENERATED_INSPECTED",
+        "calls": [
+          {
+            "call_id": "exec-95970e24-1539-4027-a8f1-e12c78d3e3db.png",
+            "status": "SUCCESS",
+            "wall_start_utc": "2026-10-11 13:11:30 UTC",
+            "wall_end_utc": "2026-10-11 13:12:56 UTC",
+            "output_path": "output/visual_model_ab_first10/luna/07.png",
+            "sha256": "8D594852B74D5FB807298D9C0D3414CE12A7FAD3F9E7AF7CF8E8FBBAA2B0B1BE",
+            "prompt": "Create a complete 16:9 Chinese medical undergraduate teaching PowerPoint slide, 1280x720, page 07. Use the attached shared template reference as the visual system: warm ivory paper, muted deep forest green, restrained sage accents, generous margins, fine quiet linework, highly legible typography, consistent academic teaching style. Page-specific composition: 生命历程主题：一条贯穿页面的柔和弧线作为生命周期装饰，正文完整放入中央宽卡。基因、环境、肺损伤、发育或衰老均照原句，不添加具体阶段或新箭头含义。 All content below is locked. Reproduce every listed text string exactly, in simplified Chinese/English as given, without omission, paraphrase, correction, or addition. Keep source and page markers if present. The design must accommodate all text legibly; use clear hierarchy, cards/tables as specified, and do not let decoration compete with it. Do not invent medical claims, numbers, labels, causes, comparisons, arrows, chart values, people, logos, or extra text. Generated text is only a visual design reference; content authority remains the locked wording.\nLOCKED TEXT, exact strings (one string per locked textbox; paragraphs joined in reading order):\n“生命历程中的相互作用”\n“慢性阻塞性肺疾病是基因与环境在个体生命周期中复杂、累积且动态相互作用导致肺损伤和/或改变其正常发\n育或衰老过程的最终结果。”\n“来源：01_第1章_定义和概述 第8页”\n“07”",
+            "outer_wall_seconds": 86,
+            "timing_status": "OUTER_WALL_CLOCK",
+            "provider_elapsed_seconds": null
+          }
+        ],
+        "inspection": "实际查看07.png：完整生命历程句与来源可读，装饰曲线未额外增加阶段或因果图。",
+        "preview": "luna/07.png"
+      },
+      {
+        "page": 8,
+        "prompt": "Create a complete 16:9 Chinese medical undergraduate teaching PowerPoint slide, 1280x720, page 08. Use the attached shared template reference as the visual system: warm ivory paper, muted deep forest green, restrained sage accents, generous margins, fine quiet linework, highly legible typography, consistent academic teaching style. Page-specific composition: 环境与宿主因素：左右不等宽双区，左区呈现主要环境暴露完整原文，右区呈现其他环境及宿主因素完整原文；标题和区标题依锁定文本，不增加图标语义。 All content below is locked. Reproduce every listed text string exactly, in simplified Chinese/English as given, without omission, paraphrase, correction, or addition. Keep source and page markers if present. The design must accommodate all text legibly; use clear hierarchy, cards/tables as specified, and do not let decoration compete with it. Do not invent medical claims, numbers, labels, causes, comparisons, arrows, chart values, people, logos, or extra text. Generated text is only a visual design reference; content authority remains the locked wording.\nLOCKED TEXT, exact strings (one string per locked textbox; paragraphs joined in reading order):\n“环境与宿主因素”\n“主要环境暴露”\n“导致慢性阻塞性肺疾病的主要环境暴露因素包括吸烟以及吸入来自家庭和室外空气污染的有毒颗粒与气体，”\n“其他可能因素”\n“但其他环境(9,10) 和宿主因素（如肺发育异常及肺加速老化）也可能致病。”\n“来源：01_第1章_定义和概述 第2页”\n“08”",
+        "方案": "环境与宿主因素：左右不等宽双区，左区呈现主要环境暴露完整原文，右区呈现其他环境及宿主因素完整原文；不增加图标语义。",
+        "status": "GENERATED_INSPECTED",
+        "calls": [
+          {
+            "call_id": "exec-99377131-bf7c-43dc-9d21-3be2884e5f8f.png",
+            "status": "SUCCESS",
+            "wall_start_utc": "2026-10-11 13:15:40 UTC",
+            "wall_end_utc": "2026-10-11 13:17:40 UTC",
+            "output_path": "output/visual_model_ab_first10/luna/08.png",
+            "sha256": "1063AC04EBB20296A5A9FF0F1402DD76F821AE6D618B542B91CE8C28543249D5",
+            "prompt": "Create a complete 16:9 Chinese medical undergraduate teaching PowerPoint slide, 1280x720, page 08. Use the attached shared template reference as the visual system: warm ivory paper, muted deep forest green, restrained sage accents, generous margins, fine quiet linework, highly legible typography, consistent academic teaching style. Page-specific composition: 环境与宿主因素：左右不等宽双区，左区呈现主要环境暴露完整原文，右区呈现其他环境及宿主因素完整原文；标题和区标题依锁定文本，不增加图标语义。 All content below is locked. Reproduce every listed text string exactly, in simplified Chinese/English as given, without omission, paraphrase, correction, or addition. Keep source and page markers if present. The design must accommodate all text legibly; use clear hierarchy, cards/tables as specified, and do not let decoration compete with it. Do not invent medical claims, numbers, labels, causes, comparisons, arrows, chart values, people, logos, or extra text. Generated text is only a visual design reference; content authority remains the locked wording.\nLOCKED TEXT, exact strings (one string per locked textbox; paragraphs joined in reading order):\n“环境与宿主因素”\n“主要环境暴露”\n“导致慢性阻塞性肺疾病的主要环境暴露因素包括吸烟以及吸入来自家庭和室外空气污染的有毒颗粒与气体，”\n“其他可能因素”\n“但其他环境(9,10) 和宿主因素（如肺发育异常及肺加速老化）也可能致病。”\n“来源：01_第1章_定义和概述 第2页”\n“08”",
+            "outer_wall_seconds": 120,
+            "timing_status": "OUTER_WALL_CLOCK",
+            "provider_elapsed_seconds": null
+          }
+        ],
+        "inspection": "实际查看08.png：左右区内容、分区标题及来源可读完整；环境与宿主因素两区视觉清楚，标题对应锁定字段。",
+        "preview": "luna/08.png"
+      },
+      {
+        "page": 9,
+        "prompt": "Create a complete 16:9 Chinese medical undergraduate teaching PowerPoint slide, 1280x720, page 09. Use the attached shared template reference as the visual system: warm ivory paper, muted deep forest green, restrained sage accents, generous margins, fine quiet linework, highly legible typography, consistent academic teaching style. Page-specific composition: 阈值对照：左右并列两张卡，分别容纳“无气流阻塞”时异常描述及确诊条件完整原句；阈值符号按锁定内容，显著区分 ≥ 0.7 与 < 0.7，但不创造诊断流程箭头。 All content below is locked. Reproduce every listed text string exactly, in simplified Chinese/English as given, without omission, paraphrase, correction, or addition. Keep source and page markers if present. The design must accommodate all text legibly; use clear hierarchy, cards/tables as specified, and do not let decoration compete with it. Do not invent medical claims, numbers, labels, causes, comparisons, arrows, chart values, people, logos, or extra text. Generated text is only a visual design reference; content authority remains the locked wording.\nLOCKED TEXT, exact strings (one string per locked textbox; paragraphs joined in reading order):\n“肺部异常与气流阻塞”\n“但部分患者可能仅表现为肺部结构性病变（如肺气肿）和/或生理功能异常\n（包括FEV1降低、气体潴留、过度充气、肺弥散功能下降和/或FEV1快速下降）而无\n气流阻塞（支气管扩张后FEV1/FVC≥ 0.7）。”\n“在适当的临床背景下（参见上文'定义'及'病因与危险因素'），通过肺功能测定检测到不完全可逆气流受限\n（支气管扩张后FEV1/FVC< 0.7）即可确诊慢性阻塞性肺疾病。”\n“来源：01_第1章_定义和概述 第4页”\n“09”",
+        "方案": "阈值对照：左右并列两张卡，分别容纳无气流阻塞时异常描述及确诊条件完整原句；阈值符号按锁定内容，区分≥0.7与<0.7，不创造诊断流程箭头。",
+        "status": "GENERATED_INSPECTED",
+        "calls": [
+          {
+            "call_id": "exec-04123853-5d1e-4722-91b4-dcc584f5cabd.png",
+            "status": "SUCCESS",
+            "wall_start_utc": "2026-10-11 13:18:54 UTC",
+            "wall_end_utc": "2026-10-11 13:20:47 UTC",
+            "output_path": "output/visual_model_ab_first10/luna/09.png",
+            "sha256": "9C2AD3C4728972C86F8658A0E15F3B759A028667551F3208C23EEF08EA29345E",
+            "prompt": "Create a complete 16:9 Chinese medical undergraduate teaching PowerPoint slide, 1280x720, page 09. Use the attached shared template reference as the visual system: warm ivory paper, muted deep forest green, restrained sage accents, generous margins, fine quiet linework, highly legible typography, consistent academic teaching style. Page-specific composition: 阈值对照：左右并列两张卡，分别容纳“无气流阻塞”时异常描述及确诊条件完整原句；阈值符号按锁定内容，显著区分 ≥ 0.7 与 < 0.7，但不创造诊断流程箭头。 All content below is locked. Reproduce every listed text string exactly, in simplified Chinese/English as given, without omission, paraphrase, correction, or addition. Keep source and page markers if present. The design must accommodate all text legibly; use clear hierarchy, cards/tables as specified, and do not let decoration compete with it. Do not invent medical claims, numbers, labels, causes, comparisons, arrows, chart values, people, logos, or extra text. Generated text is only a visual design reference; content authority remains the locked wording.\nLOCKED TEXT, exact strings (one string per locked textbox; paragraphs joined in reading order):\n“肺部异常与气流阻塞”\n“但部分患者可能仅表现为肺部结构性病变（如肺气肿）和/或生理功能异常\n（包括FEV1降低、气体潴留、过度充气、肺弥散功能下降和/或FEV1快速下降）而无\n气流阻塞（支气管扩张后FEV1/FVC≥ 0.7）。”\n“在适当的临床背景下（参见上文'定义'及'病因与危险因素'），通过肺功能测定检测到不完全可逆气流受限\n（支气管扩张后FEV1/FVC< 0.7）即可确诊慢性阻塞性肺疾病。”\n“来源：01_第1章_定义和概述 第4页”\n“09”",
+            "outer_wall_seconds": 113,
+            "timing_status": "OUTER_WALL_CLOCK",
+            "provider_elapsed_seconds": null
+          }
+        ],
+        "inspection": "实际查看09.png：两段原文与阈值符号及来源清晰；卡片另加“无气流阻塞”“气流阻塞（确诊条件）”标签，属于非锁定的概括文字。未重生成。",
+        "preview": "luna/09.png"
+      },
+      {
+        "page": 10,
+        "prompt": "Create a complete 16:9 Chinese medical undergraduate teaching PowerPoint slide, 1280x720, page 10. Use the attached shared template reference as the visual system: warm ivory paper, muted deep forest green, restrained sage accents, generous margins, fine quiet linework, highly legible typography, consistent academic teaching style. Page-specific composition: 临床表现双卡：左卡完整呈现症状原文，右卡完整呈现急性事件与影响原文；两卡同等视觉权重，保留所有限定词和“和/或”。 All content below is locked. Reproduce every listed text string exactly, in simplified Chinese/English as given, without omission, paraphrase, correction, or addition. Keep source and page markers if present. The design must accommodate all text legibly; use clear hierarchy, cards/tables as specified, and do not let decoration compete with it. Do not invent medical claims, numbers, labels, causes, comparisons, arrows, chart values, people, logos, or extra text. Generated text is only a visual design reference; content authority remains the locked wording.\nLOCKED TEXT, exact strings (one string per locked textbox; paragraphs joined in reading order):\n“临床表现”\n“症状”\n“慢性阻塞性肺疾病患者通常主诉呼吸困难、喘息、胸闷、疲劳、活动受限和/或伴或不伴痰液产生的咳嗽，并”\n“急性事件与影响”\n“可能经历以呼吸系统症状加剧为特征的急性事件，称为急性加重，这些事件影响其健康状况和预后，并需要\n特定的预防和治疗措施。”\n“来源：01_第1章_定义和概述 第4页”\n“10”",
+        "方案": "临床表现双卡：左卡完整呈现症状原文，右卡完整呈现急性事件与影响原文；两卡同等视觉权重，保留全部限定词和“和/或”。",
+        "status": "GENERATED_INSPECTED",
+        "calls": [
+          {
+            "call_id": "exec-b94227dc-8222-4ad4-a365-71e6b0e50989.png",
+            "status": "SUCCESS",
+            "wall_start_utc": "2026-10-11 13:22:13 UTC",
+            "wall_end_utc": "2026-10-11 13:23:36 UTC",
+            "output_path": "output/visual_model_ab_first10/luna/10.png",
+            "sha256": "9CF160C6BD25FDDDACB34183D62F0B77CB18683B29D27EE4A6B8FF09A4326F07",
+            "prompt": "Create a complete 16:9 Chinese medical undergraduate teaching PowerPoint slide, 1280x720, page 10. Use the attached shared template reference as the visual system: warm ivory paper, muted deep forest green, restrained sage accents, generous margins, fine quiet linework, highly legible typography, consistent academic teaching style. Page-specific composition: 临床表现双卡：左卡完整呈现症状原文，右卡完整呈现急性事件与影响原文；两卡同等视觉权重，保留所有限定词和“和/或”。 All content below is locked. Reproduce every listed text string exactly, in simplified Chinese/English as given, without omission, paraphrase, correction, or addition. Keep source and page markers if present. The design must accommodate all text legibly; use clear hierarchy, cards/tables as specified, and do not let decoration compete with it. Do not invent medical claims, numbers, labels, causes, comparisons, arrows, chart values, people, logos, or extra text. Generated text is only a visual design reference; content authority remains the locked wording.\nLOCKED TEXT, exact strings (one string per locked textbox; paragraphs joined in reading order):\n“临床表现”\n“症状”\n“慢性阻塞性肺疾病患者通常主诉呼吸困难、喘息、胸闷、疲劳、活动受限和/或伴或不伴痰液产生的咳嗽，并”\n“急性事件与影响”\n“可能经历以呼吸系统症状加剧为特征的急性事件，称为急性加重，这些事件影响其健康状况和预后，并需要\n特定的预防和治疗措施。”\n“来源：01_第1章_定义和概述 第4页”\n“10”",
+            "outer_wall_seconds": 83,
+            "timing_status": "OUTER_WALL_CLOCK",
+            "provider_elapsed_seconds": null
+          }
+        ],
+        "inspection": "实际查看10.png：症状段保留锁定原句末尾“并”；右侧急性事件段及来源清楚可读完整，标题与两列布局清晰。",
+        "preview": "luna/10.png"
+      }
+    ]
+  }
+}

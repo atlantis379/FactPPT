@@ -22,7 +22,8 @@ visual direction; the production API has not yet integrated these tool stages.
   of the original. Do not claim inspection you did not do.
 - READ_SOURCE: record every page; transcribe text and numbers in pictures/charts
   cell by cell exactly as seen; in diagrams, each box is a cell and each arrow a cell
-  "start→end". Never guess or complete unreadable content.
+  "start→end"; a table sub-row or subtype names its group cell as `parent`; a body sentence the
+  PDF text layer breaks apart may be transcribed whole. Never guess or complete unreadable content.
 - CLAIMS lists what each page of a source says: each claim is 1–8 verbatim spans
   (a sentence or a cell, never a whole page) with a type (recommendation, result,
   association, interpretation, …) and scope fragments; the source gets a profile
@@ -45,9 +46,22 @@ visual direction; the production API has not yet integrated these tool stages.
   grid before bullets). Follow the project requirements; split dense pages.
   One page, one design solution: write each content page's `design` note first (what is seen
   first / read next / kept for reference / the one strong element and why), then choose a layout
-  or compose the page (`composed`, `factdeck/compose.py`). Peers get identical treatment; a
-  dropped scope label ("中国：") must be stated once on the page. Whitespace and repetition are
+  or compose the page (`composed`, `factdeck/compose.py`), or write its body as HTML/CSS
+  (`free`, `factdeck/free.py`: every word in a fact or authored span, styles PowerPoint can reproduce; check the
+  PowerPoint render, not only the browser's). Peers get identical treatment; a
+  dropped scope label ("中国：") must be stated once on the page, and so must a clause of the
+  fact's source sentence that sets its context (study, population, time, place, comparator,
+  condition, number) when the page leaves it out. Sub-rows recorded under a parent cell nest
+  under that row (`levels`). Whitespace and repetition are
   signals: fix them for that page or give the reason in `design.exceptions`.
+  Drawing principle: a drawing carries only the layer the text cannot — where a number sits on
+  a scale, how a course runs over time, how parts connect or branch. Ask it of every page: if the
+  layer exists, draw it and state it in `design.figure`; if not, don't draw (no decorative icons
+  or pictures, and no drawing that implies more than the source, e.g. aligning scales the source
+  says are not equivalent). Drawings carry no words of their own: labels are page facts; geometry
+  follows facts (bars proportional, arrows backed, a `line` names the facts it draws in `encodes`
+  or is an `axis`). Draw natively first (composed blocks, `factdeck/figures.py`, code-drawn SVG
+  icons that become native shapes); generated pictures only where real form must be shown.
 - SUMMARY_REVIEW, SEMANTIC_REVIEW and SECOND_READ must be done by a different worker
   identity than the author / first reader (SUMMARY_REVIEW also not by the claims author).
   SEMANTIC_REVIEW is two checklists (COVERAGE, RELATIONS) done by two different independent

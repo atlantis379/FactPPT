@@ -28,7 +28,7 @@ import json
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 
-from .lexicon import canon, critical_tokens, extractive, dropped_blockers, scope_labels
+from .lexicon import canon, critical_tokens, extractive, dropped_blockers, scope_labels, sentence_of, shown_spans, verbatim_span
 
 
 @dataclass
@@ -54,6 +54,8 @@ class Fact:
     location: str = ""
     source_id: str = ""
     arrow: dict = field(default_factory=dict)   # quote of a diagram arrow unit: {from, to, label} unit ids
+    context: dict = field(default_factory=dict)  # the source sentence and where the shown text sits in it: {key, sentence, covered}
+    unit_parent: str = ""     # the transcribed cell this fact's cell sits under (a sub-row of a table or a classification)
 
     def text(self) -> str:
         return self.display or self.quote or (f"〔图〕{self.location or self.figure}" if self.figure else "")
@@ -83,7 +85,8 @@ class Conflict:
         return f"{self.entity}|{self.attribute}"
 
 
-FACT_FIELDS = {f for f in Fact.__dataclass_fields__} - {"status", "needs_confirmation", "problems", "dropped", "scope", "location", "source_id", "arrow"}
+FACT_FIELDS = {f for f in Fact.__dataclass_fields__} - {"status", "needs_confirmation", "problems", "dropped", "scope", "location", "source_id", "arrow",
+                                                         "context", "unit_parent"}
 DER_FIELDS = {"id", "claim", "rule", "evidence", "kind"}
 
 
@@ -132,7 +135,7 @@ def verify(facts: list[Fact], ders: list[Derivation], units: list[dict], resolut
     seen: set[str] = set()
 
     for f in facts:
-        f.status, f.problems, f.needs_confirmation, f.dropped, f.arrow = "PENDING", [], False, "", {}
+        f.status, f.problems, f.needs_confirmation, f.dropped, f.arrow, f.context, f.unit_parent = "PENDING", [], False, "", {}, {}, ""
         if not f.id or f.id in seen:
             f.status, f.problems = "REJECTED", ["事实编号为空或重复"]
             continue
@@ -149,9 +152,14 @@ def verify(facts: list[Fact], ders: list[Derivation], units: list[dict], resolut
             continue
         f.location, f.source_id = u["location"], u["source_id"]
         f.arrow = dict(u.get("arrow") or {})
-        if not canon(f.quote) or (canon(f.quote) not in canon(u["text"]) and canon(f.quote) not in canon(u.get("alt_text", ""))):
+        f.unit_parent = u.get("parent") or ""
+        matched = next(((text, at) for text in (u["text"], u.get("alt_text", ""))
+                        if (at := verbatim_span(text, f.quote)) is not None), None)
+        if not canon(f.quote) or matched is None:
             f.status, f.problems = "REJECTED", ["引文在来源单元中不存在（不是逐字引用）"]
             continue
+        text, at = matched
+        f.quote = text[at[0]:at[1]]
         if u.get("needs_confirmation"):
             f.needs_confirmation = True
             f.problems.append(u.get("confirmation_reason") or "来源为图片/图表转录，尚无一致的第二次独立读取")
@@ -161,6 +169,9 @@ def verify(facts: list[Fact], ders: list[Derivation], units: list[dict], resolut
                 f_ders.append(by_der[x])
             else:
                 f.problems.append(f"引用了不存在的推导：{x}")
+        if any(x.strip() and x.strip() not in by_der for x in f.derivation.split(",")):
+            f.status = "REJECTED"
+            continue
         dead = [d.id for d in f_ders if d.rejected]
         if dead:
             f.status = "REJECTED"
@@ -188,12 +199,47 @@ def verify(facts: list[Fact], ders: list[Derivation], units: list[dict], resolut
             f.needs_confirmation = True
             f.problems.append("依赖待确认的推导：" + "、".join(pending))
         f.status = "ACCEPTED"
+        found = sentence_of(u["text"], f.quote) or sentence_of(u.get("alt_text", ""), f.quote)
+        if found:
+            sentence, start, q0, q1 = found
+            f.context = {"key": f"{f.unit}@{start}", "sentence": sentence, "covered": shown_spans(sentence, q0, q1, f.display)}
+
+    # A derivation must end in independently supported facts, never in itself or a cycle.
+    def cyclic(fid, trail):
+        if fid in trail:
+            return True
+        fact = by_fact.get(fid)
+        return bool(fact and any(cyclic(e, trail | {fid})
+                    for did in fact.derivation.split(",") if did.strip() in by_der
+                    for e in by_der[did.strip()].evidence))
 
     for d in ders:
         d.problems = []
-        missing = [e for e in d.evidence if e not in by_fact or by_fact[e].status != "ACCEPTED"]
-        if not d.evidence or missing:
-            d.problems.append("证据事实缺失或未通过：" + ("、".join(missing) or "未列出证据"))
+    for _ in range(len(facts) + 1):
+        changed = False
+        for d in ders:
+            missing = [e for e in d.evidence if e not in by_fact or by_fact[e].status != "ACCEPTED"]
+            if not d.evidence or missing:
+                msg = "证据事实缺失或未通过：" + ("、".join(missing) or "未列出证据")
+                if msg not in d.problems:
+                    d.problems.append(msg)
+        for f in facts:
+            deps = [by_der[x.strip()] for x in f.derivation.split(",") if x.strip() in by_der]
+            if f.status != "ACCEPTED" or not deps:
+                continue
+            bad = [d.id for d in deps if d.problems]
+            cycle = cyclic(f.id, set())
+            if bad or cycle:
+                f.status = "REJECTED"
+                f.problems.append("推导证据无效：" + ("循环或自我引用" if cycle else "、".join(bad)))
+                changed = True
+            elif any(by_fact[e].needs_confirmation for d in deps for e in d.evidence):
+                if not f.needs_confirmation:
+                    f.needs_confirmation = True
+                    f.problems.append("推导依赖待确认的来源证据")
+                    changed = True
+        if not changed:
+            break
 
     conflicts: list[Conflict] = []
     groups: dict[tuple[str, str], dict[str, list[str]]] = {}

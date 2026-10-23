@@ -47,6 +47,25 @@ def locate(text: str, quote: str) -> tuple[int, int] | None:
     return where[k], where[k + len(q) - 1] + 1
 
 
+def numeric_spacing(text: str) -> str:
+    """Normalise typography without joining separate numeric values."""
+    return canon(re.sub(r"(?<=\d)\s+(?=\d)", "\u241f", text))
+
+
+def verbatim_span(text: str, quote: str) -> tuple[int, int] | None:
+    """Locate a quote, retaining whitespace that separates digits on either side."""
+    start = 0
+    while start < len(text):
+        at = locate(text[start:], quote)
+        if at is None:
+            return None
+        a, b = start + at[0], start + at[1]
+        if numeric_spacing(text[a:b]) == numeric_spacing(quote):
+            return a, b
+        start = a + 1
+    return None
+
+
 _OP =r"[≥≤<>]|>=|<="
 _NUM = r"\d+(?:[.,]\d+)*"
 _CN_NUM = re.compile(r"[零一二三四五六七八九十两百千万几半]+(?:个月|小时|分钟|[种个项条次倍年月周天成组类期例针剂支岁分级])")
@@ -91,9 +110,12 @@ def extractive(display: str, quote: str) -> tuple[bool, str]:
     changes the meaning even though every remaining piece is verbatim, so callers
     treat a blocker inside the dropped text as a rewrite.
     """
-    q = canon(quote)
+    if numeric_spacing(display) == numeric_spacing(quote):
+        return True, ""
+    # Keep digit separators while locating display fragments as well as whole quotes.
+    q = numeric_spacing(quote)
     pos, dropped = 0, []
-    for piece in split_fragments(display):
+    for piece in split_fragments(re.sub(r"(?<=\d)\s+(?=\d)", "\u241f", display)):
         i = q.find(piece, pos)
         if i < 0:
             return False, ""
@@ -121,9 +143,110 @@ def scope_labels(display: str, quote: str) -> list[str]:
     return labels
 
 
+_SENT_END = re.compile(r"[。！？；!?;•]|(?<=[a-z0-9)])\.(?=\s*[A-Z(])")
+_CLAUSE = re.compile(r"[、:：()（）\[\]【】]|(?<!\d)[,，]|[,，](?!\d)")     # a comma inside a number is not a clause break
+_CITE = re.compile(r"[(\[]\d{1,4}(?:[-–,，]\d{1,4})*[)\]]")                 # reference markers "(13)", "[14,15]", "(118-126)"
+_PAGE_NO = re.compile(r"\s\d{1,4}\s*$")                                       # a running header or footer ends with its page number
+_ENUM = re.compile(r"(?<![(\d.])\d{1,2}\)")                                   # list numbering "1)" "2)"
+_FIG_REF = re.compile(r"(?:如|见|参见)?(?:图|表|Figure|Table)[\dA-Z]+(?:\.\d+)*(?:所示|中)?")   # "如图2.5所示": a pointer, not context
+_LIST_START = re.compile(r"\s*(?:[•·▪●○◆\-–]|\d{1,2}[.、)）])")
+SHORT_LINE = 15              # a line this short without end punctuation is a heading or a label, not a wrapped sentence
+
+
+def sentence_of(text: str, quote: str) -> tuple[str, int, int, int] | None:
+    """The sentence of `text` that holds `quote`: (canon sentence, raw start in `text`, quote start, quote end in the
+    canon sentence). Sentences end at end punctuation, bullets and list items, and after a short line (a heading or
+    label); a long line ending without punctuation is wrapping. Multi-sentence quotes take all their sentences."""
+    at = locate(text, quote)
+    if not at:
+        return None
+    ends = {m.end() for m in _SENT_END.finditer(text)}
+    pos = 0
+    for line in text.split("\n"):
+        nxt = pos + len(line) + 1
+        if (len(line.strip()) <= SHORT_LINE and not _SENT_END.search(line[-1:] or "")) or _LIST_START.match(text[nxt:nxt + 4]) \
+                or _PAGE_NO.search(line):
+            ends.add(min(nxt, len(text)))
+        pos = nxt
+    start = max([e for e in ends if e <= at[0]], default=0)
+    end = min([e for e in ends if e >= at[1]], default=len(text))
+    s = canon(text[start:end])
+    q0 = len(canon(text[start:at[0]]))
+    return s, start, q0, q0 + len(canon(quote))
+
+
+def shown_spans(sentence: str, q0: int, q1: int, display: str) -> list[list[int]]:
+    """Where the shown text sits in the canon sentence: the quote, or the in-order pieces of its excerpt."""
+    if not display:
+        return [[q0, q1]]
+    spans, pos = [], q0
+    for piece in split_fragments(display):
+        i = sentence.find(piece, pos, q1)
+        if i < 0:
+            return [[q0, q1]]
+        spans.append([i, i + len(piece)])
+        pos = i + len(piece)
+    return spans
+
+
+def _bears_context(clause: str, trailing: bool) -> bool:
+    lx = lexicon()
+    if trailing:
+        return any(canon(w) in clause for w in lx["context_trailing"])
+    return bool(re.search(r"\d", clause) or _CN_NUM.search(clause)) or any(canon(w) in clause for w in lx["context_markers"])
+
+
+def missing_context(sentence: str, covered: list[list[int]]) -> list[str]:
+    """Clauses of a sentence left off the page that set the context of what is shown: before or between the shown
+    pieces, a clause with a number or a study, population, time, place, comparator or condition word; after them, a
+    qualifying clause ("特别是…", "相较于…"). A further statement after the shown text is not context."""
+    if not covered:
+        return []
+    spans = sorted(covered)
+    merged = [list(spans[0])]
+    for a, b in spans[1:]:
+        if a <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], b)
+        else:
+            merged.append([a, b])
+    gaps = [(0, merged[0][0], False)] + [(merged[i][1], merged[i + 1][0], False) for i in range(len(merged) - 1)] \
+        + [(merged[-1][1], len(sentence), True)]
+    plain = sentence
+    for pattern in (_CITE, _ENUM):
+        plain = pattern.sub(lambda m: "," * len(m.group(0)), plain)       # same length: covered offsets stay valid
+    out = []
+    for a, b, trailing in gaps:
+        for clause in _CLAUSE.split(plain[a:b]):
+            clause = clause.strip("。！？；!?;•.\"'“”‘’-–—~")
+            if clause and not _FIG_REF.fullmatch(clause) and _bears_context(clause, trailing):
+                out.append(clause)
+    return out
+
+
+def context_stated(clause: str, page_text: list[str]) -> bool:
+    """A missing context clause counts as stated when the page shows it, with or without a leading connective."""
+    # PDF text layers occasionally insert ASCII control separators inside a phrase (for example,
+    # between a list marker and its label). They are extraction artifacts, not visible wording.
+    clause = re.sub(r"[\x00-\x1f\x7f]", "", clause)
+    page_text = [re.sub(r"[\x00-\x1f\x7f]", "", text) for text in page_text]
+    core = clause
+    for w in sorted(lexicon()["context_signals"]["leading_connectives"], key=len, reverse=True):
+        if core.startswith(canon(w)):
+            core = core[len(canon(w)):]
+            break
+    return any(clause in t or (core and core in t) for t in page_text)
+
+
 def dropped_blockers(dropped: str) -> list[str]:
+    # Reference markers are bibliographic metadata, not dropped clinical qualifiers.
+    dropped = _CITE.sub("", dropped)
     stripped = re.sub(r"[,;、:()\[\]【】“”\"'。.!！?？\-~]", "", dropped)
-    return [w for w in lexicon()["dropped_text_blockers"] if w in stripped]
+    words = dict.fromkeys(lexicon()["dropped_text_blockers"] + lexicon()["claim_qualifiers"])
+    found = [w for w in words if w in stripped]
+    found += sorted(critical_tokens(dropped))
+    # English words require boundaries: 'not' in 'notation' is not a negation.
+    found += re.findall(r"\b(?:not|no|never|only|except|unless|may|might|some|most|approximately|about|at least|at most)\b", dropped, re.I)
+    return list(dict.fromkeys(found))
 
 
 def lint_text(text: str, glossary: list[str] | tuple[str, ...] = (), terms: list[str] | tuple[str, ...] = ()) -> list[str]:

@@ -21,6 +21,11 @@
  "claim_qualifiers": ["可能", "或许", "也许", "约", "近", "大约", "左右", "至少", "至多", "以上", "以下", "以内", "超过", "不超过", "仅", "只", "部分",
                       "多数", "少数", "一般", "通常", "常", "建议", "考虑", "推荐", "可", "应", "需", "不", "未", "无", "非", "尚", "暂",
                       "相关", "提示", "显著", "事后分析", "亚组", "真实世界", "单组", "观察性", "回顾性"],
+ "context_markers": ["研究", "队列", "试验", "分析", "调查", "报告", "荟萃", "数据显示", "人群", "患者", "病例", "成人", "成年人", "儿童", "青年", "老年", "男性", "女性",
+                     "国家", "地区", "社区", "人中", "者中", "相比", "相较", "对照", "安慰剂", "调整", "校正", "期间", "以来", "之后", "之前", "如果", "若", "对照组", "治疗组", "亚组",
+                     "study", "studies", "trial", "cohort", "analysis", "survey", "report", "patients", "adults", "children", "compared", "versus", "adjusted", "among", "aged", "years"],
+ "context_trailing": ["特别是", "尤其", "相较", "相比", "除外", "除非", "前提", "仅限", "particularly", "especially", "compared", "unless", "except"],
+ "_context_comment": "Words that mark a clause as context (who, which study, when, where, compared with what, under which condition). A sentence clause left off the page with such a word, or with a number, must be stated elsewhere on the page, like a dropped scope label.",
  "context_signals": {
   "_comment": "Excerpt shapes that often lose their context: a quote introducing a list, or one opening with a word that points at an earlier statement. They raise deck warnings and review prompts only; nothing is rejected on a match.",
   "lead_in_endings": ["：", ":", "如下", "以下", "下列", "following", "as follows", "include", "includes", "including"],

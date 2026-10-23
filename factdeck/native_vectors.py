@@ -140,7 +140,9 @@ def trace_svg(data: bytes, components=(), preserve_order=False, target_size=(128
                                    "differences":["近白纸张颗粒省略；颜色按4级量化；组件按指定区域归组。", "保留原始路径的绘制顺序。" if preserve_order else "同色路径合并，交叠色面的绘制顺序可能轻微变化。"] + (["线性渐变使用平均色近似。"] if gradients else [])}
 
 
-def add_native_vectors(pptx_path: Path, vector_models):
+def add_native_vectors(pptx_path: Path, vector_models, on_top: bool = False):
+    """Add each slide's traced vectors as grouped custom geometry: behind every native object (artwork under a page),
+    or, with `on_top`, above them (icons that sit on surfaces)."""
     from pptx import Presentation
     from pptx.enum.shapes import MSO_SHAPE
     from pptx.oxml.xmlchemy import OxmlElement
@@ -185,5 +187,6 @@ def add_native_vectors(pptx_path: Path, vector_models):
         insert = 2
         for name, shapes in groups.items():
             group=slide.shapes.add_group_shape(shapes); group.name=name; group.shadow.inherit=False
+            if on_top: continue
             tree.remove(group._element); tree.insert(insert,group._element); insert+=1
     prs.save(pptx_path)

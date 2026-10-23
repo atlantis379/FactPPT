@@ -1499,8 +1499,9 @@ class Store(GenerationMixin, _BaseStore):
             except IngestError as e:
                 raise WorkflowError(f"截取图 {g['id']}：{e}", 422)
         for u in source["transcriptions"]:
-            text = str(cells[u["id"]].get("text", ""))
-            u["second_read"] = {"reader": reader, "at": now(), "text": text, "agree": canon(text) == canon(u["text"])}
+            text, parent = str(cells[u["id"]].get("text", "")), str(cells[u["id"]].get("parent") or "").strip()
+            u["second_read"] = {"reader": reader, "at": now(), "text": text, "parent": parent,      # the nesting is read twice too
+                                "agree": canon(text) == canon(u["text"]) and parent == (u.get("parent") or "")}
         for g in crops:
             overlap = iou(g["bbox"], checked[g["id"]])
             g["second_read"] = {"reader": reader, "at": now(), "bbox": checked[g["id"]], "iou": overlap, "agree": overlap >= CROP_AGREE_IOU}
@@ -2152,6 +2153,9 @@ class Store(GenerationMixin, _BaseStore):
                               "流程图、机制图、分类树：每个框/节点的文字各转录为一格；每条箭头另转录为一格，location 写明“箭头”及位置，"
                               "text 写“起点文字→终点文字”，两端与对应节点格的文字完全一致（箭头上有文字的写成“起点文字→终点文字（箭头文字）”）。"
                               "只记录画面上确实存在的箭头及其方向。",
+                              "表格或分类中有上下级的行（原件中缩进在一个分组标题下的子项）：分组标题单独转录为一格，每个子项格写 parent: 分组标题那一格的 id（须在子项之前转录）。",
+                              "PDF 文字层（text）因分栏、排版而打断或错排的正文句子（一句被拆到不相邻的位置、夹入别处文字），可按原件画面把整句完整转录为一格，"
+                              "location 写“正文 整句”及位置；只照原件转录，不补全、不改写。",
                               "程序从原件取出的图（figures）逐张查看并在 figures 中说明：note 写画面内容（仅供审核，不上页）；"
                               "caption_unit_ids 填本页中作为该图图题/图注的文字单元；图中若可能有患者姓名、编号、日期、面部等信息，"
                               "may_contain_patient_info 填 true。图中的文字逐格转录，并在该转录格上写 figure: 图编号。",
@@ -2175,9 +2179,10 @@ class Store(GenerationMixin, _BaseStore):
                                "description": (figure_reading(w, g["id"]) or {}).get("note", ""),
                                "page_image_url": page_image_url(w, pages(w)[g["page_id"]])} for g in page_crops(s)],
                     "rules": ["独立查看原件，按位置逐格读出文字；不得参考第一次转录（本合同不提供）。", "看不清时如实写出看到的内容并在文字中标注“[不清]”。",
+                              "某格在原件中缩进在一个分组标题之下（表格子行、分类中的子类）时，parent 写该分组标题那一格的 unit_id；否则留空。",
                               "crops 中每张图按描述在原页上独立找到该图，给出完整包含图例、坐标轴、脚注、标记的截取区域 bbox"
                               "（页面归一化坐标 [x0, y0, x1, y1]，左上角为原点）；不得参考第一次截取（本合同不提供）。"],
-                    "result_contract": {"source_sha256": s["sha256"], "cells": [{"unit_id": u["id"], "text": ""} for u in s["transcriptions"]],
+                    "result_contract": {"source_sha256": s["sha256"], "cells": [{"unit_id": u["id"], "text": "", "parent": ""} for u in s["transcriptions"]],
                                         "crops": [{"figure_id": g["id"], "bbox": [0, 0, 1, 1]} for g in page_crops(s)]}}
         if kind == "CLAIMS":
             s = next(s for s in w["sources"] if s["id"] == binding)
@@ -2799,6 +2804,9 @@ class Store(GenerationMixin, _BaseStore):
             require(w["facts"], "尚无事实库")
             d = next((d for d in w["facts"]["result"].get("derivations", []) if d.get("id") == der_id), None)
             require(d, "推导不存在", 404)
+            if record["decision"] == "CONFIRM":
+                checked = next((x for x in verified(w)["derivations"] if x.get("id") == der_id), None)
+                require(checked and not checked.get("problems"), "推导证据无效，不能确认", 422)
             rec = {"decision": record["decision"], "reviewer": record["reviewer"], "at": now(), "note": str(record.get("note", "")),
                    "derivation_sha256": digest({"claim": d.get("claim"), "rule": d.get("rule"), "evidence": d.get("evidence")}),
                    "identity_assurance": "LOCAL_RECORDED_NOT_AUTHENTICATED"}

@@ -1,0 +1,23 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>原文覆盖｜旧版与v3实测</title><link rel="stylesheet" href="/web/vendor/tabler/tabler.min.css">
+<main class="container-xl py-4"><h1>原文是否进入要点：旧版与 v3 实测</h1>
+<div class="alert alert-info">这是离线实验，不修改当前总结，不记录人工确认，不生成PPT。</div>
+<section class="card mb-3"><div class="card-body"><h2>结论与限制</h2><pre id="report" style="white-space:pre-wrap;font-family:inherit"></pre></div></section>
+<section class="card mb-3"><div class="card-body"><h2>同一分母比较</h2><div id="metrics"></div></div></section>
+<section class="card mb-3"><div class="card-body"><h2>六类限定条件</h2><div id="facets"></div><p class="text-secondary">一条含义可有多个限定标签，各类数量不能相加作为总分母。</p></div></section>
+<section class="card mb-3"><div class="card-body"><h2>逐项原文对照</h2><select id="filter" class="form-select"><option value="all">全部</option><option value="remaining">新版未完整覆盖</option><option value="gain">新版补足</option><option value="loss">旧版完整、新版丢失</option><option value="uncertain">来源不确定</option></select><p id="count"></p><div id="items"></div></div></section>
+<details class="card p-3 mb-3"><summary>两版要点全文</summary><div id="targets"></div></details></main>
+<script>
+const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const names={FULL:'完整',PARTIAL:'部分',MISSING:'缺失',CONTRADICTED:'矛盾',UNCERTAIN:'不确定'};
+const facetNames={population:'人群',time:'时间',threshold:'阈值',condition:'条件',exception:'例外',negation:'否定'};
+fetch('payload.json',{cache:'no-store'}).then(r=>r.json()).then(d=>{
+document.querySelector('#report').textContent=d.report;
+const m=d.metrics;
+document.querySelector('#metrics').innerHTML='<table class="table"><thead><tr><th>版本</th><th>完整表达</th><th>部分</th><th>缺失</th><th>矛盾</th><th>不确定</th><th>要点数 / 字符数</th></tr></thead><tbody>'+['old','new'].map(k=>{const s=m.overall[k],c=s.counts,t=m.target_sizes[k];return `<tr><td>${k==='old'?'旧版 v2':'新版 v3'}</td><td>${c.FULL||0}/${s.denominator}（${s.full_percent}%）</td><td>${c.PARTIAL||0}</td><td>${c.MISSING||0}</td><td>${c.CONTRADICTED||0}</td><td>${c.UNCERTAIN||0}</td><td>${t.points} / ${t.point_characters}</td></tr>`}).join('')+'</tbody></table>';
+document.querySelector('#facets').innerHTML='<table class="table"><thead><tr><th>类别</th><th>分母</th><th>旧版完整</th><th>新版完整</th></tr></thead><tbody>'+Object.entries(m.facets).map(([f,x])=>`<tr><td>${facetNames[f]}</td><td>${x.old.denominator}</td><td>${x.old.counts.FULL||0}（${x.old.full_percent??'—'}%）</td><td>${x.new.counts.FULL||0}（${x.new.full_percent??'—'}%）</td></tr>`).join('')+'</tbody></table>';
+const points={};for(const [k,t]of Object.entries(d.targets))points[k]=Object.fromEntries(t.points.map(p=>[p.id,p.text]));
+const render=()=>{const f=document.querySelector('#filter').value;let rows=d.items.filter(i=>f==='all'||f==='remaining'&&i.source_status==='CLEAR'&&i.new.verdict!=='FULL'||f==='gain'&&i.old.verdict!=='FULL'&&i.new.verdict==='FULL'||f==='loss'&&i.old.verdict==='FULL'&&i.new.verdict!=='FULL'||f==='uncertain'&&i.source_status!=='CLEAR');document.querySelector('#count').textContent=`显示 ${rows.length} / ${d.items.length} 项`;
+document.querySelector('#items').innerHTML=rows.map(i=>`<details class="border rounded p-3 mb-2"><summary><b>${esc(i.id)}</b> ${esc(i.statement)} <span class="badge bg-blue-lt">旧 ${names[i.old.verdict]} → 新 ${names[i.new.verdict]}</span></summary><p>${esc(i.source_status)} · ${i.facet_types.map(f=>facetNames[f]||'正文含义').join(' / ')}</p>${i.source_refs.map(e=>{const page=e.unit_id.split(':x.')[0];const u=d.source_pages[page];return `<blockquote><b>${esc(e.unit_id)}</b>${u?` · <a href="${esc(u)}" target="_blank" rel="noopener">查看来源页图</a>`:''}<p>${esc(e.quote)}</p></blockquote>`}).join('')}${['old','new'].map(k=>{const r=i[k];return `<h3>${k==='old'?'旧版':'新版'}：${names[r.verdict]}</h3><p>${esc(r.reason)}</p>${r.point_evidence.map(e=>`<p><b>${esc(e.point_id)}</b>：${esc(e.quote)}</p><details><summary>完整要点</summary>${esc(points[k][e.point_id])}</details>`).join('')}<p class="text-secondary">其他表达层：${esc(r.other_expression_status)}</p>`}).join('')}</details>`).join('')};
+document.querySelector('#filter').onchange=render;render();
+document.querySelector('#targets').innerHTML=['old','new'].map(k=>`<h2>${k==='old'?'旧版':'新版'}</h2>${d.targets[k].points.map(p=>`<p><b>${esc(p.id)}</b> ${esc(p.text)}</p>`).join('')}`).join('');
+});</script></html>

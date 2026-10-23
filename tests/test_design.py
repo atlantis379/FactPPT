@@ -18,16 +18,16 @@ from factdeck.deck import check
 from factdeck.render import render, chart_geometry_errors
 import test_deckflow as T
 
-UNITS = [{"id": "U1", "source_id": "S01", "location": "第1段", "text": "研究甲纳入成人患者320例，主要终点缓解率为38%，安慰剂组为12%"},
-         {"id": "U2", "source_id": "S02", "location": "第2段", "text": "研究乙纳入青少年患者96例，缓解率为29%"},
+UNITS = [{"id": "U1", "source_id": "S01", "location": "第1段", "text": "研究甲纳入成人患者320例。主要终点缓解率为38%，安慰剂组为12%"},
+         {"id": "U2", "source_id": "S02", "location": "第2段", "text": "研究乙纳入青少年患者96例。缓解率为29%"},
          {"id": "U3", "source_id": "S01", "location": "第3段", "text": "2019年启动入组；2021年完成主要终点分析；2023年公布长期随访结果"},
-         {"id": "U4", "source_id": "S01", "location": "第4段", "text": "成人患病率约为12.5%，治疗12个月后约40~45%的患者达到缓解"}]
+         {"id": "U4", "source_id": "S01", "location": "第4段", "text": "成人患病率约为12.5%。治疗12个月后约40~45%的患者达到缓解"}]
 
 
 def facts():
     F = lambda i, u, q, d="": {"id": i, "unit": u, "quote": q, **({"display": d} if d else {})}
     raw = {"facts": [F("a.n", "U1", "研究甲"), F("a.v", "U1", "38%"), F("p.n", "U1", "安慰剂组"), F("p.v", "U1", "12%"),
-                     F("b.n", "U2", "研究乙"), F("b.v", "U2", "29%"), F("a.pop", "U1", "纳入成人患者320例"),
+                     F("b.n", "U2", "研究乙"), F("b.v", "U2", "29%"), F("a.pop", "U1", "研究甲纳入成人患者320例"),
                      F("t1", "U3", "2019年启动入组"), F("t2", "U3", "2021年完成主要终点分析"),
                      F("prev", "U4", "成人患病率约为12.5%", "约为12.5%"), F("prev.l", "U4", "成人患病率"),
                      F("range", "U4", "治疗12个月后约40~45%的患者达到缓解")]}
@@ -116,7 +116,7 @@ def test_new_layouts_render_cleanly_and_export_natively(tmp_path):
     prs = Presentation(str(tmp_path / "deck.pptx"))
     runs = [run for sh in prs.slides[1].shapes if sh.has_text_frame for p in sh.text_frame.paragraphs for run in p.runs]
     assert any(run.text == "320例" and run.font.bold for run in runs)              # emphasis survives as a bold run
-    assert any(run.text == "纳入成人患者" and not run.font.bold for run in runs)
+    assert any(run.text == "研究甲纳入成人患者" and not run.font.bold for run in runs)
     rects = [sh for sh in prs.slides[3].shapes if sh.shape_type == 1]
     tallest = max(rects, key=lambda sh: sh.height)
     bars = sorted((sh.height for sh in rects if abs(sh.width - tallest.width) < 2 and sh.top + sh.height == tallest.top + tallest.height), reverse=True)
@@ -162,7 +162,7 @@ def test_sparse_pages_keep_the_fixed_type_scale(tmp_path):
         {"id": "few", "layout": "bullets", "title": t("要点"), "items": [r("a.v"), r("b.v")]},
         {"id": "tbl", "layout": "table", "title": t("研究"), "columns": [t("研究"), t("人群")],
          "rows": [[[r("a.n")], [r("a.pop")]], [[r("b.n")], [r("range")]]]},
-        {"id": "flow-like", "layout": "cards", "title": t("数"), "cards": [{"value": r("prev")}, {"value": r("range")}]}]}
+        {"id": "flow-like", "layout": "cards", "title": t("数"), "cards": [{"label": r("prev.l"), "value": r("prev")}, {"value": r("range")}]}]}
     assert check(deck, fs)["errors"] == 0
     assert check({"pages": [{"id": "x", "layout": "agenda", "title": t("结构"), "items": [t("唯一")]}]}, fs)["errors"]
     rep = render(deck, fs, {"S01": {"title": "资料一"}, "S02": {"title": "资料二"}}, tmp_path)

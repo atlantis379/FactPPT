@@ -1,0 +1,23 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>先理解再总结｜章节实测</title><link rel="stylesheet" href="/web/vendor/tabler/tabler.min.css">
+<main class="container-xl py-4"><h1>先理解，再总结：诊断、评估与监测</h1>
+<p>同一章节29页。评价目标：理解准确、重点完整、结构合理、关系有据。篇幅和要点数量不作为成功指标。</p>
+<div class="alert alert-warning">独立实验：不修改原项目，不记录内容确认，不生成PPT。模型组织建议不等同于作者的医学结论。</div>
+<a id="source" class="btn mb-3" target="_blank">打开原始章节PDF</a>
+<section><h2>模型先形成的原文理解结果</h2><div id="understanding"></div></section>
+<div class="row g-3 mt-3"><section class="col-lg-6"><h2>上一版首稿</h2><div id="v1"></div></section>
+<section class="col-lg-6"><h2>新版总结</h2><p id="overall"></p><div id="v2"></div></section></div>
+<section class="card mt-4"><div class="card-body"><h2>独立审核结果</h2><pre id="review" style="white-space:pre-wrap;font-family:inherit"></pre>
+<h3>来源待定事项</h3><ul id="pending"></ul></div></section></main>
+<script>
+const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+fetch('payload.json',{cache:'no-store'}).then(r=>r.json()).then(d=>{
+const ev=new Map(d.evidence_index.points.flatMap(p=>p.evidence.map(e=>[`${p.point_id}/${e.id}`,e])));
+const refs=xs=>(xs||[]).map(x=>{const e=ev.get(x);return `<details><summary>${esc(x)} · ${esc(e?.page_id)}</summary><p>${esc(e?.source_quote)}</p></details>`}).join('');
+document.querySelector('#source').href=`/api/deck/workflows/${encodeURIComponent(d.workflow_id)}/sources/S03/file`;
+document.querySelector('#understanding').innerHTML=d.understanding.sections.map(s=>`<article class="card mb-3"><div class="card-body"><h3>${esc(s.section_id)}：作者在讲什么</h3><p>${esc(s.author_message)}</p><h4>组织方式及依据</h4><p>${esc(s.organization.basis)}：${esc(s.organization.reason)}</p>${refs(s.organization.evidence_refs)}<h4>结论与条件</h4>${s.conclusions.map(c=>`<div class="border-top py-2"><b>${esc(c.id)} · ${esc(c.point_ids.join('、'))}</b><p>${esc(c.statement)}</p><p class="text-secondary">${esc(c.conditions_and_limits)}</p>${refs(c.evidence_refs)}</div>`).join('')}<h4>结论如何关联</h4><p>${esc(s.relation_assessment)}</p>${s.relations.map(r=>`<div class="border-top py-2"><b>${esc(r.from)} → ${esc(r.to)} · ${esc(r.type)} · ${esc(r.basis)}</b><p>${esc(r.explanation)}</p>${refs(r.evidence_refs)}</div>`).join('')}</div></article>`).join('');
+for(const k of ['v1','v2']) document.querySelector('#'+k).innerHTML=d[k+'_points'].map(p=>{const ix=k==='v2'?d.evidence_index.points.find(x=>x.point_id===p.point_id):null;return `<article class="card mb-2"><div class="card-body"><b>${esc(p.point_id)} · ${esc(p.section_title)}</b><p>${esc(p.point)}</p>${ix?`<p><b>上下文与限定：</b>${esc(ix.context)}</p><p class="text-secondary"><b>重点选择依据：</b>${esc(ix.selection_reason)}</p>${refs(ix.evidence.map(e=>`${p.point_id}/${e.id}`))}`:''}</div></article>`}).join('');
+document.querySelector('#overall').textContent=d.overall_summary;
+document.querySelector('#review').textContent=d.review_report;
+document.querySelector('#pending').innerHTML=d.pending_issues.map(x=>`<li class="mb-2">${esc(typeof x==='string'?x:x.description||x.problem||x.id)}${typeof x==='object'?`<div class="small text-secondary">来源：${esc((x.source_page_ids||[]).join('、'))} · ${esc(x.impact||'等待人工核对')}</div>`:''}</li>`).join('');
+});</script></html>

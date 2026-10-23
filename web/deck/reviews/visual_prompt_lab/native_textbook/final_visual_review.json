@@ -1,0 +1,333 @@
+{
+  "schema_version": "native-final-visual-review.v1",
+  "review_id": "native-textbook-final-visual-review-20261012-r4",
+  "worker": "Codex-Independent-Native-Visual-Reviewer",
+  "reviewed_on": "2026-10-12",
+  "source_common_input_sha256": "30d97fe3d548680fd70521fe7b6aff65e6b420464badd05f5b1b5de5f551a341",
+  "graph_sha256": {
+    "semantic_graph": "d5a26e4687cd6e5dcd019a7ed2c4104a1ecf1d6a4aaa27072f95a6d362fd68d7",
+    "extension_graph": "7e9fe13b1122f798d9a5f9cfa4297cc95d108a5a940da63dd6c8a425d67fad3a"
+  },
+  "scope": "Incremental P9 visual QA after replacing the empty middle-card icon with a source-supported scalar threshold badge. Personally viewed current slide04 PowerPoint PNG and browser preview. Reused slides01–03 and 05–06 only after exact native-PNG SHA-256 matches to the immediately preceding report. No source PDFs reopened and no other pages visually re-reviewed.",
+  "graph_validation": {
+    "semantic_graph": {
+      "structural_valid": true,
+      "pages": 3,
+      "graph_sha256": "d5a26e4687cd6e5dcd019a7ed2c4104a1ecf1d6a4aaa27072f95a6d362fd68d7",
+      "medical_approval": false
+    },
+    "extension_graph": {
+      "structural_valid": true,
+      "pages": 3,
+      "graph_sha256": "7e9fe13b1122f798d9a5f9cfa4297cc95d108a5a940da63dd6c8a425d67fad3a",
+      "medical_approval": false
+    }
+  },
+  "slides": [
+    {
+      "slide_number": 1,
+      "common_page_number": 1,
+      "page_id": "s1_cover",
+      "graph": "extension_graph.json",
+      "graph_sha256": "7e9fe13b1122f798d9a5f9cfa4297cc95d108a5a940da63dd6c8a425d67fad3a",
+      "native_image_path": "output/visual_prompt_lab/native_textbook/slide01.png",
+      "native_image_sha256": "d6e4503f0db7cbb3f916385fa53b629d11a1b27302ffe7c7235dbbbcba7e0776",
+      "viewed_native": true,
+      "viewed_this_round": false,
+      "reused_prior_view_after_exact_hash_match": true,
+      "defect_ids": [],
+      "visual_qa": "Current PowerPoint PNG and browser preview personally viewed. All three locked strings are present, legible, and unobscured: kicker at upper left; complete course title centered in its box as the primary heading, with 50 canvas-unit type; metadata at lower left. The book, layered landscape, winding path, right-side building/tree line/sun and upper-right foliage remain in their corresponding composition areas. Text stays over clear upper space and does not cover the main artwork. Native text and artwork are separately editable; render uses paths rather than a whole-slide picture.",
+      "browser_preview_path": "output/visual_prompt_lab/native_textbook/browser-slide01.png",
+      "browser_preview_sha256": "c6936296316d8279d49b2ea6a2a07c7bf63c20d58296b79c650279d6c3a4a012",
+      "viewed_browser": false,
+      "current_browser_preview_viewed": false
+    },
+    {
+      "slide_number": 2,
+      "common_page_number": 1,
+      "page_id": "s1_p01",
+      "graph": "extension_graph.json",
+      "graph_sha256": "7e9fe13b1122f798d9a5f9cfa4297cc95d108a5a940da63dd6c8a425d67fad3a",
+      "native_image_path": "output/visual_prompt_lab/native_textbook/slide02.png",
+      "native_image_sha256": "8c47a81f328157f055eb7f005bb49b6e50e89b2794cc3713aea03bfa0887df91",
+      "viewed_native": true,
+      "viewed_this_round": false,
+      "reused_prior_view_after_exact_hash_match": true,
+      "defect_ids": [],
+      "visual_qa": "Current SHA matches the image viewed last round. Centered title; two goal panels and separate management context are legible. The comma remains attached to the preceding phrase, with no line-start comma or enumeration comma.",
+      "browser_preview_path": "output/visual_prompt_lab/native_textbook/browser-slide02.png",
+      "browser_preview_sha256": "f5e33214f7febb11d72ac22a17176c0807c60382856b6dffe562151c003d2588",
+      "viewed_browser": false,
+      "current_browser_preview_viewed": false
+    },
+    {
+      "slide_number": 3,
+      "common_page_number": 5,
+      "page_id": "s1_p04",
+      "graph": "semantic_graph.json",
+      "graph_sha256": "d5a26e4687cd6e5dcd019a7ed2c4104a1ecf1d6a4aaa27072f95a6d362fd68d7",
+      "native_image_path": "output/visual_prompt_lab/native_textbook/slide03.png",
+      "native_image_sha256": "0e7b39c0c45e37173e4ec25ff34e4031a91a3359f62f90f867abb84125d078e5",
+      "viewed_native": true,
+      "viewed_this_round": false,
+      "reused_prior_view_after_exact_hash_match": true,
+      "defect_ids": [],
+      "visual_qa": "Current SHA matches the image viewed last round. The i/ii cases and corresponding conclusions remain separate and legible; no isolated punctuation or overlap observed.",
+      "browser_preview_path": "output/visual_prompt_lab/native_textbook/browser-slide03.png",
+      "browser_preview_sha256": "745d27d26dd13e96cf551d75684057a44c1b545f32ed37a90d60b39761081741",
+      "viewed_browser": false,
+      "current_browser_preview_viewed": false
+    },
+    {
+      "slide_number": 4,
+      "common_page_number": 9,
+      "page_id": "a_s2_04_04",
+      "graph": "semantic_graph.json",
+      "graph_sha256": "d5a26e4687cd6e5dcd019a7ed2c4104a1ecf1d6a4aaa27072f95a6d362fd68d7",
+      "native_image_path": "output/visual_prompt_lab/native_textbook/slide04.png",
+      "native_image_sha256": "81b6ec479191d1511ae7aa7482e7997d0f283681fb2013905f5f6a9df8b93527",
+      "viewed_native": true,
+      "viewed_this_round": true,
+      "reused_prior_view_after_exact_hash_match": false,
+      "defect_ids": [],
+      "visual_qa": "Current PowerPoint and browser preview viewed. The middle-card badge “< 0.7” is legible in the existing left icon circle, beside the complete locked criterion “不完全可逆气流受限（支气管扩张后FEV1/FVC < 0.7）”. It does not cover or displace text. Both arrows still express the existing top-to-threshold-to-diagnosis flow. No curve, axes, ticks, plotted points, or patient data are present. This is a source-supported scalar replacement, not restoration of the unsupported curve.",
+      "browser_preview_path": "output/visual_prompt_lab/native_textbook/browser-slide04.png",
+      "browser_preview_sha256": "59b24240e791b6df08f5c4d03377b9461e21a6afac6d52782168d9d8dc47d0ab",
+      "viewed_browser": true
+    },
+    {
+      "slide_number": 5,
+      "common_page_number": 20,
+      "page_id": "a_s3_07_15",
+      "graph": "extension_graph.json",
+      "graph_sha256": "7e9fe13b1122f798d9a5f9cfa4297cc95d108a5a940da63dd6c8a425d67fad3a",
+      "native_image_path": "output/visual_prompt_lab/native_textbook/slide05.png",
+      "native_image_sha256": "479bbaba4e8602ff4d49217c38934e024bdbf6ee5c3fbeaa86b32ea39fde9e5b",
+      "viewed_native": true,
+      "viewed_this_round": false,
+      "reused_prior_view_after_exact_hash_match": true,
+      "defect_ids": [],
+      "visual_qa": "Current SHA matches the image viewed last round. Four table cells remain in the intended positions; “≥ 1” and “previous year” are visible. Previously noted subtle divider remains non-blocking.",
+      "browser_preview_path": "output/visual_prompt_lab/native_textbook/browser-slide05.png",
+      "browser_preview_sha256": "014e4676fdce3a01ce8b851c6bd7e4f21151bbe1aacdd9825e18416470f9439b",
+      "viewed_browser": false,
+      "current_browser_preview_viewed": false
+    },
+    {
+      "slide_number": 6,
+      "common_page_number": 21,
+      "page_id": "a_s3_08_16",
+      "graph": "extension_graph.json",
+      "graph_sha256": "7e9fe13b1122f798d9a5f9cfa4297cc95d108a5a940da63dd6c8a425d67fad3a",
+      "native_image_path": "output/visual_prompt_lab/native_textbook/slide06.png",
+      "native_image_sha256": "75c96cdf152c901cd1d9fa6187686321e01dc146047d9f392e86e89a61c35076",
+      "viewed_native": true,
+      "viewed_this_round": false,
+      "reused_prior_view_after_exact_hash_match": true,
+      "defect_ids": [],
+      "visual_qa": "Latest actual render viewed. “检查” now stays together in “全套肺功能检查”; punctuation is not at a line start. Condition flows to the assessment lead; the and/or enclosure covers lung structure and comorbidities while excluding lung mechanics.",
+      "browser_preview_path": "output/visual_prompt_lab/native_textbook/browser-slide06.png",
+      "browser_preview_sha256": "6d160ac0aaac0d59138e980143b1cbf246a41ce6855880927ca872da724d808b",
+      "viewed_browser": false,
+      "current_browser_preview_viewed": false
+    }
+  ],
+  "prior_findings": [
+    {
+      "id": "USER-REVIEW-COVER-01",
+      "status": "FIXED",
+      "position_evidence": "Current slide01 visibly includes the open-book and leaf artwork; this is traced/recomposed artwork and is not claimed to exactly reproduce the rejected clinical source design.",
+      "native_image_sha256": "fc116761148859061c753b594092c3ffa33853e848cbde55c3fc8490a04655b6"
+    },
+    {
+      "id": "USER-REVIEW-COVER-02",
+      "status": "FIXED",
+      "position_evidence": "Current slide01 title block is centered and uses 50 canvas units, consistent with the other five main titles.",
+      "native_image_sha256": "fc116761148859061c753b594092c3ffa33853e848cbde55c3fc8490a04655b6"
+    },
+    {
+      "id": "USER-REVIEW-TYPE-01",
+      "status": "FIXED",
+      "position_evidence": "Current slide01 main title uses size 50; current native model records the same 50 canvas-unit size for slides02–06.",
+      "native_image_sha256": "fc116761148859061c753b594092c3ffa33853e848cbde55c3fc8490a04655b6"
+    },
+    {
+      "id": "USER-REVIEW-PUNCT-01",
+      "status": "FIXED",
+      "position_evidence": "Previously viewed slides02, slide04 and slide06 (source pages 2, 9 and 21) have no punctuation at line starts; this round rechecked slide06 and exact image hashes confirm the others are unchanged. Punctuation remains attached to preceding text.",
+      "native_image_sha256s": [
+        "fc116761148859061c753b594092c3ffa33853e848cbde55c3fc8490a04655b6",
+        "8c47a81f328157f055eb7f005bb49b6e50e89b2794cc3713aea03bfa0887df91",
+        "0e7b39c0c45e37173e4ec25ff34e4031a91a3359f62f90f867abb84125d078e5",
+        "c0eaf70c18c61a415d86323f341c4834a53edae2941d93dd2d1abe70301219b3",
+        "479bbaba4e8602ff4d49217c38934e024bdbf6ee5c3fbeaa86b32ea39fde9e5b",
+        "75c96cdf152c901cd1d9fa6187686321e01dc146047d9f392e86e89a61c35076"
+      ]
+    },
+    {
+      "id": "NVQA-COVER-01",
+      "status": "FIXED",
+      "position_evidence": "Prior cover-title size finding fixed from 48 to 50 canvas units; current actual slide01 viewed."
+    },
+    {
+      "id": "NVQA-S06-01",
+      "status": "FIXED",
+      "position_evidence": "Prior awkward within-word wrap in “检查” is fixed; current actual slide06 keeps both characters together."
+    },
+    {
+      "id": "USER_P9_ICON_NOT_RESTORED",
+      "status": "FIXED",
+      "position_evidence": "P9 middle/right-column criterion card. The blank circle is now filled by a native “< 0.7” threshold badge. In the current PowerPoint and browser render it is legible, unobscured, and adjacent to the complete ratio and post-bronchodilator condition. The generated descending curve was not restored because its shape implies a trend not provided by the scalar source threshold.",
+      "native_image_sha256": "81b6ec479191d1511ae7aa7482e7997d0f283681fb2013905f5f6a9df8b93527",
+      "browser_preview_sha256": "59b24240e791b6df08f5c4d03377b9461e21a6afac6d52782168d9d8dc47d0ab",
+      "resolution_type": "Supported scalar replacement; not restoration of original curve."
+    }
+  ],
+  "non_blocking_observations": [
+    {
+      "id": "TVQA-S05-NOTE-01",
+      "slide_number": 5,
+      "position": "2x2 table column divider, especially in the same-fill header row.",
+      "observation": "Column separation is visually subtle because both header cells share the green fill and no strong vertical rule stands out. The four locked cell strings remain readable in correct two-column positions and same-row association is clear. This is a visual note, not a blocking content or relationship defect."
+    }
+  ],
+  "clean_stage_reviews": [
+    {
+      "trial_id": "extension_textbook_01_r1",
+      "status": "CLEAR",
+      "scope": "CLEAN_ARTWORK_AND_LOCKED_GRAPH",
+      "original_design_approved": false,
+      "reviewed_clean_sha256": "5f85bd7c593da01e0cf45da576520f36164b7f53afc64e227b5bfb3b0e18e72b"
+    },
+    {
+      "trial_id": "screen_textbook_02_r1",
+      "status": "CLEAR",
+      "scope": "CLEAN_ARTWORK_AND_LOCKED_GRAPH",
+      "original_design_approved": false,
+      "reviewed_clean_sha256": "0c701b83c8ba6fd35b01b010a8884109fcb40c4daff33d4527be39d953c1c1a0"
+    },
+    {
+      "trial_id": "quality_textbook_05_r2",
+      "status": "CLEAR",
+      "scope": "CLEAN_ARTWORK_AND_LOCKED_GRAPH",
+      "original_design_approved": false,
+      "reviewed_clean_sha256": "d85720930fe9644e672208e514a8b3cc36dd77c44e3d18edeab80506b9700e54"
+    },
+    {
+      "trial_id": "screen_textbook_09_r1",
+      "status": "CLEAR",
+      "scope": "CLEAN_ARTWORK_AND_LOCKED_GRAPH",
+      "original_design_approved": false,
+      "reviewed_clean_sha256": "e1a59fdb44778d076a04e0f36612e0f1cc657ab71ce383479a742059b4c44571"
+    },
+    {
+      "trial_id": "extension_textbook_20_r1",
+      "status": "CLEAR",
+      "scope": "CLEAN_ARTWORK_AND_LOCKED_GRAPH",
+      "original_design_approved": false,
+      "reviewed_clean_sha256": "c641fd0e0e24986550038d99a8b07e3e6294cb13300852aa935c7ca3ca30f4ae"
+    },
+    {
+      "trial_id": "extension_textbook_21_r1",
+      "status": "CLEAR",
+      "scope": "CLEAN_ARTWORK_AND_LOCKED_GRAPH",
+      "original_design_approved": false,
+      "reviewed_clean_sha256": "97a7c93afbf43d20e9ff3fc67fe86bab198562810f82525e81088bfa845c280e"
+    }
+  ],
+  "native_table_check": {
+    "slide_number": 5,
+    "width": 1218.0,
+    "height": 292.0,
+    "column_widths": [
+      814.0,
+      404.0
+    ],
+    "row_heights": [
+      90.0,
+      202.0
+    ],
+    "source_cells_row_major": [
+      "病史条件",
+      "图示分组",
+      "EXACERBATION HISTORY (PER YEAR)\nOne or more (≥ 1) moderate or severe exacerbations in the previous year",
+      "E"
+    ],
+    "comment": "Actual PowerPoint view shows the four cells in the locked positions; threshold and prior-year qualifier remain legible. Column divider note is non-blocking."
+  },
+  "render_report_metrics": {
+    "hard_errors": 0,
+    "summary": {
+      "slides": 6,
+      "generated_picture_objects": 0,
+      "native_paths": 521,
+      "overflow": 0,
+      "overlap": 0,
+      "content_mismatch": 0
+    },
+    "render_report_sha256": "fe5f3099d75585b886652893a98fa1053778ec14ccdee193a4c923680c1470e9",
+    "native_model_sha256": "de64ac639c856b7278449cde9dd9a540d887d6e6390b81fc452e6e0cbfe5beda"
+  },
+  "defects": [],
+  "status": "REVIEWED_P9_CONTENT_GRAPH_SUPPORTED_STYLE_PENDING",
+  "ready_for_human_style_review": true,
+  "medical_approval": false,
+  "customer_style_approval": false,
+  "notes": [
+    "P9 content graph meaning for the obstruction threshold is supported by the locked source fragment; this does not mean the original curve was restored or approved.",
+    "P9 visual style remains pending human/customer review. medical_approval and customer_style_approval remain false.",
+    "Only slide04 current PowerPoint and browser preview were viewed in this round. Slides01–03 and 05–06 native image hashes exactly match the preceding independently viewed PNGs and are reused. Other current browser previews were not inspected.",
+    "Current render report metrics are recorded from the latest report, not copied from an earlier export."
+  ],
+  "previous_review_history": [
+    {
+      "review_id": "native-textbook-final-visual-review-20261012-r1",
+      "prior_status": "CLEAR",
+      "missed_findings": [
+        "The user identified missing cover background artwork, insufficient title centering/typographic hierarchy, and punctuation at the start of segmented lines on pages 2, 9, and 21."
+      ],
+      "handling": "Retained as a missed-detection record. Current review checks the corrected artwork, centering, title size and punctuation. No medical or customer style approval is implied."
+    },
+    {
+      "review_id": "cover-background-reference-clean-review-20261012",
+      "prior_status": "CLEAR",
+      "scope": "CLEAN_ARTWORK_AND_LOCKED_GRAPH, page 1 only",
+      "evidence": "Actual design.png and clean.png viewed. All three text regions were removed while the major background composition and visual anchors remained.",
+      "clean_sha256": "8046529fca0ad316c5130179f797265f2e4cccc7bb66ac8b9beecc34daf7d463",
+      "design_sha256": "c3f39515516320850d02368404d8fdc0b1b637fadbccca4e8486833b39f307e6",
+      "medical_approval": false,
+      "customer_style_approval": false
+    }
+  ],
+  "background_preservation_review": {
+    "reference_design_path": "output/visual_prompt_lab/cover_background_reference/design.png",
+    "reference_design_sha256": "c3f39515516320850d02368404d8fdc0b1b637fadbccca4e8486833b39f307e6",
+    "clean_artwork_path": "output/visual_prompt_lab/cover_background_reference/clean.png",
+    "clean_artwork_sha256": "8046529fca0ad316c5130179f797265f2e4cccc7bb66ac8b9beecc34daf7d463",
+    "current_native_path": "output/visual_prompt_lab/native_textbook/slide01.png",
+    "current_native_sha256": "d6e4503f0db7cbb3f916385fa53b629d11a1b27302ffe7c7235dbbbcba7e0776",
+    "current_browser_path": "output/visual_prompt_lab/native_textbook/browser-slide01.png",
+    "current_browser_sha256": "c6936296316d8279d49b2ea6a2a07c7bf63c20d58296b79c650279d6c3a4a012",
+    "assessment": "PRESERVED_FOR_HUMAN_REVIEW",
+    "assessment_basis": "Compared by element role, composition, source and visual impact rather than by object-name allowlist. The visible major layers and their relative placement are preserved from design through clean to native output: foreground open book at lower left; layered hills/ground and path across the lower half; building, trees and sun on the right; foliage at the upper-right edge. The native cover keeps a broad clear upper text field and places text without obscuring the background anchors.",
+    "complexity": "MODERATE",
+    "complexity_reasons": [
+      "Layered overlapping landscape color fields.",
+      "Fine book-page lines and fine foliage contours.",
+      "Paper texture and delicate low-contrast edge details."
+    ],
+    "vectorization_and_render_loss": "The vector stage reports 163 raw paths, 157 native paths, and 6 near-white paper paths omitted. The broad color layers, silhouettes and fine book/leaf linework remain visible in the actual native render. Paper grain and a small amount of subtle edge texture are lost; no major composition element is lost. The slide contains no raster picture object.",
+    "customer_acceptance": "Not assessed; customer_style_approval remains false."
+  },
+  "p9_icon_review": {
+    "scope": "Only P9 obstruction-threshold card and source fragment.",
+    "reviewed_powerpoint": true,
+    "reviewed_browser_preview": true,
+    "source_support": "The locked source states post-bronchodilator FEV1/FVC < 0.7. The badge repeats the exact threshold already shown in the complete body text.",
+    "content_graph_meaning_complete": true,
+    "curve_restored": false,
+    "replacement": "Native static threshold badge “< 0.7”; no curve, axes, ticks or patient data.",
+    "visual_findings": "Badge fits the existing circle, aligns with its card, and does not overlap the source text or directional arrows.",
+    "customer_style_review": "PENDING"
+  }
+}

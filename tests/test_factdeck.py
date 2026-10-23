@@ -38,9 +38,10 @@ def test_footnote_strip_needs_named_derivation_and_stays_pending():
     bare = Fact("y1", "U2", "中国：202415", display="2024")
     run([bare])
     assert bare.status == "REJECTED"
-    d = Derivation("footnote", "角标", "去掉年份后的角标数字", ["y2"])
+    source = Fact("source", "U2", "中国：202415")
+    d = Derivation("footnote", "角标", "去掉年份后的角标数字", ["source"])
     f = Fact("y2", "U2", "中国：202415", display="2024", derivation="footnote")
-    run([f], [d])
+    run([source, f], [d])
     assert f.status == "ACCEPTED" and f.needs_confirmation
 
 

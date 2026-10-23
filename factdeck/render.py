@@ -24,6 +24,7 @@ from jinja2 import Environment, FileSystemLoader
 from .deck import check as deck_check, emph_spans
 from . import charts
 from . import compose
+from . import free
 from . import recipes
 from .lexicon import lint_text, canon
 
@@ -162,17 +163,22 @@ PANEL_CHROME = 5 + 36 + 29 + 12    # compare panel: top border, padding, one-lin
 FIGURE_MIN_DPI = 150          # below this a source figure is flagged for the page reviewer (not blocking)
 SLIDE_DPI = 96                # 1280 px = 13.333 in
 BODY_BOTTOM = 88             # px between the body and the slide bottom (footer + breathing room); matches .body in the template
+FOOTNOTE_BOTTOM = 132        # reserve the 56 px footnote strip plus its 20 px gap above the footer
+
+
+def body_bottom(page: dict) -> int:
+    return FOOTNOTE_BOTTOM if page.get("footnote") else BODY_BOTTOM
 BODY_TOP, BODY_TOP_NO_LEAD = 196, 170   # body top under title + lead, and under a title alone (keeps a steady gap)
 
 
 def body_top(page: dict) -> int:
-    return BODY_TOP if page.get("lead") else BODY_TOP_NO_LEAD
+    return BODY_TOP if page.get("lead") or page.get("headline") else BODY_TOP_NO_LEAD   # a headline takes the lead's room
 
 
 def figure_geometry(page: dict, fact: dict, figure: dict, box: tuple[float, float] | None = None) -> dict:
     """Fit a source figure into the body (or a given (width, height) box, caption and source
     line included) without cropping or changing its aspect ratio."""
-    body_h = 720 - body_top(page) - BODY_BOTTOM
+    body_h = 720 - body_top(page) - body_bottom(page)
     width = 1152 - (324 if page.get("side") else 0)
     if box:
         width, body_h = box
@@ -187,6 +193,10 @@ def figure_geometry(page: dict, fact: dict, figure: dict, box: tuple[float, floa
 
 def chart_geometry_errors(page: dict, facts: dict, drawn: list[dict]) -> list[str]:
     """Recompute every bar from its fact's text and compare with the drawn length (independent of the template)."""
+    if page.get("layout") == "free":                       # bars of a free page: length / value equal on each scale
+        drawn_bars = [b for b in drawn if b.get("scale")]
+        values = compose.bar_values({"blocks": [{"kind": "bar", "value_of": b["fact"]} for b in drawn_bars]}, facts)
+        return [f"非图表页出现柱：{b['fact']}" for b in drawn if not b.get("scale")] + free.bar_errors(page, values, drawn_bars)
     if page.get("layout") != "chart":
         return [f"非图表页出现柱：{b['fact']}" for b in drawn]
     m = charts.model(page["chart"], facts)
@@ -307,11 +317,24 @@ def sparse_message(slide: dict) -> str:
             f"{round((hole.get('share') or 0) * 100)}%{where}；请合并同一条目的相邻内容、按内容宽度分配栏宽或改用更有分量的版式（不放大文字、不凑内容）")
 
 
+_WIDE = "[⺀-鿿豈-﫿＀-￯　-〿]"   # CJK, compatibility, full-width forms, CJK punctuation
+
+
+def unwrap_pdf_lines(text: str) -> str:
+    """A PDF's text layer keeps the page's line wraps; a wrap is not part of what the source says. Next to a wide
+    (CJK/full-width) character it is dropped ("2030⏎年前" → "2030年前"); between two narrow characters it becomes a
+    space. Comparison with the quote ignores whitespace, so the shown text still matches its fact."""
+    text = re.sub(rf"(?<={_WIDE})[ \t]*\n[ \t]*|[ \t]*\n[ \t]*(?={_WIDE})", "", text)
+    return re.sub(r"[ \t]*\n[ \t]*", " ", text)
+
+
 def build_models(deck, facts, sources, check, figures=None):
     conflicted = {fid for fid, f in facts.items() if any("来源之间不一致" in p for p in f["problems"])}
     fview = {}
     for fid, f in facts.items():
         text = f["display"] or f["quote"]
+        if str((sources.get(f.get("source_id")) or {}).get("filename", "")).lower().endswith(".pdf"):
+            text = unwrap_pdf_lines(text)
         fview[fid] = {"id": fid, "text": text, "pending": f["needs_confirmation"], "conflict": fid in conflicted,
                       "figure": f.get("figure", "")}
     def text_len(ref):
@@ -350,12 +373,12 @@ def build_models(deck, facts, sources, check, figures=None):
             p["cards"] = [{**c, "numeric": "fact" in c["value"] and bool(re.search(r"\d", fview[c["value"]["fact"]]["text"]))
                            and len(fview[c["value"]["fact"]]["text"]) <= 9} for c in page["cards"]]
         if page["layout"] == "flow":
-            body_h = 720 - body_top(page) - BODY_BOTTOM - (NOTES_H + 20 if page.get("notes") else 0)
+            body_h = 720 - body_top(page) - body_bottom(page) - (NOTES_H + 20 if page.get("notes") else 0)
             p["geo"] = flow_geometry(page, 1152 - (324 if page.get("side") else 0), body_h, fview)
             if page.get("notes"):
                 p["notes_top"] = round(max(n["y"] + n["h"] for n in p["geo"]["nodes"]) + 36, 1)
         if page["layout"] == "chart":
-            body_h = 720 - body_top(page) - BODY_BOTTOM
+            body_h = 720 - body_top(page) - body_bottom(page)
             cm = charts.model(page["chart"], facts)
             p["cg"] = charts.geometry(page["chart"], cm, 1152 - (324 if page.get("side") else 0), body_h - 8)
             p["cg"].update(refs=page["chart"]["bars"], w=1152 - (324 if page.get("side") else 0), h=body_h - 8)
@@ -370,7 +393,7 @@ def build_models(deck, facts, sources, check, figures=None):
             p["fig"] = fig_model(page["figure"])
         if page["layout"] == "compare" and any("figure" in pn for pn in page["panels"]):
             n = len(page["panels"])
-            body_h = 720 - body_top(page) - BODY_BOTTOM - 8 - (104 if page.get("band") else 0)
+            body_h = 720 - body_top(page) - body_bottom(page) - 8 - (104 if page.get("band") else 0)
             inner = ((1152 - 24 * (n - 1)) / n - 48, body_h - PANEL_CHROME)
             p["panels"] = [{**pn, "fig": fig_model(pn["figure"], inner)} if "figure" in pn else pn for pn in page["panels"]]
             p["fixed_size"] = True           # the figures are sized for body text at k = 1
@@ -382,7 +405,7 @@ def build_models(deck, facts, sources, check, figures=None):
             for key in ("panels", "tiles", "cards", "side"):
                 if p.get(key):
                     p[key] = mark_focus(p[key], focus)
-            if p.get("levels"):
+            if p.get("levels") and page.get("layout") == "nested":
                 p["levels"] = [{**x, "is_focus": focus in refs_in(x)} for x in p["levels"]]
             if p.get("geo"):
                 for n in p["geo"]["nodes"]:
@@ -419,6 +442,9 @@ def _set_font(run, size_px, bold, color, font=PPT_FONT):
     f.bold = bold
     f.name = font
     rPr = run._r.get_or_add_rPr()
+    if re.search(r"[　-鿿＀-￯]", run.text or ""):   # Chinese text: PowerPoint then applies Chinese
+        rPr.set("lang", "zh-CN")                                     # line breaking (no line starts with ，。；）
+        rPr.set("altLang", "en-US")
     for tag in ("a:ea", "a:cs"):
         el = rPr.find(qn(tag))
         if el is None:
@@ -438,8 +464,14 @@ def _fill_paras(tf, paras, line_height_px, align="left", font=PPT_FONT):
         para = tf.paragraphs[0] if first else tf.add_paragraph()
         first = False
         para.alignment = al
+        ppr = para._p.get_or_add_pPr()          # Chinese line breaking: punctuation hangs at the line end, never starts a line
+        ppr.set("eaLnBrk", "1")
+        ppr.set("hangingPunct", "1")
         if line_height_px:
             para.line_spacing = Pt(line_height_px * 0.75)
+        after = max((r.get("after") or 0 for r in runs), default=0)
+        if after:
+            para.space_after = Pt(after * 0.75)
         for r in runs:
             run = para.add_run()
             run.text = r["text"]
@@ -492,10 +524,12 @@ def _theme_refs(slide, slot_hex: dict):
 
 
 def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path, title: str = "", figure_png: dict | None = None,
-               font: str = PPT_FONT, theme: dict | None = None, strict_text_geometry: bool = False):
+               font: str = PPT_FONT, theme: dict | None = None, strict_text_geometry: bool = False,
+               icon_png: dict | None = None):
     from pptx import Presentation
     from pptx.util import Emu
     from pptx.enum.shapes import MSO_SHAPE, MSO_CONNECTOR
+    from pptx.enum.dml import MSO_LINE_DASH_STYLE
     from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, PP_ALIGN
     from pptx.oxml.ns import qn
 
@@ -554,9 +588,43 @@ def build_pptx(models: list[dict], raster_png: dict, notes: list[str], out: Path
                 c = into(ln.get("group")).add_connector(MSO_CONNECTOR.STRAIGHT, E(x1), E(y1), E(x2), E(y2))
                 c.line.color.rgb = _rgb({"hex": ln["color"]})
                 c.line.width = E(ln["w"])
+                if ln.get("dash"):                     # a dashed course stays dashed (it is how two curves are told apart)
+                    c.line.dash_style = MSO_LINE_DASH_STYLE.DASH
                 if ln["arrow"] and i == len(pts) - 2:
                     lnx = c.line._get_or_add_ln()
                     lnx.append(lnx.makeelement(qn("a:tailEnd"), {"type": "triangle", "w": "med", "len": "med"}))
+        for rg in m.get("rings", []):           # free-page rings: a track, then the pale and the solid arc, all native
+            side = min(rg["w"], rg["h"])
+            x0, y0 = rg["x"] + (rg["w"] - side) / 2, rg["y"] + (rg["h"] - side) / 2
+            thick = int(max(1000, min(50000, rg["thick"] * 100000)))
+            layers = [(MSO_SHAPE.DONUT, None, rg["track"], 1)]
+            for frac, alpha in ((rg["pale"], rg.get("paleOpacity", 1)), (rg["solid"], 1)):
+                if frac > 0 and (frac != rg["solid"] or alpha == 1):
+                    layers.append((MSO_SHAPE.DONUT if frac >= 99.99 else MSO_SHAPE.BLOCK_ARC, frac, rg["tone"], alpha))
+            for kind, frac, col, alpha in layers:
+                if not col:
+                    continue
+                shp = s.shapes.add_shape(kind, E(x0), E(y0), E(side), E(side))
+                av = shp._element.spPr.find(qn("a:prstGeom")).get_or_add_avLst()
+                for gd in list(av):
+                    av.remove(gd)
+                if kind == MSO_SHAPE.DONUT:
+                    av.append(av.makeelement(qn("a:gd"), {"name": "adj", "fmla": f"val {thick}"}))
+                else:                                # PowerPoint angles: 0 = 3 o'clock, clockwise, 60000ths of a degree
+                    start, end = 270 * 60000, int((270 + frac * 3.6) % 360 * 60000)
+                    for nm, v in (("adj1", start), ("adj2", end), ("adj3", thick)):
+                        av.append(av.makeelement(qn("a:gd"), {"name": nm, "fmla": f"val {v}"}))
+                shp.fill.solid()
+                shp.fill.fore_color.rgb = _rgb(col)
+                if alpha < 1:
+                    clr = shp.fill._xPr.find(qn("a:solidFill"))[0]
+                    clr.append(clr.makeelement(qn("a:alpha"), {"val": str(int(alpha * 100000))}))
+                shp.line.fill.background()
+                shp.shadow.inherit = False
+        for g in m.get("icons", []):           # composed-page icons: above the surfaces they sit on (SVG: native, below)
+            if str(icon_png[g["id"]]).lower().endswith(".svg"):
+                continue
+            s.shapes.add_picture(str(icon_png[g["id"]]), E(g["x"]), E(g["y"]), E(g["w"]), E(g["h"]))
         for g in m.get("figures", []):         # the archived original, not a screenshot
             s.shapes.add_picture(str(figure_png[g["id"]]), E(g["x"]), E(g["y"]), E(g["w"]), E(g["h"]))
         for t in m["tables"]:
@@ -767,10 +835,13 @@ def resolve_theme(theme) -> tuple[dict, str | None, str | None, str]:
 # ---------------------------------------------------------------- main
 def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Path,
            theme: str = "navy-teal", terms: list[str] | tuple[str, ...] = (), pages_only: list[str] | None = None,
-           figures: dict[str, dict] | None = None, teaching_notes: dict[str, str] | None = None) -> dict:
+           figures: dict[str, dict] | None = None, teaching_notes: dict[str, str] | None = None,
+           generated_illustrations: dict[str, list[dict] | dict] | None = None,
+           icons: dict[str, str | Path] | None = None) -> dict:
     """Render `deck` into `out`. `facts` are verified facts by id; `sources` by id ({title|filename});
     `figures` by figure id ({path, sha256, width, height}) for every figure fact on a page;
-    `teaching_notes` by page id: the summary text the presenter speaks to, placed before the provenance list."""
+    `teaching_notes` by page id: the summary text the presenter speaks to, placed before the provenance list;
+    `icons` by icon id: the PNG files that composed pages' icon blocks name."""
     import hashlib
     from playwright.sync_api import sync_playwright
 
@@ -786,9 +857,48 @@ def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Pa
         name = f"figure_{g['sha256'][:24]}.png"
         (out / name).write_bytes(data)
         figview[fid] = {**g, "file": name, "path": out / name}
+    # Generated, text-free explanatory diagrams are optional supporting art. Their labels
+    # remain native locked facts; the image itself never supplies page wording or data.
+    illustration_view = {}
+    for page_id, raw_layers in (generated_illustrations or {}).items():
+        layers = raw_layers if isinstance(raw_layers, list) else [raw_layers]
+        for index, layer in enumerate(layers):
+            path = Path(layer["path"])
+            if not path.is_file():
+                raise ValueError(f"找不到生成插图：{path}")
+            data = path.read_bytes()
+            digest = hashlib.sha256(data).hexdigest()
+            name = f"illustration_{digest[:24]}.png"
+            (out / name).write_bytes(data)
+            illustration_view.setdefault(page_id, []).append({"id": f"{page_id}-{index}", "file": name,
+                "x": float(layer["x"]), "y": float(layer["y"]), "w": float(layer["w"]), "h": float(layer["h"])})
+
+    iconview = {}
+    for icon_id, path in (icons or {}).items():
+        data = Path(path).read_bytes()
+        name = f"icon_{hashlib.sha256(data).hexdigest()[:24]}{Path(path).suffix.lower()}"
+        (out / name).write_bytes(data)
+        iconview[icon_id] = {"file": name, "path": out / name}
+
+    def add_illustrations(models):
+        for model in models:
+            model["generated_illustrations"] = illustration_view.get(model["id"], [])
+            if model["layout"] == "free":
+                missing = sorted(i for i in free.icon_ids(model["html"]) if i not in iconview)
+                if missing:
+                    raise ValueError(f"找不到图标文件：{'、'.join(map(str, missing))}（页面 {model['id']}）")
+                model["free_html"], model["free_css"] = free.render(model, fview, {k: v["file"] for k, v in iconview.items()}, emph_spans)
+            for b in model.get("blocks") or []:
+                if b.get("kind") == "icon":
+                    if b["icon"] not in iconview:
+                        raise ValueError(f"找不到图标文件：{b['icon']}（页面 {model['id']}）")
+                    b["file"] = iconview[b["icon"]]["file"]
+        return models
+
     source_deck = deck
     deck, _ = recipes.expand_deck(deck, facts)                  # recipe pages placed as the check saw them (estimates)
     pages, fview = build_models(deck, facts, sources, chk, figview)
+    add_illustrations(pages)
     env = Environment(loader=FileSystemLoader(HERE / "templates"), autoescape=True)
     env.globals["emph_spans"] = emph_spans
     env.filters["oneline"] = oneline
@@ -825,11 +935,13 @@ def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Pa
             measured = {pid: page.evaluate(MEASURE_JS, pid) for pid in recipe_ids}
             deck, _ = recipes.expand_deck(source_deck, facts, measured)
             pages, fview = build_models(deck, facts, sources, chk, figview)
+            add_illustrations(pages)
             write(font)
             page.goto(html_path.resolve().as_uri())
             page.evaluate("document.fonts.ready")
         for i, p in enumerate(pages, 1):
-            for k in DENSITY:                          # largest body size at which nothing overflows
+            for k in (DENSITY if p["layout"] != "free" else DENSITY[:1]):   # largest body size at which nothing overflows
+                # (a free page's HTML sets its own sizes: an overflow there is the designer's to fix, not shrunk away)
                 page.evaluate(SET_K_JS, [p["id"], k])
                 if page.evaluate(FIT_JS, p["id"]) == 0:
                     break
@@ -874,7 +986,22 @@ def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Pa
         notes.append("\n\n".join(x for x in ("【讲稿】\n" + script if script else "", trace) if x))
     pptx_path = out / "deck.pptx"
     figure_png = {fid: figview[f["figure"]]["path"] for fid, f in facts.items() if f.get("figure") in figview}
-    build_pptx(models, raster_png, notes, pptx_path, deck.get("title", ""), figure_png, font or PPT_FONT, tokens)
+    build_pptx(models, raster_png, notes, pptx_path, deck.get("title", ""), figure_png, font or PPT_FONT, tokens,
+               icon_png={k: v["path"] for k, v in iconview.items()})
+    svg_icons = [[g for g in m.get("icons", []) if iconview[g["id"]]["file"].endswith(".svg")] for m in models]
+    if any(svg_icons):                         # code-drawn icons become editable PowerPoint shapes, not pictures
+        from .native_vectors import add_native_vectors, trace_svg
+        per_slide = []
+        for icons_here in svg_icons:
+            vectors = []
+            for g in icons_here:
+                traced, _ = trace_svg(iconview[g["id"]]["path"].read_bytes(), preserve_order=True, target_size=(g["w"], g["h"]))
+                for v in traced:
+                    v["group"] = v["name"] = f"图标 {g['id']}"
+                    v["commands"] = [[c[0], *[n + (g["x"] if k % 2 == 0 else g["y"]) for k, n in enumerate(c[1:])]] for c in v["commands"]]
+                vectors += traced
+            per_slide.append(vectors)
+        add_native_vectors(pptx_path, per_slide, on_top=True)
     # Immutable preparation input for the image → native-vector route. Content,
     # tables and supported connectors are locked before a visual worker sees them.
     (out / "native_model.json").write_text(json.dumps({"models": models, "notes": notes, "font": font or PPT_FONT}, ensure_ascii=False), encoding="utf-8")
@@ -893,6 +1020,7 @@ def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Pa
         "out_of_bounds": sum(len(s["bounds"]) for s in report["slides"]),
         "overlap": sum(len(s["overlap"]) for s in report["slides"]),
         "hierarchy": sum(len(s.get("hierarchy", [])) for s in report["slides"]),
+        "unsupported": sum(len(s.get("unsupported", [])) for s in report["slides"]),
         "authored_lint": sum(len(s["authored_lint"]) for s in report["slides"]),
         "pptx_missing_facts": sum(len(r["missing"]) for r in rb),
         "chart_geometry": sum(len(s["chart_geometry"]) for s in report["slides"]),
@@ -904,7 +1032,7 @@ def render(deck: dict, facts: dict[str, dict], sources: dict[str, dict], out: Pa
     }
     s = report["summary"]
     report["hard_errors"] = s["untracked_text"] + s["fact_text_mismatch"] + s["overflow"] + s["out_of_bounds"] + s["overlap"] + s["hierarchy"] + s["authored_lint"] + s["pptx_missing_facts"] \
-        + s["figure_distortion"] + s["pptx_missing_figures"] + s["chart_geometry"]
+        + s["figure_distortion"] + s["pptx_missing_figures"] + s["chart_geometry"] + s["unsupported"]
     report["theme"] = theme_name
     report["font"] = font or PPT_FONT
     # per page: the design note, the signals (fixed or justified by the page itself) and the semantic review list

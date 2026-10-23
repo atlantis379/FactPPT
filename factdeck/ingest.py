@@ -662,7 +662,8 @@ def crop_pdf_page(content: bytes, number: int, bbox: list[float], dpi: int = CRO
 def transcription_units(page: dict, cells: list[dict], reader: str, figure_ids=frozenset()) -> list[dict]:
     """Units for a reader's transcription of a picture/chart on `page`.
 
-    Each cell: {"id": "c1", "location": "图表 第2个柱 数值标签", "text": "...", "figure": optional figure id}.
+    Each cell: {"id": "c1", "location": "图表 第2个柱 数值标签", "text": "...", "figure": optional figure id,
+    "parent": optional id of an earlier cell on this page that this one sits under (a table sub-row, a subtype)}.
     They need confirmation until a second, independent read agrees.
     """
     out, seen = [], set()
@@ -677,8 +678,12 @@ def transcription_units(page: dict, cells: list[dict], reader: str, figure_ids=f
         fig = str(c.get("figure") or "")
         if fig and fig not in figure_ids:
             raise IngestError(f"转录单元 {cid} 指向的图不在本页：{fig}")
+        parent = str(c.get("parent") or "").strip()
+        if parent and (parent == cid or parent not in seen):
+            raise IngestError(f"转录单元 {cid} 的 parent 须是本页在它之前转录的另一格：{parent}")
         out.append(asdict(Unit(f"{page['id']}:x.{cid}", page["source_id"], page["id"], f"{page['location']} {loc}",
-                               text, "visual_transcription", needs_confirmation=True)) | {"reader": reader, "figure_id": fig})
+                               text, "visual_transcription", needs_confirmation=True)) | {"reader": reader, "figure_id": fig}
+                   | ({"parent": f"{page['id']}:x.{parent}"} if parent else {}))
     return out
 
 

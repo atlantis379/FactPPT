@@ -1,0 +1,24 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>全文总结盲测｜覆盖与事实核验</title><link rel="stylesheet" href="/web/vendor/tabler/tabler.min.css">
+<main class="container-xl py-4"><h1>全文总结盲测：主动检出遗漏</h1>
+<p>源文端先读原文、冻结清单；作答端只看问题与总结；冻结答案后评分，最后揭盲。使用Luna适配双向问答思想，非原版QuestEval软件复现。</p>
+<div class="alert alert-warning">程序性盲法，不是文件权限隔离。实验不修改原项目、不记录人工确认、不生成PPT。检查结果不构成绝对完整性保证。</div>
+<section class="card mb-3"><div class="card-body"><h2>实测结论与边界</h2><pre id="report" style="white-space:pre-wrap;font-family:inherit"></pre></div></section>
+<section class="card mb-3"><div class="card-body"><h2>封存案例揭盲</h2><div id="cases"></div><details><summary>查看完整匹配记录</summary><pre id="reveal" style="white-space:pre-wrap;font-family:inherit"></pre></details></div></section>
+<h2>源文 → 总结：逐项覆盖</h2><p id="counts"></p>
+<label>筛选 <select id="filter" class="form-select mb-3"><option value="all">全部条目</option><option value="gap">未完整覆盖</option><option value="required">必保且未完整覆盖</option></select></label><div id="questions"></div>
+<h2 class="mt-4">总结 → 源文：原子事实核验</h2><div id="facts"></div></main>
+<script>
+const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+fetch('payload.json',{cache:'no-store'}).then(r=>r.json()).then(d=>{
+document.querySelector('#report').textContent=d.report;
+document.querySelector('#reveal').textContent=JSON.stringify(d.reveal,null,2);
+document.querySelector('#cases').innerHTML='<div class="table-responsive"><table class="table"><thead><tr><th>案例</th><th>清单是否提出</th><th>检测是否指出</th><th>依据与限制</th></tr></thead><tbody>'+d.reveal.cases.map(c=>`<tr><td>${esc(c.id)} · ${esc(c.registered_group==='known_missing'?'封存遗漏':'已表达对照')}</td><td>${c.inventoried?'是':'未完整提出'}</td><td>${c.flagged===null?'未测试':c.flagged?'指出缺失':'未报缺失'}</td><td>${esc(c.evidence)}</td></tr>`).join('')+'</tbody></table></div>';
+const answers=new Map(d.answers.answers.map(x=>[x.id,x])), grades=new Map(d.coverage.answers.map(x=>[x.id,x]));
+const names={COVERED:'已覆盖',PARTIAL:'部分覆盖',MISSING:'未覆盖',CONTRADICTED:'矛盾',UNCERTAIN:'待判断'};
+document.querySelector('#counts').textContent=`独立语义清单 ${d.inventory.items.length}项；原子事实 ${d.facts.facts.length}项。数量不等于正确率。`;
+const render=()=>{let mode=document.querySelector('#filter').value;document.querySelector('#questions').innerHTML=d.inventory.items.filter(i=>mode==='all'||(grades.get(i.id)?.coverage!=='COVERED'&&(mode!=='required'||i.importance==='REQUIRED'))).map(i=>{const a=answers.get(i.id),g=grades.get(i.id);return `<article class="card mb-2"><div class="card-body"><b>${esc(i.id)} · ${esc(i.importance)} · ${esc(names[g?.coverage]||g?.coverage)}</b><h3>${esc(i.question)}</h3><p><b>来源答案：</b>${esc(i.source_answer)}</p><p><b>仅凭总结的作答：</b>${esc(a?.answer||a?.summary_answer)}</p><p><b>缺失内容：</b>${esc(Array.isArray(g?.missing_components)?g.missing_components.join('；'):g?.missing_components||g?.reason)}</p><details><summary>逐字依据与判断说明</summary><p>${esc(g?.reason)}</p>${i.evidence.map(e=>`<p>${esc(e.unit_id)}：${esc(e.quote)}</p>`).join('')}${(a?.summary_evidence||[]).map(e=>`<p>总结 ${esc(e.segment_id)}：${esc(e.quote)}</p>`).join('')}</details></div></article>`}).join('')};
+document.querySelector('#filter').onchange=render;render();
+const judged=new Map(d.adjudication.adjudications.map(a=>[a.fact_id,a]));
+document.querySelector('#facts').innerHTML=d.facts.facts.map(f=>{const a=judged.get(f.id);return `<details class="card mb-2 p-3"><summary>${esc(f.id)} · 初核${esc(f.verdict)}${a?' · 复裁'+esc(a.finding):''} · ${esc(f.proposition)}</summary>${a?`<p><b>告警复裁：</b>${esc(a.reason)}</p>`:''}<p>${esc(f.reason)}</p><p>原文回答：${esc(f.source_answer)}</p>${(f.evidence||[]).map(e=>`<p>${esc(e.unit_id)}：${esc(e.quote)}</p>`).join('')}</details>`}).join('');
+});</script></html>

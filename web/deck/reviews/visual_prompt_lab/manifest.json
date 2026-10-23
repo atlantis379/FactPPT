@@ -1,0 +1,1339 @@
+{
+  "source_sha256": "30d97fe3d548680fd70521fe7b6aff65e6b420464badd05f5b1b5de5f551a341",
+  "phase": "extension",
+  "trials": [
+    {
+      "id": "extension_editorial_01_r1",
+      "phase": "extension",
+      "page": 1,
+      "strategy": "editorial",
+      "repeat": 1,
+      "status": "GENERATED_INSPECTED",
+      "name": "期刊式信息图",
+      "preview": "assets/extension01_20261012_call01.png",
+      "calls": 1,
+      "asset_sha256": "3b8024522baad5a8df47870a6813a629959ea34ac63bd7de597640f9a2323c15",
+      "inspection": "Viewed the actual 1672×941 PNG at original size. The cover kicker, full course title, metadata and template palette are legible. The full title is the dominant read. The image uses a book, campus silhouette, path, and foliage as generic academic decoration; it adds no clinical illustration or data. Inspection records visible design only and is not content, medical, or style approval.",
+      "issues": [
+        "The generated cover includes a campus building, winding path, book, and foliage not specified in the page source. These are generic academic decoration and do not add medical content.",
+        "The generated PNG is 1672×941 rather than exactly 1280×720, though its aspect ratio is 16:9."
+      ],
+      "outer_wait_seconds": 43.3,
+      "provider_elapsed_seconds": null,
+      "prompt_url": "extension_editorial_01_r1.prompt.txt"
+    },
+    {
+      "id": "extension_editorial_20_r1",
+      "phase": "extension",
+      "page": 20,
+      "strategy": "editorial",
+      "repeat": 1,
+      "status": "GENERATED_INSPECTED",
+      "name": "期刊式信息图",
+      "preview": "assets/extension20_20261012_call01.png",
+      "calls": 1,
+      "asset_sha256": "ff299491df3ef92ce18ef7ab4ce3723e023173d5e2c9fa8292e331500081f90f",
+      "inspection": "Viewed the actual generated PNG at original size. The exact title and applicability sentence are visible above a complete 2-row by 2-column table with all four cells. The history condition and E remain aligned in the same second row. The English criterion and ≥ 1 threshold appear intact; there is no chart, bar, arrow, causal mark, or added data. The source footer and page 20 marker are present. This is visual inspection only, not medical or style approval.",
+      "issues": [
+        "A small generic campus, landscape, and foliage illustration appears in the footer although no art was requested; it is secondary and does not cover or compete with the table.",
+        "The generated PNG is 1672×941 rather than exactly 1280×720, though its aspect ratio is 16:9."
+      ],
+      "outer_wait_seconds": 42.3,
+      "provider_elapsed_seconds": null,
+      "prompt_url": "extension_editorial_20_r1.prompt.txt"
+    },
+    {
+      "id": "extension_editorial_21_r1",
+      "phase": "extension",
+      "page": 21,
+      "strategy": "editorial",
+      "repeat": 1,
+      "status": "GENERATED_INSPECTED",
+      "name": "期刊式信息图",
+      "preview": "assets/extension21_20261012_call01.png",
+      "calls": 1,
+      "asset_sha256": "fe8362b0607aa9fb5d968b5532e4a4c69141a3197bb71768adf93711a10e6ddf",
+      "inspection": "Viewed the actual generated PNG at original size. Page title, condition, assessment introduction, all three exact source categories, 和/或, source footer and page number are present and visually legible. One downward connector joins the condition to the assessment; the 和/或 operator appears only between lung structure and comorbidities. No other connector is visible. The image adds lung, heart and CT pictograms, plus a document and search icon; these added medical illustrations are not source evidence and are a significant visual defect. A comma in the exact assessment introduction appears just after the search icon. This inspection is not medical or style approval.",
+      "issues": [
+        "Added lung, heart, and CT pictograms that are ungrounded anatomical or clinical illustrations; they introduce visual medical detail beyond the source text.",
+        "The document and search icons are unrequested decorations; the search icon sits immediately before the leading comma in the assessment text, leaving awkward punctuation.",
+        "The 1672×941 output is not exactly 1280×720, though its aspect ratio is 16:9."
+      ],
+      "outer_wait_seconds": 54.4,
+      "provider_elapsed_seconds": null,
+      "prompt_url": "extension_editorial_21_r1.prompt.txt"
+    },
+    {
+      "id": "extension_textbook_01_r1",
+      "phase": "extension",
+      "page": 1,
+      "strategy": "textbook",
+      "repeat": 1,
+      "status": "GENERATED_INSPECTED",
+      "name": "教材式结构图",
+      "preview": "assets/textbook_extension01_20261012_call01.png",
+      "calls": 1,
+      "asset_sha256": "189db1d63102a07203fcc74c608d2fac1d879d13c4de70c4ac17dc588a516571",
+      "inspection": "Viewed the actual generated PNG at original size. The exact course title, kicker, and metadata are visible. The image also adds multiple unbound headings, statements, diagnostic steps, treatment and prevention advice, lists, and arrows about COPD that are absent from the locked cover. It further adds lung, shield, clipboard, medication, syringe, and person pictograms. This is a severe source-only content violation and a hard failure for the candidate; inspection is not medical or style approval.",
+      "issues": [
+        "HARD ERROR: Added numerous non-source medical statements and recommendations (including diagnostic, management, and prevention content) and relations not present in the cover lock. The cover has only three locked text regions; the extra content cannot be accepted.",
+        "Added multiple clinical pictograms and a lung illustration not authorized by the source-locked cover design.",
+        "The output is 1672×941 rather than exactly 1280×720, though its aspect ratio is 16:9."
+      ],
+      "outer_wait_seconds": 62.3,
+      "provider_elapsed_seconds": null,
+      "prompt_url": "extension_textbook_01_r1.prompt.txt"
+    },
+    {
+      "id": "extension_textbook_20_r1",
+      "phase": "extension",
+      "page": 20,
+      "strategy": "textbook",
+      "repeat": 1,
+      "status": "GENERATED_INSPECTED",
+      "name": "教材式结构图",
+      "preview": "assets/textbook_extension20_20261013_call01.png",
+      "calls": 1,
+      "asset_sha256": "e3cd84a1a2b8364e3ef9320aa3619003140629ab80906703bd226c9e323e2cc4",
+      "inspection": "Viewed the actual generated PNG at original size. The exact title and applicability sentence are present; all four cells of the 2-row by 2-column table are visible. The English condition retains ≥ 1 and “in the previous year”; E remains in the same second row. There is no chart, bar, arrow, causal mark, or additional medical statement. Source footer and page 20 marker are visible. This records visual inspection only, not approval.",
+      "issues": [
+        "The image includes leaf and hill footer decoration beyond the locked content, carried by the reference style; it stays secondary to the table.",
+        "The output is 1672×941 rather than exactly 1280×720, though its aspect ratio is 16:9."
+      ],
+      "outer_wait_seconds": 43.3,
+      "provider_elapsed_seconds": null,
+      "prompt_url": "extension_textbook_20_r1.prompt.txt"
+    },
+    {
+      "id": "extension_textbook_21_r1",
+      "phase": "extension",
+      "page": 21,
+      "strategy": "textbook",
+      "repeat": 1,
+      "status": "GENERATED_INSPECTED",
+      "name": "教材式结构图",
+      "preview": "assets/textbook_extension21_20261013_call01.png",
+      "calls": 1,
+      "asset_sha256": "98fb6ed0fe57f66482bf63239d4fadce407b744dd2b1ced1208773f9aaa6e8f1",
+      "inspection": "Viewed the actual generated PNG displayed by ImageGen at full resolution (1672×941). The exact title, condition sentence, assessment continuation, two source category phrases, 和/或 operator, example qualifier, footer, and page number are present and legible. The condition-to-assessment arrow is present. The和/或 appears between lung structure and comorbidities. No added captions, recommendations, lists, or medical pictograms are visible. However, the classification bracket spans all three lower panels, which can make comorbidities read as an independent third category rather than a pair scoped to lung structure. Leaf and hill decorations remain prominent in the condition and footer areas. This records inspection only, not approval.",
+      "issues": [
+        "The classification bracket visually spans lung mechanics, lung structure, and comorbidities, which risks presenting the last two as an independent third peer category instead of preserving the 和/或 scope.",
+        "Leaf and hill ornaments are more prominent than intended, despite the clean text-free style reference.",
+        "Output is 1672×941 rather than exactly 1280×720, though the aspect ratio is 16:9."
+      ],
+      "outer_wait_seconds": 43.4,
+      "provider_elapsed_seconds": null,
+      "prompt_url": "extension_textbook_21_r1.prompt.txt"
+    },
+    {
+      "id": "quality_editorial_05_r2",
+      "phase": "quality",
+      "page": 5,
+      "strategy": "editorial",
+      "repeat": 2,
+      "status": "GENERATED_INSPECTED",
+      "name": "期刊式信息图",
+      "preview": "assets/editorial05_r2_call01.png",
+      "calls": 1,
+      "asset_sha256": "11d65ec27e8ba8531b51aec3e4f216259f06eac9183c9baaf12929c9165d203e",
+      "inspection": "Viewed the actual PNG at full size. The substantive content title is now dominant and the section navigation is small. The shared lead, both full condition statements, both question statements, source marker, and folio are visible and legible. The two columns are equal; the left uses aligned congruent puzzle contours to indicate consistency, while the right uses vertically offset contours to indicate mismatch. The source text and relationships remain self-contained, without new study counts, estimates, intervals, statistical marks, or causal claims. Remaining visual issue: auxiliary document/person/search pictograms and landscape decoration remain despite the structural puzzle diagrams carrying the explanation. This is an inspected experiment draft, not medical approval.",
+      "issues": [
+        "Auxiliary pictograms and landscape decoration remain and compete with the otherwise explanatory paired contour diagrams."
+      ],
+      "outer_wait_seconds": 56.9,
+      "provider_elapsed_seconds": null,
+      "prompt_url": "quality_editorial_05_r2.prompt.txt",
+      "independent_hard_errors": []
+    },
+    {
+      "id": "quality_editorial_09_r2",
+      "phase": "quality",
+      "page": 9,
+      "strategy": "editorial",
+      "repeat": 2,
+      "status": "GENERATED_INSPECTED",
+      "name": "期刊式信息图",
+      "preview": "assets/quality09_r2_call01.png",
+      "calls": 1,
+      "asset_sha256": "92e3c3f9f5b818689e7676d3b7de43e8fdffe6edb6ade98c52d4f99768793ea3",
+      "inspection": "Viewed the actual PNG full size. The title, all left and right source text blocks, the source logical operator, both thresholds, source line and folio are visible. The two scope frames are separate and equal in prominence. The right-side test, threshold and result connectors remain inside the right scope. No cross-scope connector, curve or axis is visible. The image adds a lung pictogram, clipboard/stethoscope/chart pictograms and landscape/leaf decoration; these ancillary visuals conflict with the requested text-led editorial treatment. This records visual inspection only, not medical or style approval.",
+      "issues": [
+        "Added lung, clipboard, chart and stethoscope pictograms, so the design relies on ancillary icons and introduces a lung illustration beyond the requested text-led treatment.",
+        "Added landscape and leaf decorations that compete with the two equal-weight editorial regions.",
+        "The target output is a rendered PNG and its composition may not match the requested 16:9 dimensions exactly."
+      ],
+      "outer_wait_seconds": 37.6,
+      "provider_elapsed_seconds": null,
+      "prompt_url": "quality_editorial_09_r2.prompt.txt"
+    },
+    {
+      "id": "quality_textbook_05_r2",
+      "phase": "quality",
+      "page": 5,
+      "strategy": "textbook",
+      "repeat": 2,
+      "status": "GENERATED_INSPECTED",
+      "name": "教材式结构图",
+      "preview": "assets/local_quality_textbook_05_20261012_r2.png",
+      "calls": 1,
+      "asset_sha256": "37c477e32d1187749ce2cd70c0f4c7866cbe9a2e23d88fca52110d6483b0367d",
+      "inspection": {
+        "text_occurrences": "All nine locked regions appear once: chapter navigation, main title, method context, two case conditions, two associated questions, source citation and page number.",
+        "geometry": "The two panels receive equal space. The first depicts two matching forms fitting together; the second depicts different forms separated by a visible gap.",
+        "repair": "The prior draft’s invented study labels and point-and-interval marks are absent. No study counts, repeated samples, statistical plots, axes, curves, data bars, estimates or error intervals appear.",
+        "readability": "All Chinese text is legible at full size; condition and question text sit in clearly separated bands.",
+        "source_relations": "Case i is associated with determining a common effect; case ii with finding the cause of variation. No causal or sequential relation is implied between the peer cases.",
+        "medical_approval": false
+      },
+      "issues": [],
+      "outer_wait_seconds": 49.2,
+      "provider_elapsed_seconds": null,
+      "prompt_url": "quality_textbook_05_r2.prompt.txt",
+      "independent_hard_errors": []
+    },
+    {
+      "id": "screen_editorial_02_r1",
+      "phase": "screen",
+      "page": 2,
+      "strategy": "editorial",
+      "repeat": 1,
+      "status": "GENERATED_INSPECTED",
+      "name": "期刊式信息图",
+      "preview": "assets/editorial02_r1_call01.png",
+      "calls": 1,
+      "asset_sha256": "cc8866489f0813ac669c6878bf13bb085044ae4a5c17e995bdb2941c21e3cefd",
+      "inspection": "Viewed the actual PNG at full size. The complete locked title, category heading, both target statements, management context, source marker, and folio are visible and legible. The two classification targets are grouped as peers under a brace, and the context sentence occupies a separate shared field. The page reads as a complete teaching slide. No extra numerical data, medical entity, mechanism, causal progression, or relationship was apparent. Visual issues: auxiliary document/person-shield icons and a campus landscape add decorative meaning that is not needed to explain the source; the right-side context is presented in a large text container; the shared-context relationship is conveyed mainly by adjacency rather than an explicit bracket or connector. This is an inspected experiment draft, not medical approval.",
+      "issues": [
+        "Auxiliary icons and campus landscape are decorative and compete with the source-bound classification diagram.",
+        "The management context is placed in a large text container, reducing the diagram-to-text balance.",
+        "The shared-context relation relies on adjacency and could be made more explicit with a restrained bracket."
+      ],
+      "outer_wait_seconds": 55.1,
+      "provider_elapsed_seconds": null,
+      "prompt_url": "screen_editorial_02_r1.prompt.txt",
+      "independent_hard_errors": []
+    },
+    {
+      "id": "screen_editorial_05_r1",
+      "phase": "screen",
+      "page": 5,
+      "strategy": "editorial",
+      "repeat": 1,
+      "status": "GENERATED_INSPECTED",
+      "name": "期刊式信息图",
+      "preview": "assets/editorial05_r1_call01.png",
+      "calls": 1,
+      "asset_sha256": "7477a351bf8af770bb1902e050058fa89718c46d1e6df6584fe1067196b23efa",
+      "inspection": "Viewed the actual PNG at full size. All four locked text regions, both case-condition/question pairings, source metadata, and folio are visible and legible. Equal columns and the shared parent frame make the two methodological cases easy to compare; short vertical connectors bind each question to its condition. The page is self-contained. No extra data or medical relationship is apparent. Quality issues: the source navigation region (page_title) is rendered as the dominant headline while the substantive content_title is small, reversing the required hierarchy; paired document and people/search icons plus the landscape strip add decorative detail; the shared lead sits in a broad text container. This is an inspected experiment draft, not medical approval.",
+      "issues": [
+        "Main title hierarchy is reversed: the section navigation is dominant and the substantive content heading is small.",
+        "Paired auxiliary icons and landscape decoration compete with the case comparison.",
+        "The shared lead uses a broad text container above the diagram."
+      ],
+      "outer_wait_seconds": 43.0,
+      "provider_elapsed_seconds": null,
+      "prompt_url": "screen_editorial_05_r1.prompt.txt",
+      "independent_hard_errors": []
+    },
+    {
+      "id": "screen_editorial_09_r1",
+      "phase": "screen",
+      "page": 9,
+      "strategy": "editorial",
+      "repeat": 1,
+      "status": "GENERATED_INSPECTED",
+      "name": "期刊式信息图",
+      "preview": "assets/editorial09_r1_call01.png",
+      "calls": 1,
+      "asset_sha256": "3d3991e7d1b16a53f30530b8818de7bb08f89db8b560cafc796a2c55138a25f6",
+      "inspection": "Viewed the actual PNG at full size. All three scope/context statements, the source logical operator, the FEV1/FVC thresholds and qualifiers, diagnosis text, source marker, and folio are visible and legible. The left parent field contains the classification and no-airflow-obstruction statement; the right field gives the clinical context and source-supported test-to-threshold-to-result sequence. The page is self-contained. The >=0.7 and <0.7 values remain visible in their own text and no data axis is invented. Quality issues: generated lung/person/clipboard pictograms and stylized lung anatomy add unsupported visual detail and compete with the exact text; the contrast between the two obstruction statements is represented only by side-by-side parent fields; several large cards and headings make the page container-heavy. No new numeric data or causal mechanism was apparent. This is an inspected experiment draft, not medical approval.",
+      "issues": [
+        "Lung/person/clipboard pictograms introduce visual detail beyond the source text and compete with the classification.",
+        "The contrast relation is implied by the two-column layout rather than labeled with a clear bracket or connector.",
+        "Large outlined cards and heading bands make the page container-heavy."
+      ],
+      "outer_wait_seconds": 44.8,
+      "provider_elapsed_seconds": null,
+      "prompt_url": "screen_editorial_09_r1.prompt.txt",
+      "independent_hard_errors": []
+    },
+    {
+      "id": "screen_scenario_02_r1",
+      "phase": "screen",
+      "page": 2,
+      "strategy": "scenario",
+      "repeat": 1,
+      "status": "GENERATED_INSPECTED",
+      "name": "场景式教学插画",
+      "preview": "assets/scenario_p02_r1_20261012_a.png",
+      "calls": 1,
+      "asset_sha256": "5d86c507e61c7c43e199b30e08bb5edd1913c9baf8389b1ff21aa9682ceed616",
+      "inspection": "Viewed the generated PNG. Both target scenes have equal scale; the management context spans underneath them; the title and all locked Chinese text appear legible and match the locked wording on visual review. The generated image also adds decorative plants, an unrequested calendar grid with a marked cell, and extra board text “个体化治疗计划” with checkmarks, despite the prompt asking for no botanical filler and locked text only. No apparent causal arrow or inevitable progression. These are design/content-fidelity issues; this is not medical approval.",
+      "issues": [
+        "Decorative plants appear despite botanical-filler restriction.",
+        "Extra generated board text “个体化治疗计划” and checkmarks are outside the locked text.",
+        "Calendar grid with a marked cell is unrequested and may look data-like."
+      ],
+      "outer_wait_seconds": 55.3,
+      "provider_elapsed_seconds": null,
+      "prompt_url": "screen_scenario_02_r1.prompt.txt",
+      "independent_hard_errors": []
+    },
+    {
+      "id": "screen_scenario_05_r1",
+      "phase": "screen",
+      "page": 5,
+      "strategy": "scenario",
+      "repeat": 1,
+      "status": "GENERATED_INSPECTED",
+      "name": "场景式教学插画",
+      "preview": "assets/scenario_p05_r1_20261012_b.png",
+      "calls": 1,
+      "asset_sha256": "dde810e380065798536ed0cb3039c4236542b284aef13a402ca141ea6d8b1c92",
+      "inspection": "Viewed the actual PNG. The two methodological cases are shown side by side with equal visual weight. The consistency case points to determining a common effect, and the variation case points to finding causes; locked text is readable and appears once. The image adds landscape-like scenery and books despite the avoid guidance, and uses circles, squares, and triangles on paper that could be mistaken for study data. No participant counts or quantitative axes appear. These are visual fidelity issues; this is not medical approval.",
+      "issues": [
+        "Landscape-like scenery and books appear despite avoid guidance.",
+        "Different geometric symbols on study sheets may be mistaken for actual study data."
+      ],
+      "outer_wait_seconds": 48.9,
+      "provider_elapsed_seconds": null,
+      "prompt_url": "screen_scenario_05_r1.prompt.txt",
+      "independent_hard_errors": []
+    },
+    {
+      "id": "screen_scenario_09_r1",
+      "phase": "screen",
+      "page": 9,
+      "strategy": "scenario",
+      "repeat": 1,
+      "status": "GENERATED_INSPECTED",
+      "name": "场景式教学插画",
+      "preview": "assets/scenario_p09_r1_20261012_c.png",
+      "calls": 1,
+      "asset_sha256": "bfbf68561d880ccfb79a529cacf17f81ce4508c202afc86b867dd1f5f1ad7b6e",
+      "inspection": "Viewed the actual PNG. The two outer condition scopes are distinct, the possible no-obstruction presentation is not drawn as a time stage, and the test-to-threshold-to-diagnosis sequence is explicit within the clinical-context panel. Locked text appears readable and in the intended regions. The image adds an x-ray-like lung illustration, which is invented anatomical imagery and conflicts with the prompt restriction; it also adds checklist and document icons. This is a material visual fidelity issue and is not medical approval.",
+      "issues": [
+        "An x-ray-like lung image adds invented anatomical imagery despite the restriction.",
+        "Checklist and document icons add visual content beyond the locked source material."
+      ],
+      "outer_wait_seconds": 60.8,
+      "provider_elapsed_seconds": null,
+      "prompt_url": "screen_scenario_09_r1.prompt.txt",
+      "independent_hard_errors": []
+    },
+    {
+      "id": "screen_textbook_02_r1",
+      "phase": "screen",
+      "page": 2,
+      "strategy": "textbook",
+      "repeat": 1,
+      "status": "GENERATED_INSPECTED",
+      "name": "教材式结构图",
+      "preview": "assets/local_textbook_02_20261012_a.png",
+      "calls": 1,
+      "asset_sha256": "0d9c7b0362767ef5a2f115a22bfbf414aa753d769c30754b32dc121d3cab3e6d",
+      "inspection": {
+        "text_occurrences": "All eight locked region strings appear once visually: navigation, title, opening, both peer targets, shared context, source and page marker.",
+        "geometry": "The two goal cards have equal visual weight and branch from the root; a shared bracket attaches the management band to both.",
+        "semantic_ambiguities": "The generated human, shield and gear icons are generic decoration and are not source-bound meanings. Landscape/book foliage is decorative. No extra clinical claim or numeric threshold appeared.",
+        "readability": "Chinese text is legible at full size; the context sentence and second target wrap cleanly.",
+        "source_relations": "Classification fork and shared management context are represented; no sequential or causal claim is apparent.",
+        "medical_approval": false
+      },
+      "issues": [
+        "Generic icons and landscape/book motifs are decorative and do not encode source claims."
+      ],
+      "outer_wait_seconds": 43.8,
+      "provider_elapsed_seconds": null,
+      "prompt_url": "screen_textbook_02_r1.prompt.txt",
+      "independent_hard_errors": []
+    },
+    {
+      "id": "screen_textbook_05_r1",
+      "phase": "screen",
+      "page": 5,
+      "strategy": "textbook",
+      "repeat": 1,
+      "status": "GENERATED_INSPECTED",
+      "name": "教材式结构图",
+      "preview": "assets/local_textbook_05_20261012_a.png",
+      "calls": 1,
+      "asset_sha256": "e6c71da8566c01084c0e51760c903a8baf077a01b04a76f764208c1b87080885",
+      "inspection": {
+        "text_occurrences": "All eight locked region strings are visible once: navigation, content title, outer method context, both condition statements, both question statements, source and page marker.",
+        "geometry": "Two peer case panels are nested in the shared method context and their respective question blocks are attached beneath each condition.",
+        "semantic_ambiguities": "The image invents Study A/B/C labels and forest-plot-like bars with central estimates and horizontal uncertainty intervals. These imply fabricated study data and uncertainty. This violates the explicit prohibition on error bars and fabricated studies.",
+        "readability": "Locked Chinese text appears legible and orderly at full size.",
+        "source_relations": "The two source cases and their associated questions are visually grouped; no progression arrow is used.",
+        "medical_approval": false
+      },
+      "issues": [
+        "Invented “研究A/B/C” study labels.",
+        "Synthetic forest plot marks and horizontal error bars imply unsupported data and statistical uncertainty."
+      ],
+      "outer_wait_seconds": 61.2,
+      "provider_elapsed_seconds": null,
+      "prompt_url": "screen_textbook_05_r1.prompt.txt",
+      "independent_hard_errors": []
+    },
+    {
+      "id": "screen_textbook_09_r1",
+      "phase": "screen",
+      "page": 9,
+      "strategy": "textbook",
+      "repeat": 1,
+      "status": "GENERATED_INSPECTED",
+      "name": "教材式结构图",
+      "preview": "assets/local_textbook_09_20261012_a.png",
+      "calls": 1,
+      "asset_sha256": "d34b15a6474596ea8779bd3783e5b6b9a54b274f7cb8df3398c74b8c0354d228",
+      "inspection": {
+        "text_occurrences": "All twelve locked region strings appear once visually: title, two scope headers, left structural change, literal AND/OR, full physiologic list, no-obstruction condition, right test, obstruction threshold, diagnosis result, source and page marker.",
+        "geometry": "Two outer scope frames are distinct and contain their corresponding child regions. The no-obstruction condition stays in the left frame; the clinical test, <0.7 condition and diagnosis stay together in the right clinical-context frame. The 0.7 comparison is not shown as a diagnostic step.",
+        "semantic_ambiguities": "Generic lung illustrations and a curved graph with axes are added. The curve/axes may imply quantitative physiology and violate the prompt rule against unsupported data axes; the lung drawings add unbound anatomical detail. A result check mark adds an approval-like visual cue.",
+        "readability": "All locked Chinese text is legible at full size; the physiologic list wraps across three lines.",
+        "source_relations": "AND/OR is explicit; the right-side sequence shows test, threshold and stated result within clinical context. Left and right are parallel frames, not a progression.",
+        "medical_approval": false
+      },
+      "issues": [
+        "Unsupported graph curve and axes in the obstruction panel.",
+        "Added lung anatomy illustrations not specified by the source.",
+        "Check mark can visually suggest validation beyond the text."
+      ],
+      "outer_wait_seconds": 50.0,
+      "provider_elapsed_seconds": null,
+      "prompt_url": "screen_textbook_09_r1.prompt.txt",
+      "independent_hard_errors": []
+    },
+    {
+      "id": "stability_editorial_02_r2",
+      "phase": "stability",
+      "page": 2,
+      "strategy": "editorial",
+      "repeat": 2,
+      "status": "GENERATED_INSPECTED",
+      "name": "期刊式信息图",
+      "preview": "assets/stability_editorial02_r2_call01.png",
+      "calls": 1,
+      "asset_sha256": "39e384faa9d9e465df9ca3ea343e85e23ed0c7cddf5fca9186bf84179f4d297c",
+      "inspection": "Viewed the actual PNG at full size. The full title, section navigation, shared lead, both target statements (including the leading comma attached to the second clause), the complete management context, source line and page folio are visible and legible. The two targets remain grouped as a classification pair and the context occupies a shared neighboring field. No extra numbers, measured marks, or new medical relationship were apparent. Compared with the first screen image, the composition and hierarchy are similar; the generated icons, side landscape, and exact icon designs vary, and the brace/spacing differ slightly. This is an inspected stability sample, not medical or style approval.",
+      "issues": [
+        "The shared-context relationship is still communicated mainly by adjacency.",
+        "Decorative people/document icons and landscape remain alongside the source-bound classification."
+      ],
+      "outer_wait_seconds": 53.8,
+      "provider_elapsed_seconds": null,
+      "prompt_url": "stability_editorial_02_r2.prompt.txt",
+      "independent_hard_errors": []
+    },
+    {
+      "id": "stability_editorial_09_r2",
+      "phase": "stability",
+      "page": 9,
+      "strategy": "editorial",
+      "repeat": 2,
+      "status": "GENERATED_INSPECTED",
+      "name": "期刊式信息图",
+      "preview": "assets/stability_editorial09_r2_call01.png",
+      "calls": 1,
+      "asset_sha256": "4ea6aaa3ed31b13df190cc76707c13c711aa21e04c234088593387bd3d12f37e",
+      "inspection": "Viewed the actual PNG at full size. The title, left scope statement, structural and physiologic classification text, logical operator, no-airflow-obstruction statement, both FEV1/FVC thresholds (>=0.7 and <0.7), clinical context, spirometry text, diagnosis, source line and folio are visible and legible. Both parent regions are visually clear; the test-to-threshold-to-result sequence is explicit. The contrast between the two threshold statements remains visible through the two-column layout. Compared with the first screen image, the same two-region organization and reading order remain, with changes to line-art illustrations, card styling, and background landscape placement. No extra study values, axes or relationship labels were apparent. This is an inspected stability sample, not medical or style approval.",
+      "issues": [
+        "Generated lung/person/checklist illustrations and landscape decoration add visual detail beyond the text and may be mistaken for source illustration.",
+        "The contrast relationship is still conveyed mainly through separate side-by-side parent regions."
+      ],
+      "outer_wait_seconds": 55.4,
+      "provider_elapsed_seconds": null,
+      "prompt_url": "stability_editorial_09_r2.prompt.txt",
+      "independent_hard_errors": []
+    },
+    {
+      "id": "stability_textbook_02_r2",
+      "phase": "stability",
+      "page": 2,
+      "strategy": "textbook",
+      "repeat": 2,
+      "status": "GENERATED_INSPECTED",
+      "name": "教材式结构图",
+      "preview": "assets/local_stability_textbook_02_20261012_r2.png",
+      "calls": 1,
+      "asset_sha256": "2e5930963bc3bd875d38bb71c9b2f635f469532465016cabe36a2a687d1f0125",
+      "inspection": {
+        "locked_source_text": "The eight locked region strings each appear once, including both classification branches and shared management context.",
+        "classification": "A two-branch connector joins the root to two target panels; a shared lower band spans both.",
+        "scope": "Management context is visually placed below both branches as shared context.",
+        "comparison_symbols": "No numerical comparison sign is present in this slide.",
+        "new_text_or_relations": "The image adds six non-source explanatory bullet labels: “缓解症状表现”, “减轻症状对日常生活的影响”, “提高生活质量”, “降低不良健康事件的发生风险”, “包括但不限于急性加重等事件”, “维护长期健康状态”. It also uses new person, calendar, handshake and foliage illustrations. The bullets are unsourced additions and reorganize the target meaning.",
+        "difference_from_first": "Compared with first draft, this repeat keeps the same two-branch and shared-context structure but adds multiple extra text labels and stronger illustrations.",
+        "readability": "Main locked text and added labels are legible at full size.",
+        "medical_approval": false
+      },
+      "issues": [
+        "Six unbound explanatory bullet labels were added despite the exact-text-only prompt."
+      ],
+      "outer_wait_seconds": 49.5,
+      "provider_elapsed_seconds": null,
+      "prompt_url": "stability_textbook_02_r2.prompt.txt",
+      "independent_hard_errors": [
+        "UNSOURCED_MEDICAL_MEANING"
+      ]
+    },
+    {
+      "id": "stability_textbook_09_r2",
+      "phase": "stability",
+      "page": 9,
+      "strategy": "textbook",
+      "repeat": 2,
+      "status": "GENERATED_INSPECTED",
+      "name": "教材式结构图",
+      "preview": "assets/local_stability_textbook_09_20261012_r2.png",
+      "calls": 1,
+      "asset_sha256": "628feb297c7dc3c7e008b929136c8e2c1f633b3e747042ca270f53db96813e44",
+      "inspection": {
+        "locked_source_text": "All twelve locked region strings appear once: page title; left and right scope headers; structural change; literal “和/或”; full physiologic list; no-obstruction condition; test; obstruction threshold; diagnosis result; source and page marker.",
+        "classification_and_scope": "Left scope encloses structural and physiologic alternatives with no-obstruction condition. Right clinical-context scope contains test, <0.7 condition and diagnosis.",
+        "comparison_symbols": "Both thresholds are present in their correct source roles: ≥ 0.7 under “而无气流阻塞”, and < 0.7 under “不完全可逆气流受限”.",
+        "relations": "The central two-headed comparison mark expresses contrast between left and right scopes; downward arrows connect test, threshold and stated result inside the right frame. No new textual labels or causal/progression claims are visible.",
+        "differences_from_first": "Compared with first-round page 9, this repeat adds a dashed central divider and a two-headed comparison mark, colors the no-obstruction icon red, and changes some icon forms. The same unsupported curve/axes and lung illustrations remain.",
+        "readability": "Chinese text and comparison operators are legible at full size.",
+        "medical_approval": false
+      },
+      "issues": [
+        "An unsupported graph curve with axes remains in the obstruction condition panel despite the absence of source graph data.",
+        "Stylized lung illustrations add unbound anatomical detail."
+      ],
+      "outer_wait_seconds": 45.3,
+      "provider_elapsed_seconds": null,
+      "prompt_url": "stability_textbook_09_r2.prompt.txt",
+      "independent_hard_errors": [
+        "UNSOURCED_CURVE_AXES",
+        "UNSUPPORTED_CROSS_SCOPE_RELATION"
+      ]
+    }
+  ],
+  "review": {
+    "schema_version": "visual_prompt_lab.screen_review.v1",
+    "worker": "Codex-independent-screen-review",
+    "source_sha256": "30d97fe3d548680fd70521fe7b6aff65e6b420464badd05f5b1b5de5f551a341",
+    "graph_sha256_digest": "7be8bd1c6ab242b0fb070a9cd41310ae1ab78a1de7ac4c84b4a1d1fc6a460993",
+    "trial_source": "python tools/visual_prompt_lab.py status; each result_path PNG opened and inspected directly",
+    "trials": [
+      {
+        "id": "screen_editorial_02_r1",
+        "asset_sha256": "cc8866489f0813ac669c6878bf13bb085044ae4a5c17e995bdb2941c21e3cefd",
+        "viewed": true,
+        "hard_failures": []
+      },
+      {
+        "id": "screen_scenario_02_r1",
+        "asset_sha256": "5d86c507e61c7c43e199b30e08bb5edd1913c9baf8389b1ff21aa9682ceed616",
+        "viewed": true,
+        "hard_failures": []
+      },
+      {
+        "id": "screen_textbook_02_r1",
+        "asset_sha256": "0d9c7b0362767ef5a2f115a22bfbf414aa753d769c30754b32dc121d3cab3e6d",
+        "viewed": true,
+        "hard_failures": []
+      },
+      {
+        "id": "screen_editorial_05_r1",
+        "asset_sha256": "7477a351bf8af770bb1902e050058fa89718c46d1e6df6584fe1067196b23efa",
+        "viewed": true,
+        "hard_failures": [
+          {
+            "reason": "研究纸张上的点估计与水平区间线构成类似森林图的统计结果符号；来源只说效应一致/存在差异，没有给出估计值、置信区间或研究数量。",
+            "evidence": "两列下方插图区域：左列三张文献页的相同点线；右列三张文献页的圆点/方块/三角形与水平线。",
+            "fragment_ids": [
+              "p5_b2_f4",
+              "p5_b2_f6",
+              "p5_b2_f9"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "screen_scenario_05_r1",
+        "asset_sha256": "dde810e380065798536ed0cb3039c4236542b284aef13a402ca141ea6d8b1c92",
+        "viewed": true,
+        "hard_failures": [
+          {
+            "reason": "两组研究纸张上的横线、点位和不同形状标记暗示存在可比较的研究估计或不确定区间；没有坐标、数值来源或真实研究数。",
+            "evidence": "左半部三张纸上的一致点位；右半部三张纸上的圆形、方形、三角形不同点位及横线。",
+            "fragment_ids": [
+              "p5_b2_f4",
+              "p5_b2_f6",
+              "p5_b2_f9"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "screen_textbook_05_r1",
+        "asset_sha256": "e6c71da8566c01084c0e51760c903a8baf077a01b04a76f764208c1b87080885",
+        "viewed": true,
+        "hard_failures": [
+          {
+            "reason": "明确标出“研究A/B/C”，并绘制点估计及横向区间线，属于虚构研究标签和统计不确定性图示；来源未提供研究名称/数量、估计值或区间。",
+            "evidence": "两栏内各三张卡片，标签“研究A/B/C”；每张卡片中央的点和横向区间线。",
+            "fragment_ids": [
+              "p5_b2_f4",
+              "p5_b2_f6",
+              "p5_b2_f9"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "screen_editorial_09_r1",
+        "asset_sha256": "3d3991e7d1b16a53f30530b8818de7bb08f89db8b560cafc796a2c55138a25f6",
+        "viewed": true,
+        "hard_failures": []
+      },
+      {
+        "id": "screen_scenario_09_r1",
+        "asset_sha256": "bfbf68561d880ccfb79a529cacf17f81ce4508c202afc86b867dd1f5f1ad7b6e",
+        "viewed": true,
+        "hard_failures": []
+      },
+      {
+        "id": "screen_textbook_09_r1",
+        "asset_sha256": "d34b15a6474596ea8779bd3783e5b6b9a54b274f7cb8df3398c74b8c0354d228",
+        "viewed": true,
+        "hard_failures": []
+      }
+    ],
+    "explanation_defects": [
+      {
+        "trial_id": "screen_editorial_05_r1",
+        "defect": "研究纸张上的点估计与水平区间线构成类似森林图的统计结果符号；来源只说效应一致/存在差异，没有给出估计值、置信区间或研究数量。",
+        "location": "两列下方插图区域：左列三张文献页的相同点线；右列三张文献页的圆点/方块/三角形与水平线。",
+        "fragment_ids": [
+          "p5_b2_f4",
+          "p5_b2_f6",
+          "p5_b2_f9"
+        ]
+      },
+      {
+        "trial_id": "screen_scenario_05_r1",
+        "defect": "两组研究纸张上的横线、点位和不同形状标记暗示存在可比较的研究估计或不确定区间；没有坐标、数值来源或真实研究数。",
+        "location": "左半部三张纸上的一致点位；右半部三张纸上的圆形、方形、三角形不同点位及横线。",
+        "fragment_ids": [
+          "p5_b2_f4",
+          "p5_b2_f6",
+          "p5_b2_f9"
+        ]
+      },
+      {
+        "trial_id": "screen_textbook_05_r1",
+        "defect": "明确标出“研究A/B/C”，并绘制点估计及横向区间线，属于虚构研究标签和统计不确定性图示；来源未提供研究名称/数量、估计值或区间。",
+        "location": "两栏内各三张卡片，标签“研究A/B/C”；每张卡片中央的点和横向区间线。",
+        "fragment_ids": [
+          "p5_b2_f4",
+          "p5_b2_f6",
+          "p5_b2_f9"
+        ]
+      }
+    ],
+    "aesthetic_notes": {
+      "screen_editorial_02_r1": [
+        "两类目标分别放在左侧等权面板，括号和分栏易读；右侧独立呈现适用范围与个体化说明，关系清楚。",
+        "右侧风景与建筑属装饰，未观察到可辨读的新增医学文字或数据。"
+      ],
+      "screen_scenario_02_r1": [
+        "上方分类语句由括号引向两个等大咨询场景；下方单独呈现管理背景，阅读顺序明确。",
+        "患者、医生和治疗计划图标是个体化管理的通用场景化表达；勾选框没有标签或数值，未据此认定新增疗效事实。"
+      ],
+      "screen_textbook_02_r1": [
+        "根节点分成两个对称分支，再以底部说明承接管理背景；分类阅读顺序明确。",
+        "书本、人物和齿轮为装饰性泛化符号，未见明确新增医学标签。"
+      ],
+      "screen_editorial_05_r1": [
+        "左右条件及其对应方法学问题等权，父级范围句置顶，逻辑层级一目了然。",
+        "图面精致但统计符号比文字抢眼，并制造来源未提供的定量研究外观。"
+      ],
+      "screen_scenario_05_r1": [
+        "研讨桌场景把两种情况并列，条件与下方问题分别成组，阅读顺序清楚。",
+        "真实研究工作坊氛围较强；纸面伪图表成为未经来源支持的统计暗示。"
+      ],
+      "screen_textbook_05_r1": [
+        "双栏条件、各自问题和外框层级规整，条件差异容易理解。",
+        "文字与布局清楚；图示最像正式森林图，因此误导风险高于其余两张第5页图。"
+      ],
+      "screen_editorial_09_r1": [
+        "左栏以“可能表现”为范围，结构与生理异常用“和/或”并列；右栏按检测、阈值、诊断纵向阅读。",
+        "范围标签与诊断链条分区明确；肺部图标未表现具体病灶，未据此判为新增解剖事实。"
+      ],
+      "screen_scenario_09_r1": [
+        "左右两个范围分开；右侧检测→阈值→诊断的箭头顺序直观。",
+        "左侧咨询/肺功能测定场景增强可读性；图中未见标注数值或具体病灶。"
+      ],
+      "screen_textbook_09_r1": [
+        "左侧将结构异常、生理异常、和/或、无气流阻塞组织为自含分支；右侧保留临床背景和诊断路径。",
+        "视觉秩序和文字可读性较好；肺图及曲线仅为无坐标图标，未据此断言实际肺功能数值。"
+      ]
+    },
+    "eligible_for_delivery": false,
+    "finalist_recommendation": {
+      "status": "REPAIRABLE_FOR_NEXT_ROUND",
+      "strategies": [
+        {
+          "strategy": "editorial",
+          "basis": "第2页两类并列和范围说明分离明确；第9页条件、阈值及诊断关系清楚。",
+          "required_revision": "第5页只用无数据的等值/异值抽象图形或纯文字对照；禁止点估计、区间线、研究编号和看似研究数量的纸张。"
+        },
+        {
+          "strategy": "textbook",
+          "basis": "第2页分类根节点与分支直观；第9页信息自含且诊断顺序可读。",
+          "required_revision": "第5页保留两栏条件与对应问题，改用不带刻度、研究标签、估计点或区间的中性示意；不画森林图式符号。"
+        }
+      ],
+      "scope": "仅为下一轮试验方向；本轮未批准候选用于交付。"
+    },
+    "issues": [
+      {
+        "id": "P5-FABRICATED-STUDY-STATISTICS",
+        "status": "OPEN",
+        "summary": "第5页三策略均把抽象方法学条件转成了带研究数量/结果估计/区间暗示的图表。具体位置和片段已逐图记录。",
+        "resolution_guidance": "后续结构参考应直接体现两类条件的差异，不应补造研究、估计值、样本数或统计不确定性。"
+      },
+      {
+        "id": "REVIEW-SCOPE",
+        "status": "OPEN",
+        "summary": "本记录是图面合同与解释性复核，不是医学批准、原始资料转录复核或用户审美确认。",
+        "resolution_guidance": "交付前仍需锁定内容的原生编译与逐页人工审核。"
+      }
+    ]
+  },
+  "reviews": {
+    "screen": {
+      "schema_version": "visual_prompt_lab.screen_review.v1",
+      "worker": "Codex-independent-screen-review",
+      "source_sha256": "30d97fe3d548680fd70521fe7b6aff65e6b420464badd05f5b1b5de5f551a341",
+      "graph_sha256_digest": "7be8bd1c6ab242b0fb070a9cd41310ae1ab78a1de7ac4c84b4a1d1fc6a460993",
+      "trial_source": "python tools/visual_prompt_lab.py status; each result_path PNG opened and inspected directly",
+      "trials": [
+        {
+          "id": "screen_editorial_02_r1",
+          "asset_sha256": "cc8866489f0813ac669c6878bf13bb085044ae4a5c17e995bdb2941c21e3cefd",
+          "viewed": true,
+          "hard_failures": []
+        },
+        {
+          "id": "screen_scenario_02_r1",
+          "asset_sha256": "5d86c507e61c7c43e199b30e08bb5edd1913c9baf8389b1ff21aa9682ceed616",
+          "viewed": true,
+          "hard_failures": []
+        },
+        {
+          "id": "screen_textbook_02_r1",
+          "asset_sha256": "0d9c7b0362767ef5a2f115a22bfbf414aa753d769c30754b32dc121d3cab3e6d",
+          "viewed": true,
+          "hard_failures": []
+        },
+        {
+          "id": "screen_editorial_05_r1",
+          "asset_sha256": "7477a351bf8af770bb1902e050058fa89718c46d1e6df6584fe1067196b23efa",
+          "viewed": true,
+          "hard_failures": [
+            {
+              "reason": "研究纸张上的点估计与水平区间线构成类似森林图的统计结果符号；来源只说效应一致/存在差异，没有给出估计值、置信区间或研究数量。",
+              "evidence": "两列下方插图区域：左列三张文献页的相同点线；右列三张文献页的圆点/方块/三角形与水平线。",
+              "fragment_ids": [
+                "p5_b2_f4",
+                "p5_b2_f6",
+                "p5_b2_f9"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "screen_scenario_05_r1",
+          "asset_sha256": "dde810e380065798536ed0cb3039c4236542b284aef13a402ca141ea6d8b1c92",
+          "viewed": true,
+          "hard_failures": [
+            {
+              "reason": "两组研究纸张上的横线、点位和不同形状标记暗示存在可比较的研究估计或不确定区间；没有坐标、数值来源或真实研究数。",
+              "evidence": "左半部三张纸上的一致点位；右半部三张纸上的圆形、方形、三角形不同点位及横线。",
+              "fragment_ids": [
+                "p5_b2_f4",
+                "p5_b2_f6",
+                "p5_b2_f9"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "screen_textbook_05_r1",
+          "asset_sha256": "e6c71da8566c01084c0e51760c903a8baf077a01b04a76f764208c1b87080885",
+          "viewed": true,
+          "hard_failures": [
+            {
+              "reason": "明确标出“研究A/B/C”，并绘制点估计及横向区间线，属于虚构研究标签和统计不确定性图示；来源未提供研究名称/数量、估计值或区间。",
+              "evidence": "两栏内各三张卡片，标签“研究A/B/C”；每张卡片中央的点和横向区间线。",
+              "fragment_ids": [
+                "p5_b2_f4",
+                "p5_b2_f6",
+                "p5_b2_f9"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "screen_editorial_09_r1",
+          "asset_sha256": "3d3991e7d1b16a53f30530b8818de7bb08f89db8b560cafc796a2c55138a25f6",
+          "viewed": true,
+          "hard_failures": []
+        },
+        {
+          "id": "screen_scenario_09_r1",
+          "asset_sha256": "bfbf68561d880ccfb79a529cacf17f81ce4508c202afc86b867dd1f5f1ad7b6e",
+          "viewed": true,
+          "hard_failures": []
+        },
+        {
+          "id": "screen_textbook_09_r1",
+          "asset_sha256": "d34b15a6474596ea8779bd3783e5b6b9a54b274f7cb8df3398c74b8c0354d228",
+          "viewed": true,
+          "hard_failures": []
+        }
+      ],
+      "explanation_defects": [
+        {
+          "trial_id": "screen_editorial_05_r1",
+          "defect": "研究纸张上的点估计与水平区间线构成类似森林图的统计结果符号；来源只说效应一致/存在差异，没有给出估计值、置信区间或研究数量。",
+          "location": "两列下方插图区域：左列三张文献页的相同点线；右列三张文献页的圆点/方块/三角形与水平线。",
+          "fragment_ids": [
+            "p5_b2_f4",
+            "p5_b2_f6",
+            "p5_b2_f9"
+          ]
+        },
+        {
+          "trial_id": "screen_scenario_05_r1",
+          "defect": "两组研究纸张上的横线、点位和不同形状标记暗示存在可比较的研究估计或不确定区间；没有坐标、数值来源或真实研究数。",
+          "location": "左半部三张纸上的一致点位；右半部三张纸上的圆形、方形、三角形不同点位及横线。",
+          "fragment_ids": [
+            "p5_b2_f4",
+            "p5_b2_f6",
+            "p5_b2_f9"
+          ]
+        },
+        {
+          "trial_id": "screen_textbook_05_r1",
+          "defect": "明确标出“研究A/B/C”，并绘制点估计及横向区间线，属于虚构研究标签和统计不确定性图示；来源未提供研究名称/数量、估计值或区间。",
+          "location": "两栏内各三张卡片，标签“研究A/B/C”；每张卡片中央的点和横向区间线。",
+          "fragment_ids": [
+            "p5_b2_f4",
+            "p5_b2_f6",
+            "p5_b2_f9"
+          ]
+        }
+      ],
+      "aesthetic_notes": {
+        "screen_editorial_02_r1": [
+          "两类目标分别放在左侧等权面板，括号和分栏易读；右侧独立呈现适用范围与个体化说明，关系清楚。",
+          "右侧风景与建筑属装饰，未观察到可辨读的新增医学文字或数据。"
+        ],
+        "screen_scenario_02_r1": [
+          "上方分类语句由括号引向两个等大咨询场景；下方单独呈现管理背景，阅读顺序明确。",
+          "患者、医生和治疗计划图标是个体化管理的通用场景化表达；勾选框没有标签或数值，未据此认定新增疗效事实。"
+        ],
+        "screen_textbook_02_r1": [
+          "根节点分成两个对称分支，再以底部说明承接管理背景；分类阅读顺序明确。",
+          "书本、人物和齿轮为装饰性泛化符号，未见明确新增医学标签。"
+        ],
+        "screen_editorial_05_r1": [
+          "左右条件及其对应方法学问题等权，父级范围句置顶，逻辑层级一目了然。",
+          "图面精致但统计符号比文字抢眼，并制造来源未提供的定量研究外观。"
+        ],
+        "screen_scenario_05_r1": [
+          "研讨桌场景把两种情况并列，条件与下方问题分别成组，阅读顺序清楚。",
+          "真实研究工作坊氛围较强；纸面伪图表成为未经来源支持的统计暗示。"
+        ],
+        "screen_textbook_05_r1": [
+          "双栏条件、各自问题和外框层级规整，条件差异容易理解。",
+          "文字与布局清楚；图示最像正式森林图，因此误导风险高于其余两张第5页图。"
+        ],
+        "screen_editorial_09_r1": [
+          "左栏以“可能表现”为范围，结构与生理异常用“和/或”并列；右栏按检测、阈值、诊断纵向阅读。",
+          "范围标签与诊断链条分区明确；肺部图标未表现具体病灶，未据此判为新增解剖事实。"
+        ],
+        "screen_scenario_09_r1": [
+          "左右两个范围分开；右侧检测→阈值→诊断的箭头顺序直观。",
+          "左侧咨询/肺功能测定场景增强可读性；图中未见标注数值或具体病灶。"
+        ],
+        "screen_textbook_09_r1": [
+          "左侧将结构异常、生理异常、和/或、无气流阻塞组织为自含分支；右侧保留临床背景和诊断路径。",
+          "视觉秩序和文字可读性较好；肺图及曲线仅为无坐标图标，未据此断言实际肺功能数值。"
+        ]
+      },
+      "eligible_for_delivery": false,
+      "finalist_recommendation": {
+        "status": "REPAIRABLE_FOR_NEXT_ROUND",
+        "strategies": [
+          {
+            "strategy": "editorial",
+            "basis": "第2页两类并列和范围说明分离明确；第9页条件、阈值及诊断关系清楚。",
+            "required_revision": "第5页只用无数据的等值/异值抽象图形或纯文字对照；禁止点估计、区间线、研究编号和看似研究数量的纸张。"
+          },
+          {
+            "strategy": "textbook",
+            "basis": "第2页分类根节点与分支直观；第9页信息自含且诊断顺序可读。",
+            "required_revision": "第5页保留两栏条件与对应问题，改用不带刻度、研究标签、估计点或区间的中性示意；不画森林图式符号。"
+          }
+        ],
+        "scope": "仅为下一轮试验方向；本轮未批准候选用于交付。"
+      },
+      "issues": [
+        {
+          "id": "P5-FABRICATED-STUDY-STATISTICS",
+          "status": "OPEN",
+          "summary": "第5页三策略均把抽象方法学条件转成了带研究数量/结果估计/区间暗示的图表。具体位置和片段已逐图记录。",
+          "resolution_guidance": "后续结构参考应直接体现两类条件的差异，不应补造研究、估计值、样本数或统计不确定性。"
+        },
+        {
+          "id": "REVIEW-SCOPE",
+          "status": "OPEN",
+          "summary": "本记录是图面合同与解释性复核，不是医学批准、原始资料转录复核或用户审美确认。",
+          "resolution_guidance": "交付前仍需锁定内容的原生编译与逐页人工审核。"
+        }
+      ]
+    },
+    "quality": {
+      "schema_version": "visual_prompt_lab.quality_review.v1",
+      "worker": "Codex-independent-screen-review",
+      "source_sha256": "30d97fe3d548680fd70521fe7b6aff65e6b420464badd05f5b1b5de5f551a341",
+      "graph_sha256_digest": "7be8bd1c6ab242b0fb070a9cd41310ae1ab78a1de7ac4c84b4a1d1fc6a460993",
+      "trial_source": "CLI status result_path; SQLite trial/call records and retained receipts; inspected both actual result PNGs directly.",
+      "trials": [
+        {
+          "id": "quality_editorial_05_r2",
+          "asset_sha256": "11d65ec27e8ba8531b51aec3e4f216259f06eac9183c9baaf12929c9165d203e",
+          "viewed": true,
+          "hard_failures": []
+        },
+        {
+          "id": "quality_textbook_05_r2",
+          "asset_sha256": "37c477e32d1187749ce2cd70c0f4c7866cbe9a2e23d88fca52110d6483b0367d",
+          "viewed": true,
+          "hard_failures": []
+        }
+      ],
+      "prior_issue_responses": [
+        {
+          "issue_id": "P5-FABRICATED-STUDY-STATISTICS",
+          "trial_id": "quality_editorial_05_r2",
+          "status": "FIXED",
+          "evidence": {
+            "location": "Both condition panels: abstract puzzle-piece illustration; no study labels, point estimates, interval bars, axes, plotted values, or count-like study sheets.",
+            "fragment_ids": [
+              "p5_b2_f4",
+              "p5_b2_f6",
+              "p5_b2_f7",
+              "p5_b2_f9",
+              "p5_b2_f10"
+            ],
+            "finding": "Locked condition and attached methodological question each appear once and in full. The joined puzzle represents consistency; the separated pieces represent difference, without introducing measurement or study results."
+          }
+        },
+        {
+          "issue_id": "P5-FABRICATED-STUDY-STATISTICS",
+          "trial_id": "quality_textbook_05_r2",
+          "status": "FIXED",
+          "evidence": {
+            "location": "Both condition panels: abstract puzzle-piece illustration; no study labels, point estimates, interval bars, axes, plotted values, or count-like study sheets.",
+            "fragment_ids": [
+              "p5_b2_f4",
+              "p5_b2_f6",
+              "p5_b2_f7",
+              "p5_b2_f9",
+              "p5_b2_f10"
+            ],
+            "finding": "Locked condition and attached methodological question each appear once and in full. The joined puzzle represents consistency; the separated pieces represent difference, without introducing measurement or study results."
+          }
+        }
+      ],
+      "explanation_defects": [],
+      "aesthetic_notes": {
+        "quality_editorial_05_r2": [
+          "父级方法学范围句完整置顶；两种情况及其对应问题分列且等权，阅读顺序清楚。",
+          "拼图“拼合/分开”对一致/差异形成直观抽象对应；无坐标、统计量或假研究标签。"
+        ],
+        "quality_textbook_05_r2": [
+          "外框、双栏条件和各自结论层次清楚；两边文字完整且并列待遇一致。",
+          "大幅拼图图形提供明确的差异线索，没有模拟测量结果；整体留白充足、可读。"
+        ]
+      },
+      "eligible_for_delivery": false,
+      "finalist_recommendation": {
+        "status": "QUALIFIED_FOR_NEXT_ROUND",
+        "strategies": [
+          {
+            "strategy": "editorial",
+            "trial_id": "quality_editorial_05_r2",
+            "recommendation": "保留为第5页候选；此次修订解决上轮统计图暗示问题。"
+          },
+          {
+            "strategy": "textbook",
+            "trial_id": "quality_textbook_05_r2",
+            "recommendation": "保留为第5页候选；此次修订解决上轮虚构研究标签和统计图暗示问题。"
+          }
+        ],
+        "scope": "仅本轮视觉候选筛选结论；不可据此批准医学内容或交付。"
+      },
+      "issues": []
+    },
+    "stability": {
+      "schema_version": "visual_prompt_lab.stability_review.v1",
+      "reviewer": "Codex-independent-stability-review",
+      "reviewed_at_local": "2026-10-12",
+      "source_sha256": "30d97fe3d548680fd70521fe7b6aff65e6b420464badd05f5b1b5de5f551a341",
+      "semantic_graph_sha256": "7be8bd1c6ab242b0fb070a9cd41310ae1ab78a1de7ac4c84b4a1d1fc6a460993",
+      "reference_sha256": "0d80b9d0b686fc2298e2ecc2ab1350da72bed7cce90bee86ff818a614f1f559c",
+      "scope": "Independent review of the four actual r2 stability PNGs. Existing screen_review.json and quality_review.json were reused; no full-round rereview.",
+      "review_method": "Each result_path was opened with view_image. Compared displayed content and layout against common_input.json, semantic_graph.json, each r2 prompt/design, and first-round prompt SHA / recorded screen_review findings.",
+      "trials": [
+        {
+          "trial_id": "stability_editorial_02_r2",
+          "page": 2,
+          "strategy": "editorial",
+          "round": 2,
+          "status": "GENERATED_INSPECTED",
+          "image_path": "output/visual_prompt_lab/trials/stability_editorial_02_r2/stability_editorial02_r2_call01.png",
+          "image_sha256": "39e384faa9d9e465df9ca3ea343e85e23ed0c7cddf5fca9186bf84179f4d297c",
+          "viewed": true,
+          "prompt_sha256": "3003a6313011a5ae42b46fb0365e2cb17ff28a84e045617dc9feb6df38fdf6c5",
+          "design_sha256": "ee0fa9a9c1a31bdaf7b43119a9500623b94a426c00ec6bc1b6054d00f4d71071",
+          "reference_assets": [
+            {
+              "path": "output/visual_prompt_lab/template_reference.png",
+              "sha256": "0d80b9d0b686fc2298e2ecc2ab1350da72bed7cce90bee86ff818a614f1f559c"
+            }
+          ],
+          "first_round_trial_id": "screen_editorial_02_r1",
+          "first_round_prompt_sha256": "3003a6313011a5ae42b46fb0365e2cb17ff28a84e045617dc9feb6df38fdf6c5",
+          "same_prompt_as_first_round": true,
+          "stability_finding": "重复轮次仍保留两类目标的并列分组与范围说明；右侧范围卡与左侧双卡形成不对称版面，装饰性山景、建筑、人物和图标较首轮改变。目标分类、急性加重示例与全球临床环境/个体化说明均可在锁定文本中找到。",
+          "hard_error_ids": []
+        },
+        {
+          "trial_id": "stability_editorial_09_r2",
+          "page": 9,
+          "strategy": "editorial",
+          "round": 2,
+          "status": "GENERATED_INSPECTED",
+          "image_path": "output/visual_prompt_lab/trials/stability_editorial_09_r2/stability_editorial09_r2_call01.png",
+          "image_sha256": "4ea6aaa3ed31b13df190cc76707c13c711aa21e04c234088593387bd3d12f37e",
+          "viewed": true,
+          "prompt_sha256": "17ff3547dc12568799cd87b99485e09cce3c0787a5cb87b2beead63c90f67872",
+          "design_sha256": "1a7251793872a0e27659438131c0d7e08772ff07612b5a8ac4d6eed070a6f9ee",
+          "reference_assets": [
+            {
+              "path": "output/visual_prompt_lab/template_reference.png",
+              "sha256": "0d80b9d0b686fc2298e2ecc2ab1350da72bed7cce90bee86ff818a614f1f559c"
+            }
+          ],
+          "first_round_trial_id": "screen_editorial_09_r1",
+          "first_round_prompt_sha256": "17ff3547dc12568799cd87b99485e09cce3c0787a5cb87b2beead63c90f67872",
+          "same_prompt_as_first_round": true,
+          "stability_finding": "Re-viewed. There is no connector across the two outer scope frames. At approximately x411–471,y375–528, two braces face the “和/或” text between the internal structural-change and physiologic-change cards. The right threshold card contains a stylized lung/airflow icon (approximately x938–1040,y498–603), with no plotted coordinate axes or data curve. No page-9 hard error confirmed for this image.",
+          "hard_error_ids": []
+        },
+        {
+          "trial_id": "stability_textbook_02_r2",
+          "page": 2,
+          "strategy": "textbook",
+          "round": 2,
+          "status": "GENERATED_INSPECTED",
+          "image_path": "output/visual_prompt_lab/trials/stability_textbook_02_r2/local_stability_textbook_02_20261012_r2.png",
+          "image_sha256": "2e5930963bc3bd875d38bb71c9b2f635f469532465016cabe36a2a687d1f0125",
+          "viewed": true,
+          "prompt_sha256": "04191b9551834361bf5093ff91f72cefdc8dd2137d6a0334570c8fb7f10950e3",
+          "design_sha256": "5c13629be7fb761a836c2f7fe2e08654eb338e0497db17a94f869c90e57cc7d7",
+          "reference_assets": [
+            {
+              "path": "output/visual_prompt_lab/template_reference.png",
+              "sha256": "0d80b9d0b686fc2298e2ecc2ab1350da72bed7cce90bee86ff818a614f1f559c"
+            }
+          ],
+          "first_round_trial_id": "screen_textbook_02_r1",
+          "first_round_prompt_sha256": "04191b9551834361bf5093ff91f72cefdc8dd2137d6a0334570c8fb7f10950e3",
+          "same_prompt_as_first_round": true,
+          "stability_finding": "根节点和两个对等分支稳定；分支内新增六条来源没有的医学性 bullet。首轮记录未见明确新增医学标签；本轮把目标扩展成症状表现、生活影响、生活质量，以及不良事件发生风险、急性加重等事件、长期健康状态等六个要点。",
+          "hard_error_ids": [
+            "UNSOURCED_MEDICAL_MEANING"
+          ]
+        },
+        {
+          "trial_id": "stability_textbook_09_r2",
+          "page": 9,
+          "strategy": "textbook",
+          "round": 2,
+          "status": "GENERATED_INSPECTED",
+          "image_path": "output/visual_prompt_lab/trials/stability_textbook_09_r2/local_stability_textbook_09_20261012_r2.png",
+          "image_sha256": "628feb297c7dc3c7e008b929136c8e2c1f633b3e747042ca270f53db96813e44",
+          "viewed": true,
+          "prompt_sha256": "d0dc200821ddb34651f6ca8c7787b6f41ee2247382673c8b37ea65c58cdcd9b9",
+          "design_sha256": "cd17a9fd9b16b56c9ac7ff88fdfc718a2c31e2e427f5a53e3409ba7ffe9504d7",
+          "reference_assets": [
+            {
+              "path": "output/visual_prompt_lab/template_reference.png",
+              "sha256": "0d80b9d0b686fc2298e2ecc2ab1350da72bed7cce90bee86ff818a614f1f559c"
+            }
+          ],
+          "first_round_trial_id": "screen_textbook_09_r1",
+          "first_round_prompt_sha256": "d0dc200821ddb34651f6ca8c7787b6f41ee2247382673c8b37ea65c58cdcd9b9",
+          "same_prompt_as_first_round": true,
+          "stability_finding": "Re-viewed. The correct threshold signs remain. This image contains an unsupported double-headed arrow across the outer scope gap (bbox approx x841–892,y505–525) and a plotted-looking curve with L-shaped axes in the threshold card (bbox approx x966–1099,y496–610).",
+          "hard_error_ids": [
+            "UNSOURCED_CURVE_AXES",
+            "UNSUPPORTED_CROSS_SCOPE_RELATION"
+          ]
+        }
+      ],
+      "findings": [
+        {
+          "id": "UNSOURCED_MEDICAL_MEANING",
+          "severity": "BLOCKER",
+          "trial_ids": [
+            "stability_textbook_02_r2"
+          ],
+          "evidence": {
+            "location": "Page 2, both branch cards",
+            "semantic_graph_fragments": [
+              "p2_b2_f3",
+              "p2_b2_f4",
+              "p2_b2_f5",
+              "p2_b2_f6",
+              "p2_b2_f7",
+              "p2_b2_f8",
+              "p2_b2_f9"
+            ],
+            "observed_additions": [
+              "缓解症状表现",
+              "减轻症状对日常生活的影响",
+              "提高生活质量",
+              "降低不良健康事件的发生风险",
+              "包括但不限于急性加重等事件",
+              "维护长期健康状态"
+            ],
+            "basis": "Locked source text states two broad target categories and names acute exacerbation as an example; it does not state these six subclaims.",
+            "first_round_record": "screen_review.json recorded no hard failure for screen_textbook_02_r1; this r2 output adds six bullet claims."
+          }
+        },
+        {
+          "id": "UNSOURCED_CURVE_AXES",
+          "severity": "BLOCKER",
+          "trial_ids": [
+            "stability_textbook_09_r2"
+          ],
+          "evidence": {
+            "image_path": "output/visual_prompt_lab/trials/stability_textbook_09_r2/local_stability_textbook_09_20261012_r2.png",
+            "image_dimensions_px": [
+              1672,
+              941
+            ],
+            "location": "Page 9 right-side obstruction-threshold card; approximate pixel bounding box [966, 496, 1099, 610].",
+            "semantic_graph_fragments": [
+              "p9_b2_f8",
+              "p9_b2_f11",
+              "p9_b2_f12",
+              "p9_b2_f13"
+            ],
+            "observed": "An L-shaped horizontal/vertical axis and a drawn declining curve are visible beside the threshold text. No plotted coordinates or curve are supplied by the source.",
+            "basis": "common_input page 9 marks chart=false; source provides a threshold condition, not a curve or plotted values."
+          }
+        },
+        {
+          "id": "UNSUPPORTED_CROSS_SCOPE_RELATION",
+          "severity": "BLOCKER",
+          "trial_ids": [
+            "stability_textbook_09_r2"
+          ],
+          "evidence": {
+            "image_path": "output/visual_prompt_lab/trials/stability_textbook_09_r2/local_stability_textbook_09_20261012_r2.png",
+            "image_dimensions_px": [
+              1672,
+              941
+            ],
+            "location": "Horizontal double-headed arrow at approximate pixel bounding box [841, 505, 892, 525], spanning the gap between the left possible-presentation scope and right clinical-context scope.",
+            "semantic_graph_fragments": [
+              "p9_b1_f1",
+              "p9_b1_f2",
+              "p9_b1_f17",
+              "p9_b1_f19",
+              "p9_b2_f1",
+              "p9_b2_f6",
+              "p9_b2_f8",
+              "p9_b2_f14",
+              "p9_b2_f15"
+            ],
+            "observed": "The arrow crosses the gap between the two outer frames. It is distinct from the internal AND/OR connector and its braces.",
+            "basis": "The source states conditions in two scopes; the graph specifies a contrast between two statements, not a bidirectional cross-scope relationship."
+          }
+        }
+      ],
+      "accuracy_checks": {
+        "condition_scope": "Both page 9 images keep their outer scopes separate. The textbook image adds a double-headed arrow across the gap (bbox approx x841–892,y505–525); editorial page 9 has only braces around the internal 和/或 connector.",
+        "comparison_symbols": "Both page 9 images display the left post-bronchodilator FEV1/FVC ≥ 0.7 and right FEV1/FVC < 0.7 in the correct directions.",
+        "page2_scope": "Editorial page 2 preserves the two goal categories and management context; textbook page 2 adds six unsupported subclaims.",
+        "unsupported_data": "The textbook page 9 threshold card contains a plotted-looking curve with L-shaped axes (bbox approx x966–1099,y496–610), unsupported by the source. The editorial page 9 lung/airflow icon has no axes or plotted data and is not flagged."
+      },
+      "provisional_winner": "editorial",
+      "provisional_winner_reason": "Among the four reviewed stability images, editorial has no confirmed hard error on pages 2 and 9. Textbook page 2 adds six unsupported subclaims and textbook page 9 adds a cross-scope arrow and a plotted-looking curve. This is a provisional visual-route screening result only; it is not medical or customer approval.",
+      "medical_approval": false,
+      "customer_approval": false,
+      "customer_aesthetic_confirmation": "NOT_RECORDED",
+      "review_history": [
+        {
+          "finding_id": "UNSOURCED_CURVE_AXES",
+          "trial_id": "stability_editorial_09_r2",
+          "status": "CORRECTED",
+          "reason": "Second direct view shows a stylized lung/airflow icon, not a coordinate plot. The former report incorrectly called it a curve with axes."
+        },
+        {
+          "finding_id": "UNSUPPORTED_CROSS_SCOPE_RELATION",
+          "trial_id": "stability_editorial_09_r2",
+          "status": "CORRECTED",
+          "reason": "Second direct view shows no cross-scope arrow. The opposed brace marks flank “和/或” inside the left scope; the prior report mislocated this internal grouping as a bridge."
+        }
+      ]
+    }
+  },
+  "actual_calls": 22,
+  "approved": false,
+  "native_preview": {
+    "ready_for_human_style_review": true,
+    "style_confirmed": true,
+    "label": "教材式原生样稿",
+    "pptx": "native_textbook/deck.pptx?v=9dea432c062e",
+    "pdf": "native_textbook/deck.pdf?v=68ee274dde90",
+    "report": "textbook_report.md",
+    "verification": {
+      "slides": 6,
+      "generated_picture_objects": 0,
+      "native_paths": 521,
+      "overflow": 0,
+      "overlap": 0,
+      "content_mismatch": 0
+    },
+    "pages": [
+      {
+        "page": 1,
+        "design": "native_textbook/input-slide01.png?v=c3f395155163",
+        "browser": "native_textbook/browser-slide01.png?v=c6936296316d",
+        "powerpoint": "native_textbook/slide01.png?v=d6e4503f0db7"
+      },
+      {
+        "page": 2,
+        "design": "native_textbook/input-slide02.png?v=0d9c7b036276",
+        "browser": "native_textbook/browser-slide02.png?v=f5e33214f7fe",
+        "powerpoint": "native_textbook/slide02.png?v=8c47a81f3281"
+      },
+      {
+        "page": 5,
+        "design": "native_textbook/input-slide03.png?v=37c477e32d11",
+        "browser": "native_textbook/browser-slide03.png?v=745d27d26dd1",
+        "powerpoint": "native_textbook/slide03.png?v=0e7b39c0c45e"
+      },
+      {
+        "page": 9,
+        "design": "native_textbook/input-slide04.png?v=d34b15a64745",
+        "browser": "native_textbook/browser-slide04.png?v=59b24240e791",
+        "powerpoint": "native_textbook/slide04.png?v=81b6ec479191"
+      },
+      {
+        "page": 20,
+        "design": "native_textbook/input-slide05.png?v=e3cd84a1a2b8",
+        "browser": "native_textbook/browser-slide05.png?v=014e4676fdce",
+        "powerpoint": "native_textbook/slide05.png?v=479bbaba4e86"
+      },
+      {
+        "page": 21,
+        "design": "native_textbook/input-slide06.png?v=98fb6ed0fe57",
+        "browser": "native_textbook/browser-slide06.png?v=6d160ac0aaac",
+        "powerpoint": "native_textbook/slide06.png?v=75c96cdf152c"
+      }
+    ]
+  },
+  "clean_images": 6,
+  "vector_assets": 6,
+  "selection": {
+    "schema_version": "visual-lab-user-selection.v1",
+    "preferred_strategy": "textbook",
+    "user_statement": "教材式结构 更好",
+    "scope_statement": "补齐六页教材样稿，追加3次设计调用",
+    "source_sha256": "30d97fe3d548680fd70521fe7b6aff65e6b420464badd05f5b1b5de5f551a341",
+    "extra_design_calls": 3,
+    "authorized_trial_ids": [
+      "extension_textbook_01_r1",
+      "extension_textbook_20_r1",
+      "extension_textbook_21_r1"
+    ],
+    "medical_approval": false,
+    "final_native_visual_approval": false
+  },
+  "style_confirmation": {
+    "schema_version": "visual-lab-human-style-confirmation.v1",
+    "actor": "human_user",
+    "user_statement": "接受修订，固定六页标准",
+    "question_id": "call_HIvaFY5ItaDqyvc78peBs64E",
+    "scope": "Current six textbook native PowerPoint pages including preserved design background and P9 source-bound threshold badge.",
+    "recorded_at_utc": "2026-10-12T09:55:36.892001+00:00",
+    "approved_style": true,
+    "medical_approval": false,
+    "binds": {
+      "common_input.json": "30d97fe3d548680fd70521fe7b6aff65e6b420464badd05f5b1b5de5f551a341",
+      "semantic_graph.json": "7be8bd1c6ab242b0fb070a9cd41310ae1ab78a1de7ac4c84b4a1d1fc6a460993",
+      "extension_graph.json": "01b167d4f2f71d9972b9edc1ac5ed9717eb7e2921a2aca23f2039c7905260cbb",
+      "native_textbook_manifest.json": "77aa067557fe745bfddccfdb4c60a83fe1e10b63108799f5a93b62afdd5087bb",
+      "native_textbook\\deck.pptx": "9dea432c062eea5c71f57691c811a0f93e2b771668536d6aa5fb6da46446a6d3",
+      "native_textbook\\deck.pdf": "68ee274dde90468fbdeca89b753f5f2ce6ea0052b9d39f25eb79c5fab8f200c0",
+      "native_textbook\\render_report.json": "fe5f3099d75585b886652893a98fa1053778ec14ccdee193a4c923680c1470e9",
+      "native_textbook\\final_visual_review.json": "10512ad239639e37f09a43704fe25ba83a77ecbc8aa2c486280b081d390e79c8",
+      "native_textbook\\slide01.png": "d6e4503f0db7cbb3f916385fa53b629d11a1b27302ffe7c7235dbbbcba7e0776",
+      "native_textbook\\slide02.png": "8c47a81f328157f055eb7f005bb49b6e50e89b2794cc3713aea03bfa0887df91",
+      "native_textbook\\slide03.png": "0e7b39c0c45e37173e4ec25ff34e4031a91a3359f62f90f867abb84125d078e5",
+      "native_textbook\\slide04.png": "81b6ec479191d1511ae7aa7482e7997d0f283681fb2013905f5f6a9df8b93527",
+      "native_textbook\\slide05.png": "479bbaba4e8602ff4d49217c38934e024bdbf6ee5c3fbeaa86b32ea39fde9e5b",
+      "native_textbook\\slide06.png": "75c96cdf152c901cd1d9fa6187686321e01dc146047d9f392e86e89a61c35076",
+      "cover_background_reference\\artwork.svg": "5c486131a021c34899ef9fd17399f72f0e30f48a95c2e379c2a2867304026db1",
+      "cover_background_reference\\components.json": "4b09f0c23d16347f25e4540f39afe23a1e687f71653b693c8d6ccb5cc98464f0",
+      "cover_background_reference\\layout.json": "0a5ef37a7e42a2e72230f5eb1a25c7e4a3644981e37f6f8f470c1f02e8904167",
+      "cover_background_reference\\design.png": "c3f39515516320850d02368404d8fdc0b1b637fadbccca4e8486833b39f307e6",
+      "cover_background_reference\\clean.png": "8046529fca0ad316c5130179f797265f2e4cccc7bb66ac8b9beecc34daf7d463",
+      "cover_background_reference\\semantic_review.json": "9e5b0821afdcc6b15957d387c2a67f4145ac5e36f5096c7a786a3451a87a7512",
+      "native_assets\\screen_textbook_02_r1\\artwork.svg": "ec9b0d21c62545303cfe2e9552cfbbf6942d9266a0e61da4190bc76d802322f6",
+      "native_assets\\screen_textbook_02_r1\\components.json": "ef5752b5a5b2f10cbffc23bf8880f9ccbabdee18f52340d7f787155d29ab91c3",
+      "native_assets\\screen_textbook_02_r1\\layout.json": "0c4eb8866aad66d83a28e59dfdaf6641a5b8a9cc5944d3eeaf9a17476c9cf271",
+      "trials\\screen_textbook_02_r1\\local_textbook_02_20261012_a.png": "0d9c7b0362767ef5a2f115a22bfbf414aa753d769c30754b32dc121d3cab3e6d",
+      "native_assets\\screen_textbook_02_r1\\clean.png": "0c701b83c8ba6fd35b01b010a8884109fcb40c4daff33d4527be39d953c1c1a0",
+      "native_assets\\screen_textbook_02_r1\\semantic_review.json": "8a072b4e0ab0f84c45c64779d90fed0f8baabb44ffed3ada32731313d1f49a11",
+      "native_assets\\quality_textbook_05_r2\\artwork.svg": "27a98356126e153cc6c10f05182344f010f14110ddaa6b54017d4362b6918fca",
+      "native_assets\\quality_textbook_05_r2\\components.json": "e16c54e94579eeee2e28df78ee2237710b15aaad09926886dacf526395f8e9ac",
+      "native_assets\\quality_textbook_05_r2\\layout.json": "41faadbd1404389c8be805ad755de274a12dbb9c41e636aa4c9139ca7df363a7",
+      "trials\\quality_textbook_05_r2\\local_quality_textbook_05_20261012_r2.png": "37c477e32d1187749ce2cd70c0f4c7866cbe9a2e23d88fca52110d6483b0367d",
+      "native_assets\\quality_textbook_05_r2\\clean.png": "d85720930fe9644e672208e514a8b3cc36dd77c44e3d18edeab80506b9700e54",
+      "native_assets\\quality_textbook_05_r2\\semantic_review.json": "89dbbb8e34265ddf209bc1b089ad35b696478f5e39e04b5cea0e081e6643c84f",
+      "native_assets\\screen_textbook_09_r1\\artwork.svg": "39649368ae6d4ae1c2f64026b2429464f4363442a1a73bbc41751598cae1bbac",
+      "native_assets\\screen_textbook_09_r1\\components.json": "2d09f83c50fd90b5f7d4ccdf350abb35d18adc69ad641c53651a77db08ed3d0f",
+      "native_assets\\screen_textbook_09_r1\\layout.json": "9e62c27f1cfcdbae545adc9f3c2c7c5566708c491663a8d158dd6cad08af1083",
+      "trials\\screen_textbook_09_r1\\local_textbook_09_20261012_a.png": "d34b15a6474596ea8779bd3783e5b6b9a54b274f7cb8df3398c74b8c0354d228",
+      "native_assets\\screen_textbook_09_r1\\clean.png": "e1a59fdb44778d076a04e0f36612e0f1cc657ab71ce383479a742059b4c44571",
+      "native_assets\\screen_textbook_09_r1\\semantic_review.json": "8e7bb9bbc0032310fa176143a53af516ba4945174523f303cfe6b8f8599b3f0d",
+      "native_assets\\extension_textbook_20_r1\\artwork.svg": "29d9e00b95bd1820928fc8719a8a45053133d8e2db440191ba03a69cb9308418",
+      "native_assets\\extension_textbook_20_r1\\components.json": "ee3bba351be8fcd39a17c018a0bcfcf1cc50ad04db7448923f9a0083a313d1f7",
+      "native_assets\\extension_textbook_20_r1\\layout.json": "342d9a933ec71764a031aba74b85c7781b3a05a64b53db23efadae98ba51028b",
+      "trials\\extension_textbook_20_r1\\textbook_extension20_20261013_call01.png": "e3cd84a1a2b8364e3ef9320aa3619003140629ab80906703bd226c9e323e2cc4",
+      "native_assets\\extension_textbook_20_r1\\clean.png": "c641fd0e0e24986550038d99a8b07e3e6294cb13300852aa935c7ca3ca30f4ae",
+      "native_assets\\extension_textbook_20_r1\\semantic_review.json": "854f0b2710ab690708164a6b5d63956f02c04e31bd531db7fbd106c3c8ecf104",
+      "native_assets\\extension_textbook_21_r1\\artwork.svg": "67c7988ccfb2cdbf0cce8d69661ca1ff7fa539af575b576dcef749957c98a165",
+      "native_assets\\extension_textbook_21_r1\\components.json": "5c5b2943981c05c9a7a27cd83a0fadd0839541656bb1788399a3175f0463419f",
+      "native_assets\\extension_textbook_21_r1\\layout.json": "82dd6d5fda25ab1d5ca78839f7fe6a496f21c276e949d55ab45e42b2af44c93e",
+      "trials\\extension_textbook_21_r1\\textbook_extension21_20261013_call01.png": "98fb6ed0fe57f66482bf63239d4fadce407b744dd2b1ced1208773f9aaa6e8f1",
+      "native_assets\\extension_textbook_21_r1\\clean.png": "97a7c93afbf43d20e9ff3fc67fe86bab198562810f82525e81088bfa845c280e",
+      "native_assets\\extension_textbook_21_r1\\semantic_review.json": "74b9395b97ef66be56d0e6c8838f1f2e7638c5a008f1e0598264412b485dbd92"
+    }
+  }
+}

@@ -160,7 +160,7 @@ def to_figure_deck(store):
     def deck(t):
         d = T.deck_result(w)
         d["pages"].insert(-1, {"id": "figure", "layout": "figure", "section": {"text": "证据"}, "title": {"text": "原件图"},
-                               "figure": {"fact": "fig.a"}, "side": [{"fact": "st.a.v"}],
+                               "figure": {"fact": "fig.a"}, "side": [{"fact": "st.a"}, {"fact": "st.a.pop"}, {"fact": "st.a.v"}],
                                "outline_ids": [w["outline"][2]["id"]], "section_ids": ["s3"]})
         return d
     w = T.run_task(store, w["id"], "DECK", "author-A", deck)

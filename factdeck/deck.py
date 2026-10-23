@@ -18,9 +18,10 @@ import json
 import re
 from pathlib import Path
 
-from .lexicon import lint_text, canon
+from .lexicon import lint_text, canon, missing_context, context_stated
 from . import charts
 from . import compose
+from . import free
 from . import recipes
 
 LAYOUTS = {
@@ -42,6 +43,7 @@ LAYOUTS = {
     "nested": ({"title", "levels"}, {"levels": (2, 4), "notes": (0, 3), "footnote": (0, 2)}),
     "chart": ({"title", "chart"}, {"side": (0, 3)}),
     "composed": ({"title", "blocks"}, {"blocks": (1, 160)}),
+    "free": ({"title", "html"}, {}),
 }
 MAX_FIGURES_PER_PAGE = 2
 F = lambda i: {"fact": i}          # noqa: E731  (placeholder ids in the examples below)
@@ -50,8 +52,10 @@ LAYOUT_GUIDE = {
     # layout: (what it is for, minimal example body; every page also has id, layout, title, outline_ids, section_ids)
     "bullets": ("几条并列、没有更强结构的要点（纯文字页，全篇不宜超过三成）；能用下列结构化版式时优先用它们",
                 {"items": [F("f1"), F("f2"), F("f3")]}),
-    "table": ("多个对象×多个属性的逐项对照；同一组对象的多个属性放进同一张表（至多 7 列），不要按属性拆成多张两列表", {"columns": ["对象", "属性甲", "属性乙"],
-                                           "rows": [[[F("f1")], [F("f2")], [F("f3")]], [[F("f4")], [F("f5")], [F("f6")]]]}),
+    "table": ("多个对象×多个属性的逐项对照；同一组对象的多个属性放进同一张表（至多 7 列），不要按属性拆成多张两列表；"
+              "有上下级的行（原件中缩进在一个分组下的子项）用 levels 给出每行的层级（0 为顶层，子项比它的上一级多 1），上一级单独成行、其余格可为空",
+              {"columns": ["对象", "属性甲", "属性乙"],
+               "rows": [[[F("f1")], [F("f2")], [F("f3")]], [[F("g")], [], []], [[F("g1")], [F("f5")], [F("f6")]]], "levels": [0, 0, 1]}),
     "cards": ("2–4 个并列指标/阈值/条件，名称在上、值醒目；notes 放补充说明",
               {"cards": [{"label": F("f1"), "value": F("f2")}, {"label": F("f3"), "value": F("f4")}],
                "notes_title": T("补充说明"), "notes": [F("f5")]}),
@@ -82,12 +86,27 @@ LAYOUT_GUIDE = {
     "composed": ("逐页构图：优先写 recipe + slots（见 recipes：每种构图方案的用途与示例），没有合适方案时再直接放 blocks。先写 design（first 第一眼看到什么、then 随后读什么、reference 供查阅什么、strong 唯一的强元素及为何用这种形状），"
                  "再把块放在版心上（宽 1152，高 462；有 lead 时 436）。块：text（refs 事实/作者文字，role head/key/body/sub/label/note/ref/value）、"
                  "surface（tone line/tint/strong/accent/white，round 为圆）、rule、marker、bar（value_of 数值事实，同一 scale 按比例）、"
-                 "arrow（points，from/to 两端文字块，backed_by 原件箭头或被拆成两段的同一句原文）。并列的各项用同一 peer 键，须同等处理",
-                 {"design": {"first": "两条通路并列", "then": "各自的环节", "reference": "缩写", "strong": "靶点贴在所属通路下"},
+                 "arrow（points，from/to 两端文字块，backed_by 原件箭头或被拆成两段的同一句原文）、"
+                 "icon（icon 图标文件 id，for 它代表的事实：须是本页某文字块的首个事实；图标只代表这一项，关系由箭头和位置表达）、"
+                 "line（points，encodes 它画出的本页事实；坐标轴/网格线写 axis: true）。并列的各项用同一 peer 键，须同等处理。"
+                 "绘图原则：图只承担文字讲不了的那一层——数值落在刻度上的位置、过程随时间的走向、各部分如何相连；"
+                 "图上不带自己的文字，标签都是本页事实；几何由事实决定（条形按比例、箭头有原文、曲线经过原文给出的数值）。"
+                 "每页先问这一层是否存在：存在就画，并在 design.figure 写明它是哪一层；不存在就不画，不为装饰配图。"
+                 "优先用原生块和代码绘制的 SVG 图标，只有需要写实形态时才用生成图",
+                 {"design": {"first": "两条通路并列", "then": "各自的环节", "reference": "缩写", "strong": "靶点贴在所属通路下", "figure": "箭头：两条通路的先后"},
                   "blocks": [{"kind": "surface", "tone": "tint", "x": 0, "y": 0, "w": 1152, "h": 120, "peer": "lane"},
                              {"kind": "text", "id": "a", "role": "body", "refs": [F("s1")], "x": 24, "y": 20, "w": 300, "h": 80},
                              {"kind": "text", "id": "b", "role": "body", "refs": [F("s2")], "x": 380, "y": 20, "w": 300, "h": 80},
                              {"kind": "arrow", "from": "a", "to": "b", "backed_by": "sentence", "points": [[330, 60], [372, 60]]}]}),
+    "free": ("自由构图：正文直接写 HTML/CSS（见 factdeck/free.py）。文字只放在空的 <span data-fact=\"编号\"></span>（程序填入事实）或 "
+             "<span data-text>作者标签</span> 里，且都在一个 data-t 文本框内；有填充或边框的元素标 data-shape；"
+             "箭头/线画在 <svg data-edges> 的 polyline 里（箭头 data-from/data-to/data-backed，线 data-encodes 或 data-axis），"
+             "图标 <img data-icon data-for>，条形 data-value-of + data-scale。样式只用位置尺寸、flex/grid、边距、纯色填充与边框、圆角、"
+             "文字颜色/字号/字重/行高/对齐（颜色用主题变量 var(--primary) 等）；不用阴影、渐变、变换、透明度、图片。"
+             "先写 design，绘图原则同 composed",
+             {"design": {"first": "核心句", "then": "两条通路", "reference": "出处", "strong": "核心句"},
+              "html": '<div data-shape data-t style="position:absolute;left:0;top:0;width:560px;padding:20px;background:var(--sky)">'
+                      '<span data-fact="s1"></span></div>'}),
 }
 del F, T
 EDGE_LABEL_MAX = 5           # an arrow label sits in the gap between two boxes
@@ -95,7 +114,7 @@ HERO_MAX_CHARS = 16        # a hero value is a short number or phrase; longer te
 SKIP = {"id", "layout", "widths", "edges", "outline_ids", "section_ids", "point_ids", "key_point_ids", "focus", "col", "row", "emphasis", "kind", "orientation",
         # composed-page geometry and styling (no shown text)
         "role", "tone", "peer", "align", "valign", "size", "weight", "radius", "round", "points", "from", "to", "backed_by",
-        "value_of", "scale", "design", "sep", "recipe", "group"}
+        "value_of", "scale", "design", "sep", "recipe", "group", "icon", "for", "encodes", "axis", "headline", "html", "css"}
 
 
 def walk(node, path=""):
@@ -110,6 +129,8 @@ def walk(node, path=""):
             yield path, "text", node["text"]
             return
         for k, v in node.items():
+            if k == "levels" and isinstance(v, list) and all(isinstance(x, int) for x in v):
+                continue
             if k in SKIP:
                 continue
             if k == "columns":
@@ -200,6 +221,49 @@ def arrow_backs(fact: dict | None, a_ref, b_ref, facts: dict) -> bool:
     return all(ends) and f"{ends[0]}→{ends[1]}" in _arrowed(fact["quote"])
 
 
+MAX_LEVEL = 3
+
+
+def _rows_and_levels(page: dict) -> tuple[list, list | None] | None:
+    """Rows of a table (or an entity_rows composition) and their nesting levels as written in the spec."""
+    if page.get("layout") == "table":
+        return page.get("rows") or [], page.get("levels")
+    if page.get("layout") == "composed" and page.get("recipe") == "entity_rows":
+        s = page.get("slots") or {}
+        return s.get("rows") or [], s.get("levels")
+    return None
+
+
+def hierarchy_errors(page: dict, facts: dict) -> list[str]:
+    """Rows nest as the original does: a row whose cell the transcription records under a parent cell sits one level
+    below the row naming that parent (the nearest row above it with a smaller level)."""
+    got = _rows_and_levels(page)
+    if not got:
+        return []
+    rows, levels = got
+    if levels is not None and (not isinstance(levels, list) or len(levels) != len(rows)
+                               or not all(isinstance(x, int) and not isinstance(x, bool) and 0 <= x <= MAX_LEVEL for x in levels)):
+        return [f"levels 需与行数一致，每项为 0–{MAX_LEVEL} 的整数"]
+    levels = levels or [0] * len(rows)
+    errors = ["第1行须为顶层（levels 为 0）"] if levels and levels[0] else []
+    errors += [f"第{i + 2}行比上一行深了不止一级" for i, (a, b) in enumerate(zip(levels, levels[1:])) if b > a + 1]
+
+    def first(row) -> list[str]:
+        cell = row[0] if isinstance(row, list) and row else []
+        cell = cell if isinstance(cell, list) else [cell]
+        return [r["fact"] for r in cell if isinstance(r, dict) and r.get("fact") in facts]
+
+    for i, row in enumerate(rows):
+        for fid in first(row):
+            parent = facts[fid].get("unit_parent")
+            if not parent:
+                continue
+            j = next((j for j in range(i - 1, -1, -1) if levels[j] < levels[i]), None)
+            if j is None or parent not in {facts[x]["unit"] for x in first(rows[j])}:
+                errors.append(f"第{i + 1}行（{fid}）在原件中属于上一级 {parent}：须把该上一级列为一行，本行用 levels 缩进在它下面")
+    return errors
+
+
 def _structure(page: dict) -> list[str]:
     layout = page.get("layout")
     if layout not in LAYOUTS:
@@ -219,10 +283,16 @@ def _structure(page: dict) -> list[str]:
                 errors.append(f"表格第{i + 1}行的单元格需为引用列表")
         if page.get("widths") and len(page["widths"]) != ncol:
             errors.append("widths 数量与列数不一致")
+        if any(not row or not row[0] for row in page["rows"]):
+            errors.append("表格每行的第一格须有内容（行名）")
+    if page.get("headline") and not (isinstance(page.get("title"), dict) and page["title"].get("fact") and not page.get("lead")):
+        errors.append("headline 页的标题须是一条原文事实（本页的核心句，至多两行），且不再另设 lead；主题名放在 section")
     if layout == "chart" and page.get("chart"):
         errors += charts.structure_errors(page["chart"])
     if layout == "composed":
         errors += compose.structure_errors(page)
+    if layout == "free":
+        errors += free.structure_errors(page)
     if layout == "compare":
         for i, pn in enumerate(page.get("panels") or []):
             if not isinstance(pn, dict):
@@ -392,6 +462,7 @@ def check(deck: dict, facts: dict[str, dict], terms: list[str] | tuple[str, ...]
         f = facts.get(term.get("fact"))
         if not f or f["status"] != "ACCEPTED" or canon(term["text"]) not in canon(f["quote"]):
             err(f"术语“{term.get('text')}”需出现在已通过的事实 {term.get('fact')} 的引文中")
+    hierarchy = {p.get("id"): hierarchy_errors(p, facts) for p in deck.get("pages") or [] if isinstance(p, dict)}
     deck, recipe_errors = recipes.expand_deck(deck, facts)      # recipe pages become composed blocks first
     pages = deck.get("pages") or []
     if not pages:
@@ -400,7 +471,9 @@ def check(deck: dict, facts: dict[str, dict], terms: list[str] | tuple[str, ...]
     if len(set(ids)) != len(ids) or not all(isinstance(i, str) and re.fullmatch(r"[A-Za-z0-9_-]{1,60}", i) for i in ids):
         err("页面编号为空、非法或重复")
     for page in pages:
-        errors, pending, used = _structure(page) + ([recipe_errors[page.get("id")]] if page.get("id") in recipe_errors else []), [], []
+        if page.get("layout") == "free":                 # checked as the blocks its HTML amounts to
+            page = {**page, "blocks": free.view(page)}
+        errors, pending, used = _structure(page) + ([recipe_errors[page.get("id")]] if page.get("id") in recipe_errors else [])             + hierarchy.get(page.get("id"), []), [], []
         for path, kind, value in walk({k: v for k, v in page.items()}):
             if kind == "emph":
                 errors += emph_errors(path, *value, facts)
@@ -468,15 +541,32 @@ def check(deck: dict, facts: dict[str, dict], terms: list[str] | tuple[str, ...]
                 elif not lf or lf.get("unit") != src_label:
                     errors.append(f"箭头 {e[0]}→{e[1]} 的标签须引用原件中这条箭头的标签（单元 {src_label}）")
         review = []
-        if page.get("layout") == "composed" and not errors:
+        if page.get("layout") in ("flow", "timeline", "chart") and not ((page.get("design") or {}).get("figure") or "").strip():
+            result["warnings"].append(f"{page.get('id')}：这一页是图（{page['layout']}），design.figure 未写明它承担了哪一层文字讲不了的内容")
+        if page.get("layout") in ("composed", "free") and not errors:
             blocks = {b["id"]: b for b in page["blocks"] if b.get("id")}
             try:
                 compose.bar_values(page, facts)
             except ValueError as e:
                 errors.append(str(e))
             for b in page["blocks"]:
+                if b["kind"] == "ring":
+                    if b["value_of"] not in used:
+                        errors.append(f"环形图/象形图画出的数值 {b['value_of']} 须在本页显示")
+                    else:
+                        try:
+                            free.ring_spec((facts[b["value_of"]].get("display") or facts[b["value_of"]].get("quote") or ""))
+                        except ValueError as e:
+                            errors.append(f"环形图/象形图 {b['value_of']}：{e}")
                 if b["kind"] == "bar" and b["value_of"] not in used:
                     errors.append(f"条形 {b['value_of']} 的数值须在本页显示（条形本身不显示文字）")
+                if b["kind"] == "line" and not b.get("axis"):
+                    missing = [x for x in b.get("encodes") or [] if x not in used]
+                    if missing:
+                        errors.append(f"线条画出的事实 {'、'.join(missing)} 须在本页显示（图不带自己的文字，读者要能对上它画的是哪一句）")
+                if b["kind"] == "icon":
+                    shown_as = (facts.get(b["for"]) or {}).get("display") or (facts.get(b["for"]) or {}).get("quote", "")
+                    review.append(f"图标 {b['icon']} 代表“{shown_as[:40]}”：请确认图标画的就是这一项，且没有多说")
                 if b["kind"] != "arrow":
                     continue
                 sup = facts.get(b["backed_by"])
@@ -545,6 +635,21 @@ def check(deck: dict, facts: dict[str, dict], terms: list[str] | tuple[str, ...]
             for label in (facts.get(x) or {}).get("scope") or []:
                 if not any(canon(label) in t for y, t in page_text.items() if y != x):
                     errors.append(f"{x} 的显示文字删去了范围标签“{label}”，本页须另有事实写明它（整组只写一次）")
+        # so must a clause of the source sentence that sets what the shown text holds for (a study, population, time,
+        # place, comparator, condition or a number) when the page leaves it out
+        sentences: dict[str, dict] = {}
+        for x in sorted(set(used)):
+            c = (facts.get(x) or {}).get("context") or {}
+            if c.get("key"):
+                g = sentences.setdefault(c["key"], {"sentence": c["sentence"], "covered": [], "facts": []})
+                g["covered"] += c["covered"]
+                g["facts"].append(x)
+        texts = list(page_text.values())
+        for g in sentences.values():
+            missing = [cl for cl in missing_context(g["sentence"], g["covered"]) if not context_stated(cl, texts)]
+            if missing:
+                errors.append(f"{'、'.join(g['facts'])} 所在原句中限定它的“{'”“'.join(missing)}”没有上页（研究、人群、时间、地点、比较对象、条件或数字）："
+                              "本页须另有事实写明（整组只写一次），或把它纳入引文")
         if page.get("layout") not in {"cover", "divider", "closing", "agenda"} and not used:
             errors.append("内容页至少要引用一条事实")
         result["pages"].append({"id": page.get("id"), "facts": sorted(set(used)), "edge_facts": sorted(set(edge_facts)),
@@ -695,7 +800,7 @@ def monotony_warnings(pages: list[dict]) -> list[str]:
         return p.get("recipe") or p.get("layout")
     run = []
     for p in content + [{}]:
-        if run and composition(p) == composition(run[-1]) and composition(p) != "composed":
+        if run and composition(p) == composition(run[-1]) and composition(p) not in ("composed", "free"):
             run.append(p)
             continue
         if len(run) > SAME_RUN and not all(any(e.get("signal") == "repetition" for e in ((q.get("design") or {}).get("exceptions") or [])

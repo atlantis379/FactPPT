@@ -1,0 +1,236 @@
+{
+  "schema_version": "native-final-visual-review.v1",
+  "review_id": "native-final-visual-review-20261012-r3",
+  "worker": "Codex-Native-Final-Visual-QA",
+  "reviewed_on": "2026-10-12",
+  "source_common_input_sha256": "30d97fe3d548680fd70521fe7b6aff65e6b420464badd05f5b1b5de5f551a341",
+  "graph_sha256": {
+    "semantic_graph": "d5a26e4687cd6e5dcd019a7ed2c4104a1ecf1d6a4aaa27072f95a6d362fd68d7",
+    "extension_graph": "7e9fe13b1122f798d9a5f9cfa4297cc95d108a5a940da63dd6c8a425d67fad3a"
+  },
+  "scope": "Incremental QA: reopened only revised slide01, slide02, and slide05. Reused prior actual-image evidence for slide03, slide04, and slide06 after verifying their PNG SHA values are unchanged. Compared against the six frozen common_input pages; no source PDF pages were reopened.",
+  "slides": [
+    {
+      "slide_number": 1,
+      "common_page_number": 1,
+      "page_id": "s1_cover",
+      "path": "E:\\FactPPTv2\\output\\visual_prompt_lab\\native\\slide01.png",
+      "sha256": "129949090e59cc97f0eac22981fb404ef91a62b5fe457f794d6c4791f711890e",
+      "graph": "extension_graph.json",
+      "graph_sha256": "7e9fe13b1122f798d9a5f9cfa4297cc95d108a5a940da63dd6c8a425d67fad3a",
+      "viewed": true,
+      "viewed_this_round": false,
+      "reused_previous_view": true,
+      "defect_ids": [],
+      "visual_qa": "Reopened the corrected PowerPoint PNG. The complete title fits on one line with no clipping or overlap. Foliage, open book, landscape, and campus/tower remain generic academic decoration, not source figures."
+    },
+    {
+      "slide_number": 2,
+      "common_page_number": 2,
+      "page_id": "s1_p01",
+      "path": "E:\\FactPPTv2\\output\\visual_prompt_lab\\native\\slide02.png",
+      "sha256": "9fe77c8506ee85aa1e8d21cbf63d5b8a2595875573804a1612ba62e5ce5ff3eb",
+      "graph": "semantic_graph.json",
+      "graph_sha256": "d5a26e4687cd6e5dcd019a7ed2c4104a1ecf1d6a4aaa27072f95a6d362fd68d7",
+      "viewed": true,
+      "viewed_this_round": false,
+      "reused_previous_view": true,
+      "defect_ids": [],
+      "visual_qa": "Reopened the corrected PowerPoint PNG. The classification wording and two equal goal panels express the two-class relation without connector strokes; both labels and the right-side management context are unobstructed. Person/heart, shield/check, and globe icons are generic illustrations, not source figures."
+    },
+    {
+      "slide_number": 3,
+      "common_page_number": 5,
+      "page_id": "s1_p04",
+      "path": "E:\\FactPPTv2\\output\\visual_prompt_lab\\native\\slide03.png",
+      "sha256": "e835f0cde452db3428ebf1d5f4d91cd9f4b83f64af4a96a08f772ea6ddba3186",
+      "graph": "semantic_graph.json",
+      "graph_sha256": "d5a26e4687cd6e5dcd019a7ed2c4104a1ecf1d6a4aaa27072f95a6d362fd68d7",
+      "viewed": true,
+      "viewed_this_round": false,
+      "reused_previous_view": true,
+      "defect_ids": [],
+      "visual_qa": "Image SHA is unchanged from the prior actual-image review (e835f0cde452db3428ebf1d5f4d91cd9f4b83f64af4a96a08f772ea6ddba3186); prior viewed evidence is reused without claiming a new view. Both method cases and their respective follow-up questions remain separate in the two-column layout. The branch connectors organize the two cases without connecting one case to the other. Document, people, magnifier, and puzzle-piece icons are generic explanatory metaphors, not source figures; no medical image is claimed."
+    },
+    {
+      "slide_number": 4,
+      "common_page_number": 9,
+      "page_id": "a_s2_04_04",
+      "path": "E:\\FactPPTv2\\output\\visual_prompt_lab\\native\\slide04.png",
+      "sha256": "5226019fc5c43b677eb0817bcf6c96953e56eaff1a2a89b32e5b8d297abfd286",
+      "graph": "semantic_graph.json",
+      "graph_sha256": "d5a26e4687cd6e5dcd019a7ed2c4104a1ecf1d6a4aaa27072f95a6d362fd68d7",
+      "viewed": true,
+      "viewed_this_round": false,
+      "reused_previous_view": true,
+      "defect_ids": [],
+      "visual_qa": "Image SHA is unchanged from the prior actual-image review (5226019fc5c43b677eb0817bcf6c96953e56eaff1a2a89b32e5b8d297abfd286); prior viewed evidence is reused without claiming a new view. The “和/或” operator visibly separates structural changes from physiologic abnormalities. The right-side path reads in source order from clinical context to post-bronchodilator threshold (< 0.7) to diagnosis; no extra cross-scope arrow is visible. Lung/person, airflow, document, and checklist graphics are generic illustrations, not source medical figures."
+    },
+    {
+      "slide_number": 5,
+      "common_page_number": 20,
+      "page_id": "a_s3_07_15",
+      "path": "E:\\FactPPTv2\\output\\visual_prompt_lab\\native\\slide05.png",
+      "sha256": "6e8eb7b39718853eb7e79574a03e2f6722d4c8d48bb340fe2598a7531fdf7d89",
+      "graph": "extension_graph.json",
+      "graph_sha256": "7e9fe13b1122f798d9a5f9cfa4297cc95d108a5a940da63dd6c8a425d67fad3a",
+      "viewed": true,
+      "viewed_this_round": true,
+      "reused_previous_view": false,
+      "defect_ids": [],
+      "visual_qa": "Reopened the new PowerPoint render. The 2×2 table uses authored column widths 879/291 and row heights 82/174. The two source paragraphs remain separate; header is 22px white on green, body 22px, and E 56px. The ≥1 threshold, moderate/severe qualifier, previous-year scope, and E remain legible. Generic footer landscape and foliage are decoration, not source figures."
+    },
+    {
+      "slide_number": 6,
+      "common_page_number": 21,
+      "page_id": "a_s3_08_16",
+      "path": "E:\\FactPPTv2\\output\\visual_prompt_lab\\native\\slide06.png",
+      "sha256": "80f5ee6fbc75cd1377eb1041d810a9c231391be5c5b38b1932e3c044c8fe5fe8",
+      "graph": "extension_graph.json",
+      "graph_sha256": "7e9fe13b1122f798d9a5f9cfa4297cc95d108a5a940da63dd6c8a425d67fad3a",
+      "viewed": true,
+      "viewed_this_round": false,
+      "reused_previous_view": true,
+      "defect_ids": [],
+      "visual_qa": "Image SHA is unchanged from the prior actual-image review (80f5ee6fbc75cd1377eb1041d810a9c231391be5c5b38b1932e3c044c8fe5fe8); prior viewed evidence is reused without claiming a new view. The condition node points forward to the assessment statement; the three assessment areas remain distinct. The literal “和/或” sits only between lung structure and comorbidities; no cross-scope connector joins lung mechanics into that operator. The paragraph/assessment/lung/CT/heart icons are generic illustrations rather than source medical figures; no extra medical pathway is shown."
+    }
+  ],
+  "prior_findings": [
+    {
+      "id": "NVQA-S01-01",
+      "status": "FIXED",
+      "position_evidence": "slide01 title box now spans one line; the full locked title ends with “策略” on the same line, visibly separated from the foliage artwork.",
+      "reviewed_asset_sha256": "129949090e59cc97f0eac22981fb404ef91a62b5fe457f794d6c4791f711890e"
+    },
+    {
+      "id": "NVQA-S02-01",
+      "status": "FIXED",
+      "position_evidence": "slide02 has no classification connector strokes. “治疗目标分为两类：” introduces the two parallel left cards; both goal texts are unobstructed, and the management-context card remains separate at right.",
+      "reviewed_asset_sha256": "9fe77c8506ee85aa1e8d21cbf63d5b8a2595875573804a1612ba62e5ce5ff3eb"
+    },
+    {
+      "id": "NVQA-S05-01",
+      "status": "FIXED",
+      "position_evidence": "slide05 row 2, column 1 shows the heading and criterion on separate lines. Header/body font sizes and E emphasis match the layout styles.",
+      "reviewed_asset_sha256": "bf27b2451e0bc6f5ed2be09c925b18f3591023551bd3712414cee68f8760b823"
+    },
+    {
+      "id": "NVQA-S05-02",
+      "status": "FIXED",
+      "position_evidence": "Actual native table now uses columns [879.0, 291.0] and rows [82.0, 174.0], exactly matching authored layout [879, 291]/[82, 174]. Reopened slide05.png shows the E column at the intended 291 width; cell text, header/body typography, and 2x2 grid remain legible.",
+      "previous_asset_sha256": "bf27b2451e0bc6f5ed2be09c925b18f3591023551bd3712414cee68f8760b823",
+      "reviewed_asset_sha256": "6e8eb7b39718853eb7e79574a03e2f6722d4c8d48bb340fe2598a7531fdf7d89"
+    }
+  ],
+  "defects": [],
+  "review_history": [
+    {
+      "review_id": "native-final-visual-review-20261012-r1",
+      "asset_hashes": {
+        "1": "d49cadafc18f5efb6f6f7ccc41a540d7ddbf8d3d8c1cd5715f19afdb47a4f674",
+        "2": "856bf5f75908e39418e12f74de65b03b78ea6bbd72e6cd55ef06c304ab286adf",
+        "3": "e835f0cde452db3428ebf1d5f4d91cd9f4b83f64af4a96a08f772ea6ddba3186",
+        "4": "5226019fc5c43b677eb0817bcf6c96953e56eaff1a2a89b32e5b8d297abfd286",
+        "5": "c35694471d67900ee25dd90112405e41728b231820bac4247fc0526b1e48a10f",
+        "6": "80f5ee6fbc75cd1377eb1041d810a9c231391be5c5b38b1932e3c044c8fe5fe8"
+      },
+      "findings": [
+        {
+          "id": "NVQA-S02-01",
+          "severity": "BLOCKER",
+          "slide_number": 2,
+          "common_page_number": 2,
+          "location": "Left column, both target cards: vertical branch stem at the center of the cards crosses the target text; lower branch also touches/crosses the lower sentence.",
+          "evidence": "The native path is visibly drawn over the labels in the actual PowerPoint render. The graph relation is a classification branch from the opening region to two targets, but this path occludes locked wording. This is a visual overlap missed by the zero-overlap metrics."
+        },
+        {
+          "id": "NVQA-S05-01",
+          "severity": "BLOCKER",
+          "slide_number": 5,
+          "common_page_number": 20,
+          "location": "Table row 2, column 1, same baseline after “EXACERBATION HISTORY (PER YEAR)”.",
+          "evidence": "The rendered cell shows “... (PER YEAR)One or more ...” without paragraph/word separation. The frozen source cell has two lines: the heading followed by “One or more (≥ 1) moderate or severe exacerbations in the previous year”. The 2×2 table and white-on-green column headers are otherwise visible; the ≥1 threshold, severity scope, previous-year qualifier, and E cell are present."
+        },
+        {
+          "id": "NVQA-S01-01",
+          "severity": "NON_BLOCKING",
+          "slide_number": 1,
+          "common_page_number": 1,
+          "location": "Cover title, second line at far left.",
+          "evidence": "The final character of “慢性阻塞性肺疾病诊断、管理和预防全球策略” wraps onto a line by itself. It is readable and not clipped, but creates an orphaned character."
+        }
+      ],
+      "disposition": "Original findings NVQA-S01-01, NVQA-S02-01, and NVQA-S05-01 are recorded above as FIXED; current unaffected slide hashes are compared with this record."
+    },
+    {
+      "review_id": "native-final-visual-review-20261012-r2",
+      "open_findings": [
+        {
+          "id": "NVQA-S05-02",
+          "severity": "BLOCKER",
+          "slide_number": 5,
+          "common_page_number": 20,
+          "location": "Native table column split, row 1 and row 2 cell boundaries.",
+          "evidence": "Layout specifies column widths [879, 291] and row heights [82, 174]; the actual native model/PowerPoint render uses column widths [1010.055, 159.945] and row heights [82.0, 174.0]. The body E column is visibly much narrower than the authored 291-wide column. Paragraph separation, header/body text sizes (22 px), E size (56 px), and white-on-green header styling are correct."
+        }
+      ],
+      "asset_hashes": {
+        "1": "129949090e59cc97f0eac22981fb404ef91a62b5fe457f794d6c4791f711890e",
+        "2": "9fe77c8506ee85aa1e8d21cbf63d5b8a2595875573804a1612ba62e5ce5ff3eb",
+        "3": "e835f0cde452db3428ebf1d5f4d91cd9f4b83f64af4a96a08f772ea6ddba3186",
+        "4": "5226019fc5c43b677eb0817bcf6c96953e56eaff1a2a89b32e5b8d297abfd286",
+        "5": "bf27b2451e0bc6f5ed2be09c925b18f3591023551bd3712414cee68f8760b823",
+        "6": "80f5ee6fbc75cd1377eb1041d810a9c231391be5c5b38b1932e3c044c8fe5fe8"
+      },
+      "disposition": "Slide 5 table width finding NVQA-S05-02 is resolved in this increment; other five assets are unchanged."
+    }
+  ],
+  "native_table_check": {
+    "slide_number": 5,
+    "common_page_number": 20,
+    "expected_column_widths": [
+      879,
+      291
+    ],
+    "actual_exported_column_widths": [
+      879.0,
+      291.0
+    ],
+    "expected_row_heights": [
+      82,
+      174
+    ],
+    "actual_exported_row_heights": [
+      82.0,
+      174.0
+    ],
+    "header_font_px": 22,
+    "body_font_px": 22,
+    "group_e_font_px": 56,
+    "header_white_on_green": true,
+    "paragraphs_separated": true
+  },
+  "render_report_metrics": {
+    "hard_errors": 0,
+    "summary": {
+      "slides": 6,
+      "generated_picture_objects": 0,
+      "native_paths": 737,
+      "overflow": 0,
+      "overlap": 0,
+      "content_mismatch": 0
+    },
+    "render_report_sha256": "15047fc1f7f7e9bfe9baca21ef0921e5e8f1242edee00f7cd3620830a189cbfd"
+  },
+  "ready_for_human_style_review": true,
+  "medical_approval": false,
+  "customer_style": false,
+  "notes": [
+    "The previous table-column width finding NVQA-S05-02 is fixed: exported native cells now match authored columns 879/291 and rows 82/174.",
+    "Slides 1, 2, and 3, 4, 6 have unchanged asset hashes since the previous review and retain prior actual-image evidence; no new viewing is claimed for those images.",
+    "This records readiness for human style review only. It does not approve medical content or customer style.",
+    "All generated icons and landscape elements are generic and are not claimed as source medical figures. Frozen source content remains unchanged."
+  ],
+  "status": "CLEAR",
+  "incremental_scope": "Reopened only the corrected slide05 actual PowerPoint PNG. Slides01–04 and 06 were reused only after confirming their current PNG SHA values exactly match the previously reviewed assets."
+}
