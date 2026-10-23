@@ -9,8 +9,17 @@ Both are done by workers other than the fact/deck authors and other than each ot
 unresolved issues of its checklist (app/review_ledger.py). After a revision only the changed pages, the pages
 that share their facts or relations, their neighbours and pages with unresolved issues must be re-read; the
 others may carry their previous verdict while facts, summary and sources are unchanged.
+
+Carried passes: an item (page, source page, teaching item, relation, chapter) an earlier independent round of the same
+checklist passed is not judged again while its content fingerprint is unchanged (the page with its facts' display text
+and source units, its neighbours' content, the source pages, the relation and its supporting facts, the check name). It
+is left out of the brief and the result and merged back in under its original reviewer; an item an unresolved issue
+sits on is never carried. The memory is a snapshot named by the checklist record (`carry_memory`).
 """
 from __future__ import annotations
+
+import hashlib
+import json
 
 from app import review_ledger as ledger
 from app.fact57098 import digest, now, require
@@ -258,19 +267,262 @@ def must_view(ctx: dict, reg: dict) -> list[str]:
     return sorted(out)
 
 
+# ------------------------------------------------------------------ carried passes
+# An item an earlier independent round of this checklist passed, whose content fingerprint is unchanged, is not judged
+# again: it leaves the brief and the result, and its verdict is merged back in under its original reviewer. Open
+# issues are not carried: every item that is the ref of an unresolved issue of the checklist is judged every round.
+CARRY_SCHEMA = "semantic-carry/1"
+CARRY_KINDS = {"COVERAGE": ("pages", "source_pages", "teaching_items"), "RELATIONS": ("pages", "relations", "chapters")}
+CARRY_NAMES = {"pages": "页面", "source_pages": "来源页", "teaching_items": "教学条目", "relations": "关系", "chapters": "章节"}
+
+
+def _fp(value) -> str:
+    return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+
+
+def reviewers(rec: dict | None) -> set:
+    """Everyone whose verdicts a checklist record holds: its reviewer and the original reviewers of carried items."""
+    if not rec:
+        return set()
+    return set(rec.get("reviewers") or [rec.get("reviewer")]) - {None}
+
+
+def blocked_reviewers(w: dict, check: str) -> set:
+    """Identities whose earlier passes of `check` may not be carried: the fact/deck authors, and whoever holds verdicts
+    of the other checklist (its current record, or passes its next round would carry)."""
+    other = next(c for c in CHECKS if c != check)
+    rec = (w.get("semantic_checks") or {}).get(other) or {}
+    out = {(w.get("deck") or {}).get("author"), (w.get("facts") or {}).get("author")} | set(rec.get("memory_reviewers") or [])
+    if check_current(w, other):
+        out |= reviewers(rec)
+    return out - {None}
+
+
+class _Basis:
+    """What each review item's verdict rests on, as a fingerprint (check name, item content, the facts with their display
+    text, the source text of cited units and their source pages, related pages). Conservative: any change re-opens it."""
+
+    def __init__(self, w: dict, ctx: dict, check: str):
+        self.w, self.ctx, self.check = w, ctx, check
+        self.order = ctx["order"]
+        self.pos = {p: i for i, p in enumerate(self.order)}
+        self.view = {p["page"]["id"]: p for p in ctx["pages"]}
+        self.sections = {s["id"]: s for s in (w.get("summary") or {}).get("sections") or []}
+        self.scoped = {s["id"]: s for s in ctx["sections"]}
+        self.src_sha = {s["id"]: s.get("sha256") for s in w["sources"]}
+        self.spage = {p["id"]: (s, p) for s in w["sources"] for p in s["pages"]}
+        self.by_unit = {u["id"]: u for s in w["sources"] for u in s["units"] + s.get("transcriptions", [])}
+        self.unit_src = {u["id"]: s.get("sha256") for s in w["sources"] for u in s["units"] + s.get("transcriptions", [])}
+        self.figs = {g["id"]: g for s in w["sources"] for g in s.get("figures", [])}
+        self.raw_rel = {f"{sec['id']}.relation{i}": (r, sec) for sec in ctx["sections"]
+                        for i, r in enumerate((sec.get("message") or {}).get("relations") or [], 1)}
+        deck = w["deck"]["result"]
+        self.bindings = deck.get("content_bindings") or []
+        self.responses = deck.get("context_responses") or []
+        self.base = {"check": check, "scope": ctx["scope"]}
+        self.refs = {i["ref"] for i in ledger.unresolved(w, "semantic", check)}
+        self._pages = {}
+
+    def prints(self, pages) -> dict:
+        return {p: self.ctx["prints"].get(p) for p in sorted(set(pages))}
+
+    def unit(self, uid) -> dict | None:
+        """The unit as the review sees it (confirmations applied) and the file it comes from."""
+        u = self.ctx["by_unit"].get(uid) or self.by_unit.get(uid)
+        return {"unit": u, "source_sha256": self.unit_src.get(uid)} if u else None
+
+    def source_page(self, spid) -> dict | None:
+        if spid not in self.spage:
+            return None
+        s, p = self.spage[spid]
+        units = [self.unit(u["id"]) for u in s["units"] + s.get("transcriptions", []) if u["page_id"] == spid]
+        return {"source_sha256": s.get("sha256"), "location": p.get("location"), "reading": p.get("reading"),
+                "requires_visual": p.get("requires_visual"), "units": units,
+                "figures": [(g["id"], g.get("sha256")) for g in s.get("figures", []) if g.get("page_id") == spid]}
+
+    def page(self, pid) -> str:
+        if pid not in self._pages:
+            self._pages[pid] = self._page(pid)
+        return self._pages[pid]
+
+    def _page(self, pid) -> str:
+        ctx, facts = self.ctx, self.ctx["page_facts"][pid]
+        i = self.pos[pid]
+        near = [self.order[j] for j in (i - 1, i + 1) if 0 <= j < len(self.order)]
+        raw = {f: ctx["v"]["facts"].get(f) for f in facts}
+        fset = set(facts) | {pid}
+        return _fp({**self.base, "kind": "pages", "id": pid, "print": ctx["prints"][pid], "facts": raw,
+                    "units": {u: self.unit(u) for u in sorted(ctx["page_units"][pid])},
+                    "figures": {g: (self.figs.get(g) or {}).get("sha256") for g in sorted({(f or {}).get("figure") for f in raw.values()} - {None})},
+                    "source_pages": {sp: self.source_page(sp) for sp in ctx["page_src"][pid]},
+                    "neighbours": self.prints(near),
+                    "sections": {s: self.sections.get(s) for s in self.view[pid]["page"].get("section_ids") or []},
+                    "bindings": [b for b in self.bindings
+                                 if (set(b.get("primary_fact_refs") or []) | set(b.get("dependent_fact_refs") or [])) & fset],
+                    "context_responses": [x for x in self.responses if any(f in json.dumps(x, ensure_ascii=False, default=str) for f in fset)]})
+
+    def relation(self, rel: dict) -> str:
+        v = self.ctx["v"]["facts"]
+        raw = self.raw_rel.get(rel["relation_id"])
+        units = set(rel.get("unit_ids") or []) | ({rel["evidence_unit"]} if isinstance(rel.get("evidence_unit"), str) else set())
+        facts = set(rel.get("primary_fact_refs") or []) | set(rel.get("dependent_fact_refs") or [])
+        if isinstance(rel.get("backed_by"), str):
+            facts.add(rel["backed_by"])
+        pages = rel.get("presented_on") or []
+        return _fp({**self.base, "kind": "relations", "id": rel["relation_id"], "relation": rel,
+                    "raw": raw[0] if raw else None, "message": (raw[1].get("message") if raw else None),
+                    "units": {u: self.unit(u) for u in sorted(units)}, "facts": {f: v.get(f) for f in sorted(facts)},
+                    "pages": self.prints(pages), "page_bases": {p: self.page(p) for p in sorted(set(pages)) if p in self.pos}})
+
+    def chapter(self, sid) -> str:
+        pages = [p for p in self.order if sid in (self.view[p]["page"].get("section_ids") or [])]
+        return _fp({**self.base, "kind": "chapters", "id": sid, "section": self.scoped.get(sid) or self.sections.get(sid),
+                    "page_order": pages, "pages": self.prints(pages)})
+
+    def source_item(self, r: dict, row: dict) -> str:
+        spid = r["source_page_id"]
+        s, _ = self.spage[spid]
+        cited = set(r.get("summary_sections") or [])
+        topic = [p for p in self.order if cited & set(self.view[p]["page"].get("section_ids") or [])]
+        seq = [p["id"] for p in s["pages"]]
+        i = seq.index(spid)
+        adjacent = {x: {"content": self.source_page(x), "presented_on": self.prints(self._presented(x))}
+                    for x in seq[max(0, i - 1):i + 2] if x != spid}
+        item = {k: r.get(k) for k in r if k not in ("image_url", "file_url")}
+        return _fp({**self.base, "kind": "source_pages", "id": spid, "item": item, "content": self.source_page(spid),
+                    "deck_pages": self.prints(list(r.get("presented_on") or []) + list(row.get("deck_pages") or [])),
+                    "cited_sections": {x: self.sections.get(x) for x in sorted(cited)}, "topic_pages": self.prints(topic),
+                    "adjacent": adjacent, "outline": self.w.get("outline"), "row": row})
+
+    def _presented(self, spid) -> list:
+        return [p for p in self.order if spid in self.ctx["page_src"][p]]
+
+    def teaching_item(self, r: dict, row: dict) -> str:
+        sid = r.get("section_id") or (r["item_id"] if r.get("kind") == "section" else None)
+        return _fp({**self.base, "kind": "teaching_items", "id": r["item_id"], "item": r,
+                    "deck_pages": self.prints(list(r.get("presented_on") or []) + list(row.get("deck_pages") or [])),
+                    "section": self.sections.get(sid) if sid else None, "outline": self.w.get("outline"), "row": row})
+
+
+def _items(w: dict, ctx: dict, check: str) -> dict:
+    """The current items of each carried kind of `check`: {kind: {id: item}}."""
+    out = {"pages": {p: None for p in ctx["order"]}}
+    if check == "COVERAGE":
+        out["source_pages"] = {r["source_page_id"]: r for r in source_pages(w, ctx)}
+        out["teaching_items"] = {r["item_id"]: r for r in teaching_items(w, ctx)}
+    else:
+        out["relations"] = {r["relation_id"]: r for r in relations(w, ctx)}
+        out["chapters"] = {s["id"]: s for s in outcome_sections(w, ctx)}
+    return out
+
+
+def _held_open(basis: "_Basis", kind: str, iid: str, item) -> bool:
+    """Whether an unresolved issue of this checklist sits on the item (or, for a page, on its facts, units or source
+    pages; for a relation, on its units): such an item is judged again every round."""
+    refs, ctx = basis.refs, basis.ctx
+    if iid in refs:
+        return True
+    if kind == "pages":
+        return bool(refs & (set(ctx["page_facts"][iid]) | ctx["page_units"][iid] | set(ctx["page_src"][iid])))
+    if kind == "relations":
+        return bool(refs & set(item.get("unit_ids") or []))
+    return False
+
+
+def _fingerprint(basis: _Basis, kind: str, iid: str, item, row: dict) -> str:
+    if kind == "pages":
+        return basis.page(iid)
+    if kind == "relations":
+        return basis.relation(item)
+    if kind == "chapters":
+        return basis.chapter(iid)
+    if kind == "source_pages":
+        return basis.source_item(item, row)
+    return basis.teaching_item(item, row)
+
+
+def carried(w: dict, check: str, ctx: dict, memory: dict | None) -> dict:
+    """{kind: {id: memory entry}} of the items this round does not judge: an earlier independent round of this checklist
+    passed them, their fingerprint is unchanged, no unresolved issue sits on them, and their original reviewer is still
+    independent (not an author, not holding verdicts of the other checklist)."""
+    out = {k: {} for k in CARRY_KINDS[check]}
+    rows = (memory or {}).get("rows") or {}
+    if not rows or (memory or {}).get("schema") != CARRY_SCHEMA or memory.get("check") != check:
+        return out
+    blocked = blocked_reviewers(w, check)
+    basis = _Basis(w, ctx, check)
+    for kind, items in _items(w, ctx, check).items():
+        for iid, item in items.items():
+            e = rows.get(f"{kind}:{iid}")
+            if not e or e.get("reviewer") in blocked or _held_open(basis, kind, iid, item):
+                continue
+            if e.get("fingerprint") == _fingerprint(basis, kind, iid, item, e.get("row") or {}):
+                out[kind][iid] = e
+    return out
+
+
+def carry_counts(w: dict, ctx: dict, check: str, carry: dict) -> dict:
+    items = _items(w, ctx, check)
+    return {k: {"count": len(carry[k]), "of": len(items[k])} for k in CARRY_KINDS[check]}
+
+
+def carry_rule(counts: dict) -> str:
+    n = "、".join(f"{CARRY_NAMES[k]}{c['count']}/{c['of']}" for k, c in counts.items())
+    return (f"本轮沿用此前独立审核的通过判定：{n}。这些条目的页面内容、所引事实的显示文字与原文、来源单元原文、关系及相关页面均未改变"
+            "（代码按内容指纹核对），也没有未闭环问题，不在本轮pages、清单与result_contract中，也不需判定；判定仍记在原审核人名下。"
+            "只判定列出的条目；prior_issues中的未闭环问题仍须逐条处置。")
+
+
+def _without_carried(reg: dict, pages) -> dict:
+    return {**reg, "affected": [p for p in reg["affected"] if p not in pages]}
+
+
+def _source_reread(ctx: dict, reg: dict, prev: dict, ids) -> set:
+    """Source pages the COVERAGE brief shows in full (read=true); the others show their archived status (read=false)."""
+    affected = {s for p in reg["affected"] for s in ctx["page_src"][p]}
+    old = prev.get("source_pages") or {}
+    return {s for s in ids if reg["mode"] == "FULL" or s not in old or old[s]["status"] == "NEEDS_HUMAN" or s in affected}
+
+
+def build_memory(w: dict, ctx: dict, check: str, reviewer: str, rnd: dict, passed: dict, carry: dict) -> dict:
+    """The passes this round leaves for later rounds: items this reviewer judged fine plus the carried ones (under their
+    original reviewer), each with its fingerprint; items an unresolved issue now sits on are left out."""
+    basis = _Basis(w, ctx, check)
+    items = _items(w, ctx, check)
+    rows = {}
+    for kind in CARRY_KINDS[check]:
+        for iid, row in passed.get(kind, {}).items():
+            if iid not in items[kind] or _held_open(basis, kind, iid, items[kind][iid]):
+                continue
+            rows[f"{kind}:{iid}"] = {"fingerprint": _fingerprint(basis, kind, iid, items[kind][iid], row), "row": row,
+                                     "reviewer": reviewer, "round": rnd["round"], "at": rnd["at"]}
+        for iid, e in carry.get(kind, {}).items():
+            if not _held_open(basis, kind, iid, items[kind][iid]):
+                rows[f"{kind}:{iid}"] = e
+    return {"schema": CARRY_SCHEMA, "check": check, "rows": rows}
+
+
 # ------------------------------------------------------------------ brief
-def brief(w: dict, check: str, req: dict) -> dict:
+def brief(w: dict, check: str, req: dict, memory: tuple | None = None) -> dict:
+    """`memory` is (snapshot path, value) of the checklist's carried passes (Store.semantic_memory)."""
     from factdeck.context import signals, NOTES
     d = _d()
     ctx = context(w)
     reg = regression(w, check, ctx)
     prev = prior_check(w, check)
+    memory_path, memory_value = memory or (None, None)
+    carry = carried(w, check, ctx, memory_value)
+    cpages = carry["pages"]
+    counts = carry_counts(w, ctx, check, carry)
+    read_reg = _without_carried(reg, cpages)
     by_unit = ctx["by_unit"]
     srcs = {r["source_page_id"]: r for r in source_pages(w, ctx)}
     responses = ((w.get("deck") or {}).get("issue_responses") or {})
     view = []
     for p in ctx["pages"]:
         pid = p["page"]["id"]
+        if pid in cpages:                               # an earlier independent pass still holds: not listed
+            continue
         if pid in reg["carry"]:                         # not re-read this round: an outline, not the evidence
             view.append({"page": {k: p["page"].get(k) for k in ("id", "layout", "title") if k in p["page"]},
                          "fact_ids": [f["id"] for f in p["facts"]], "read": False, "previous_verdict": reg["carry"][pid]})
@@ -311,17 +563,18 @@ def brief(w: dict, check: str, req: dict) -> dict:
                  "source_pages：每个来源页给出 status：PRESENTED（deck_pages 写出呈现它的页面）、EXCLUDED（reason 写明不纳入的理由，含空白、参考文献、重复、不可读）、"
                  "NEEDS_HUMAN（reason 写明需要用户决定什么）。presented_on 是程序按事实引用算出的页面，regions 是该页的区域统计。",
                  "teaching_items：每个提纲条目、提纲要点、总结章节和关键要点同样给出状态；不能用“整章已覆盖”代替逐项。部分呈现时写 PRESENTED 并另报问题。"]
-        coverage = {"source_pages": [_item_template(r, "source_page_id", prev.get("source_pages")) for r in srcs.values()],
-                    "teaching_items": [_item_template(r, "item_id", prev.get("teaching_items")) for r in teaching_items(w, ctx)]}
+        open_srcs = [r for r in srcs.values() if r["source_page_id"] not in carry["source_pages"]]
+        open_items = [r for r in teaching_items(w, ctx) if r["item_id"] not in carry["teaching_items"]]
+        coverage = {"source_pages": [_item_template(r, "source_page_id", prev.get("source_pages")) for r in open_srcs],
+                    "teaching_items": [_item_template(r, "item_id", prev.get("teaching_items")) for r in open_items]}
         source_view = []
-        affected_sources = {s for p in reg['affected'] for s in ctx['page_src'][p]}
-        for r in srcs.values():
+        reread = _source_reread(ctx, reg, prev, srcs)
+        for r in open_srcs:
             old = (prev.get('source_pages') or {}).get(r['source_page_id'])
-            reread = reg['mode'] == 'FULL' or not old or old['status'] == 'NEEDS_HUMAN' or r['source_page_id'] in affected_sources
-            source_view.append({**r, 'read': True} if reread else {
+            source_view.append({**r, 'read': True} if r['source_page_id'] in reread else {
                 'source_page_id': r['source_page_id'], 'location': r['location'], 'read': False,
                 'previous_status': old, 'presented_on': r['presented_on']})
-        inventory = {"source_pages": source_view, "teaching_items": teaching_items(w, ctx)}
+        inventory = {"source_pages": source_view, "teaching_items": open_items}
         extra.append('read=false的来源页沿用存档分类和理由，不重新阅读全文；仅核对本次变化的映射。来源全文登记仍由代码维护。')
     else:
         extra = ["方向：从大纲要点和来源关系向页面核对：上下文、逻辑类型（条件、因果/相关、先后、并列、包含、分组、比较、阈值归属、跨页承接）、方向、分组和视觉表达。",
@@ -332,32 +585,33 @@ def brief(w: dict, check: str, req: dict) -> dict:
                  "FLATTENED（相关内容上页了，但被排成并列清单或分散在各页，读不出关系）、MISSING（关系所涉内容未上页）。",
                  "chapters：每章只看本章页面（不看总结），在 restated 写下你能复述的本章核心论点；core_on_pages：页面是否让读者读出总结的核心句（YES/NO）；"
                  "limits_on_pages：标为 limit 的局限、例外和适用范围是否都在页面上（YES/NO；本章没有 limit 时写 YES）。NO 须写 issue。"]
-        rels = relations(w, ctx)
+        rels = [r for r in relations(w, ctx) if r["relation_id"] not in carry["relations"]]
+        chapters = [c for c in outcome_sections(w, ctx) if c["id"] not in carry["chapters"]]
         carried_rel = {r["relation_id"] for r in rels if all(p in reg["carry"] for p in r["presented_on"]) and r["presented_on"]
                        and r["relation_id"] in (prev.get("relations") or {})}
         coverage = {"relations": [{"relation_id": r["relation_id"], "verdict": "CARRIED" if r["relation_id"] in carried_rel else "",
                                    **({"expression": ""} if r["kind"] == "summary_relation" else {}), "issue": ""} for r in rels],
                     "chapters": [{"section_id": c["id"], "restated": "", "core_on_pages": "", "limits_on_pages": "", "issue": ""}
-                                 for c in outcome_sections(w, ctx)]}
+                                 for c in chapters]}
         inventory = {"relations": rels,
                      "chapter_messages": [{"section_id": c["id"], "title": c.get("title"), "core": (c["message"].get("core") or {}).get("quote"),
-                                           "limits": [k for k, v in c["message"]["roles"].items() if v == "limit"]} for c in outcome_sections(w, ctx)]}
+                                           "limits": [k for k, v in c["message"]["roles"].items() if v == "limit"]} for c in chapters]}
     summary_view = w['summary']
     if reg['mode'] == 'IMPACT':
-        sections = {s for p in ctx['pages'] if p['page']['id'] in reg['affected'] for s in p['page'].get('section_ids', [])}
+        sections = {s for p in ctx['pages'] if p['page']['id'] in read_reg['affected'] for s in p['page'].get('section_ids', [])}
         summary_view = {'sections': [s for s in w['summary']['sections'] if s['id'] in sections],
                         'read_scope': 'IMPACT', 'full_summary_sha256': digest(w['summary'])}
     return {"kind": "SEMANTIC_REVIEW", "check": check, "check_name": CHECK_NAMES[check], **req,
             "context_responses": w["deck"]["result"].get("context_responses", []),
             "input_sha256": d.semantic_input(w), "summary": summary_view, "pages": view, "coverage": w["deck"]["coverage"],
             "scope": ctx["scope"], "regression": {k: reg[k] for k in ("mode", "reason", "changed", "affected")},
-            "prior_issues": prior, "fixed_issues": fixed, "must_view_source_pages": must_view(ctx, reg), **inventory,
-            "context_signal_kinds": NOTES,
-            "rules": common + extra,
+            "prior_issues": prior, "fixed_issues": fixed, "must_view_source_pages": must_view(ctx, read_reg), **inventory,
+            "context_signal_kinds": NOTES, "carried_review": counts, "carry_memory": memory_path,
+            "rules": common + extra + ([carry_rule(counts)] if any(c["count"] for c in counts.values()) else []),
             "result_contract": {"check": check, "input_sha256": d.semantic_input(w),
                                 "prior_issues": [{"issue_id": i["id"], "status": "", "evidence": "", "evidence_refs": []} for i in prior],
                                 "pages": [{"page_id": p["page"]["id"], "verdict": "CARRIED" if p["page"]["id"] in reg["carry"] else "",
-                                           "issues": []} for p in ctx["pages"]],
+                                           "issues": []} for p in ctx["pages"] if p["page"]["id"] not in cpages],
                                 **coverage, "viewed_source_pages": [], "unchecked": [], "issues": []}}
 
 
@@ -377,24 +631,37 @@ def _item_template(r: dict, key: str, prev: dict | None) -> dict:
 
 
 # ------------------------------------------------------------------ accept
-def accept(w: dict, result: dict, reviewer: str, check: str) -> dict:
+def accept(w: dict, result: dict, reviewer: str, check: str, memory: dict | None = None, keep=None) -> dict:
+    """`memory` is the carried-pass snapshot the task's brief was built from; `keep` saves this round's (Store.snapshot)."""
     d = _d()
     require(check in CHECKS, "语义审查须指定检查表：COVERAGE 或 RELATIONS", 422)
     require(d.deck_current(w), "没有当前版本的页面规格")
     require(reviewer not in {w["deck"]["author"], w["facts"]["author"]}, "语义审查须由编写事实库和页面之外的执行端完成", 422)
-    other = next(c for c in CHECKS if c != check)
-    if check_current(w, other):
-        require(w["semantic_checks"][other]["reviewer"] != reviewer, "两张检查表须由不同的独立执行端完成", 422)
     require(result.get("check", check) == check, "结果对应的检查表不符", 422)
     require(result.get("input_sha256") == d.semantic_input(w), "审查对应的页面或事实库已过期")
     ledger.book(w, "semantic")
     ctx = context(w)
     reg = regression(w, check, ctx)
+    carry = carried(w, check, ctx, memory)
+    # carried verdicts stay their original reviewer's: the two checklists' reviewers (carried ones included) are disjoint
+    mine = {reviewer} | {e.get("reviewer") for k in carry.values() for e in k.values()}
+    other = next(c for c in CHECKS if c != check)
+    if check_current(w, other):
+        require(not mine & reviewers(w["semantic_checks"][other]), "两张检查表须由不同的独立执行端完成", 422)
+    cpages = carry["pages"]
     order = ctx["order"]
     rows = result.get("pages")
-    require(isinstance(rows, list) and [r.get("page_id") for r in rows if isinstance(r, dict)] == order, "需按顺序逐页给出审查结论", 422)
+    require(isinstance(rows, list), "需按顺序逐页给出审查结论", 422)
+    again = [r.get("page_id") for r in rows if isinstance(r, dict) and r.get("page_id") in cpages]
+    require(not again, "沿用通过判定的页面不在本轮pages中：" + "、".join(again), 422)
+    require([r.get("page_id") for r in rows if isinstance(r, dict)] == [p for p in order if p not in cpages],
+            "需按顺序逐页给出审查结论（沿用通过判定的页面除外）", 422)
     refs = _refs(w, ctx)
     new, verdicts, ok, problem, read = [], {}, set(), set(), []
+    passed = {k: {} for k in CARRY_KINDS[check]}
+    for pid, e in cpages.items():
+        verdicts[pid] = (e.get("row") or {}).get("verdict", "SUPPORTED")
+        ok.add(pid)
     for r in rows:
         pid, vd = r["page_id"], r.get("verdict")
         require(vd in PAGE_VERDICTS, "每页结论需为 SUPPORTED、ISSUES 或 CARRIED", 422)
@@ -409,6 +676,7 @@ def accept(w: dict, result: dict, reviewer: str, check: str) -> dict:
         verdicts[pid] = vd
         if vd == "SUPPORTED":
             ok.add(pid)
+            passed["pages"][pid] = {"verdict": "SUPPORTED"}
         for it in items:
             require(isinstance(it, dict), "问题需为对象", 422)
             ref = str(it.get("ref") or "").strip()
@@ -416,16 +684,29 @@ def accept(w: dict, result: dict, reviewer: str, check: str) -> dict:
     new += list(result.get("issues") or [])
     auto, record = [], {}
     if check == "COVERAGE":
-        record["source_pages"] = _statuses(result.get("source_pages"), "source_page_id", [r["source_page_id"] for r in source_pages(w, ctx)],
-                                           order, "来源页", auto, ok, problem)
-        record["teaching_items"] = _statuses(result.get("teaching_items"), "item_id", [r["item_id"] for r in teaching_items(w, ctx)],
-                                             order, "教学条目", auto, ok, problem)
+        srcs = [r["source_page_id"] for r in source_pages(w, ctx)]
+        reread = _source_reread(ctx, reg, prior_check(w, check), srcs)
+        for kind, key, expected, label in (("source_pages", "source_page_id", srcs, "来源页"),
+                                           ("teaching_items", "item_id", [r["item_id"] for r in teaching_items(w, ctx)], "教学条目")):
+            got = result.get(kind)
+            again = [r.get(key) for r in got or [] if isinstance(r, dict) and r.get(key) in carry[kind]]
+            require(not again, f"沿用通过判定的{label}不在本轮{kind}中：" + "、".join(map(str, again)), 422)
+            out = _statuses(got, key, [x for x in expected if x not in carry[kind]], order, label, auto, ok, problem)
+            passed[kind] = {rid: x for rid, x in out.items() if x["status"] in {"PRESENTED", "EXCLUDED"}
+                            and (kind != "source_pages" or rid in reread)}
+            for rid, e in carry[kind].items():
+                out[rid] = dict(e["row"])
+                ok.add(rid)
+            record[kind] = {rid: out[rid] for rid in expected if rid in out}
     else:
         rels = {r["relation_id"]: r for r in relations(w, ctx)}
         got = result.get("relations")
         require(isinstance(got, list) and all(isinstance(x, dict) for x in got), "relations 需为列表", 422)
         ids = [x.get("relation_id") for x in got]
-        require(len(ids) == len(set(ids)) and set(ids) == set(rels), "须逐条判断全部关系（relations 不多不少）", 422)
+        again = [i for i in ids if i in carry["relations"]]
+        require(not again, "沿用通过判定的关系不在本轮relations中：" + "、".join(map(str, again)), 422)
+        require(len(ids) == len(set(ids)) and set(ids) == set(rels) - set(carry["relations"]),
+                "须逐条判断全部关系（relations 不多不少，沿用通过判定的关系除外）", 422)
         prev = prior_check(w, check).get("relations") or {}
         record["relations"] = {}
         for x in got:
@@ -457,10 +738,20 @@ def accept(w: dict, result: dict, reviewer: str, check: str) -> dict:
             (ok if vd == "SUPPORTED" and expression in (None, "EXPRESSED") else problem).add(rid)
             record["relations"][rid] = {"verdict": vd, "issue": text or (prev.get(rid) or {}).get("issue", ""),
                                         **({"expression": expression} if expression else {})}
-        expected = [c["id"] for c in outcome_sections(w, ctx)]
+            if x.get("verdict") == "SUPPORTED" and expression in (None, "EXPRESSED"):
+                passed["relations"][rid] = record["relations"][rid]
+        for rid, e in carry["relations"].items():
+            record["relations"][rid] = dict(e["row"])
+            ok.add(rid)
+        record["relations"] = {rid: record["relations"][rid] for rid in rels}
+        everyone = [c["id"] for c in outcome_sections(w, ctx)]
+        expected = [c for c in everyone if c not in carry["chapters"]]
         chapters = result.get("chapters")
-        require(isinstance(chapters, list) and [c.get("section_id") for c in chapters if isinstance(c, dict)] == expected,
-                "chapters 须按顺序逐章给出（本次范围内有信息结构的章节）", 422)
+        require(isinstance(chapters, list), "chapters 须按顺序逐章给出（本次范围内有信息结构的章节）", 422)
+        again = [c.get("section_id") for c in chapters if isinstance(c, dict) and c.get("section_id") in carry["chapters"]]
+        require(not again, "沿用通过判定的章节不在本轮chapters中：" + "、".join(map(str, again)), 422)
+        require([c.get("section_id") for c in chapters if isinstance(c, dict)] == expected,
+                "chapters 须按顺序逐章给出（本次范围内有信息结构的章节，沿用通过判定的章节除外）", 422)
         record["chapters"] = {}
         for c in chapters:
             sid = c["section_id"]
@@ -474,7 +765,13 @@ def accept(w: dict, result: dict, reviewer: str, check: str) -> dict:
                                  "evidence": f"复述：{str(c['restated'])[:200]}", "problem": f"只看页面读不出本章的{what}：{issue_text}"})
             (ok if c["core_on_pages"] == "YES" and c["limits_on_pages"] == "YES" else problem).add(sid)
             record["chapters"][sid] = {k: c[k] for k in ("restated", "core_on_pages", "limits_on_pages")} | {"issue": issue_text}
-    need_view = must_view(ctx, reg)
+            if c["core_on_pages"] == "YES" and c["limits_on_pages"] == "YES":
+                passed["chapters"][sid] = record["chapters"][sid]
+        for sid, e in carry["chapters"].items():
+            record["chapters"][sid] = dict(e["row"])
+            ok.add(sid)
+        record["chapters"] = {sid: record["chapters"][sid] for sid in everyone}
+    need_view = must_view(ctx, _without_carried(reg, cpages))
     viewed = result.get("viewed_source_pages") or []
     require(isinstance(viewed, list) and set(need_view) <= set(viewed),
             "须实际查看并列出以下来源页原图：" + "、".join(sorted(set(need_view) - set(viewed or []))), 422)
@@ -482,10 +779,15 @@ def accept(w: dict, result: dict, reviewer: str, check: str) -> dict:
     rnd = ledger.record_round(w, "semantic", check, reviewer=reviewer, input_sha256=d.semantic_input(w),
                               dispositions=result.get("prior_issues"), new_issues=new, valid_refs=refs,
                               ok_refs=ok, problem_refs=problem, auto_issues=auto,
-                              meta={"mode": reg["mode"], "pages_read": len(read), "pages_carried": len(order) - len(read)})
+                              meta={"mode": reg["mode"], "pages_read": len(read), "pages_carried": len(order) - len(read),
+                                    "carried_passes": {k: len(v) for k, v in carry.items()}})
+    memory_out = build_memory(w, ctx, check, reviewer, rnd, passed, carry)
+    held = {e["reviewer"] for e in memory_out["rows"].values()}
     units_total = sum(len(s["units"]) + len(s["transcriptions"]) for s in w["sources"])
     shown_units = set().union(*ctx["page_units"].values()) if order else set()
-    record.update({"input_sha256": d.semantic_input(w), "reviewer": reviewer, "at": now(), "round": rnd["round"],
+    record.update({"reviewers": sorted(mine - {None}), "memory_reviewers": sorted(held),
+                   "carry_memory": keep(memory_out) if keep else None, "carried": carry_counts(w, ctx, check, carry),
+                   "input_sha256": d.semantic_input(w), "reviewer": reviewer, "at": now(), "round": rnd["round"],
                    "facts_sha": d.facts_sha(w), "summary_sha": digest(w["summary"]), "sources_sha": sources_print(w),
                    "scope_pages": order, "page_prints": ctx["prints"], "page_verdicts": verdicts,
                    "regression": {k: reg[k] for k in ("mode", "reason", "changed", "affected")},
@@ -493,7 +795,8 @@ def accept(w: dict, result: dict, reviewer: str, check: str) -> dict:
                    "counts": {"source_pages": sum(len(s["pages"]) for s in w["sources"]), "source_units": units_total,
                               "source_units_on_pages": len(shown_units), "teaching_items": len(record.get("teaching_items") or {}),
                               "relations": len(record.get("relations") or {}), "deck_pages": len(order), "deck_pages_read": len(read),
-                              "deck_pages_carried": len(order) - len(read), "prior_issues": len(result.get("prior_issues") or []),
+                              "deck_pages_carried": len(order) - len(read), "deck_pages_carried_passes": len(cpages),
+                              "prior_issues": len(result.get("prior_issues") or []),
                               "new_issues": len(rnd["new"]), "viewed_source_pages": len(set(viewed))}})
     w.setdefault("semantic_checks", {})[check] = record
     w["semantic_review"] = combined(w)
@@ -539,7 +842,7 @@ def combined(w: dict) -> dict:
     d = _d()
     checks = w.get("semantic_checks") or {}
     done = {c: {k: checks[c][k] for k in ("reviewer", "at", "input_sha256", "round", "counts", "unchecked", "regression")}
-            for c in CHECKS if c in checks}
+            | {"reviewers": sorted(reviewers(checks[c]))} for c in CHECKS if c in checks}
     return {"checks": done, "input_sha256": d.semantic_input(w) if current(w) else None,
             "reviewer": " / ".join(done[c]["reviewer"] for c in CHECKS if c in done),
             "at": max((x["at"] for x in done.values()), default=None), "issues": [], "dismissed": {}}
@@ -549,4 +852,5 @@ def task_fingerprint(w: dict, check: str | None) -> str:
     return digest({"input": _d().semantic_input(w), "check": check})
 
 
-__all__ = ["CHECKS", "CHECK_NAMES", "brief", "accept", "current", "check_current", "combined", "task_fingerprint"]
+__all__ = ["CHECKS", "CHECK_NAMES", "brief", "accept", "current", "check_current", "combined", "task_fingerprint",
+           "carried", "reviewers", "blocked_reviewers"]

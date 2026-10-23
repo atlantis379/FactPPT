@@ -115,8 +115,9 @@ def test_after_a_small_revision_only_affected_pages_are_reread(store):
     reg = t["brief"]["regression"]
     assert reg["mode"] == "IMPACT" and reg["changed"] == ["followup"]
     assert set(reg["affected"]) == {"studies", "followup", "end"}            # neighbours re-read for continuity
-    carried = {p["page_id"] for p in t["brief"]["result_contract"]["pages"] if p["verdict"] == "CARRIED"}
-    assert carried == {"cover", "part1", "overview", "criteria", "flow", "drugs"}
+    # pages an earlier independent round passed and whose content is unchanged are not listed at all
+    assert [p["page_id"] for p in t["brief"]["result_contract"]["pages"]] == ["studies", "followup", "end"]
+    assert t["brief"]["carried_review"]["pages"] == {"count": 6, "of": 9}
     r = T.all_clear(t)
     next(p for p in r["pages"] if p["page_id"] == "followup")["verdict"] = "CARRIED"
     with pytest.raises(WorkflowError, match="受本次修订影响"):

@@ -2038,9 +2038,22 @@ class Store(GenerationMixin, _BaseStore):
         w["critique"] = {"input_sha256": critique_input(w), "critic": critic, "at": now(), "pages": pages_out,
                          "revise": sorted(pid for pid, x in pages_out.items() if "REVISE" in x["rubric"].values())}
 
-    def accept_semantic(self, w: dict, result: dict, reviewer: str, check: str | None = None):
-        """One of the two independent checklists; the issue ledger carries every earlier problem forward."""
-        semrev.accept(w, result, reviewer, check or result.get("check"))
+    def semantic_memory(self, w: dict, check: str | None, path: str | None = None) -> tuple[str | None, dict | None]:
+        """(snapshot path, value) of a checklist's carried passes: `path`, or the one its last accepted round left."""
+        path = path or ((w.get("semantic_checks") or {}).get(check) or {}).get("carry_memory")
+        if not path:
+            return None, None
+        return path, json.loads(self.path(path).read_text(encoding="utf-8"))["value"]
+
+    def accept_semantic(self, w: dict, result: dict, reviewer: str, check: str | None = None, brief: dict | None = None):
+        """One of the two independent checklists; the issue ledger carries every earlier problem forward. Passes are
+        carried from the memory the task's brief was built from (a brief without one carries nothing)."""
+        check = check or result.get("check")
+        if brief is None:
+            _, memory = self.semantic_memory(w, check)
+        else:
+            memory = self.semantic_memory(w, check, brief["carry_memory"])[1] if brief.get("carry_memory") else None
+        semrev.accept(w, result, reviewer, check, memory, lambda m: self.snapshot(w, "semantic_carry_memory", m))
         self.snapshot(w, "semantic_review", result)
 
     # ---- tasks
@@ -2444,7 +2457,7 @@ class Store(GenerationMixin, _BaseStore):
                     "result_contract": {"input_sha256": critique_input(w), "pages": [
                         {"page_id": p["id"], "png_sha256": p["sha256"], "rubric": {k: "PASS" for k in RUBRIC}, "fixes": []} for p in r["pages"]]}}
         # SEMANTIC_REVIEW: one of the two checklists (binding COVERAGE / RELATIONS)
-        return semrev.brief(w, binding, req)
+        return semrev.brief(w, binding, req, self.semantic_memory(w, binding))
 
     def fingerprint(self, w: dict, kind: str, binding: str | None) -> str:
         if kind == "SUMMARY_AMEND":
@@ -2546,7 +2559,10 @@ class Store(GenerationMixin, _BaseStore):
                 if worker in {(w.get("deck") or {}).get("author"), (w.get("facts") or {}).get("author")}:
                     return False
                 other = [c for c in semrev.CHECKS if c != t["binding"]]
-                done = [w["semantic_checks"][c]["reviewer"] for c in other if semrev.check_current(w, c)]
+                # whoever holds verdicts of the other checklist: its current reviewers (carried ones included) and the
+                # reviewers of the passes its next round would carry
+                done = [x for c in other for x in (semrev.reviewers(w["semantic_checks"][c]) if semrev.check_current(w, c) else set())
+                        | set(((w.get("semantic_checks") or {}).get(c) or {}).get("memory_reviewers") or [])]
                 running = [x["worker"] for x in w["tasks"] if x["kind"] == "SEMANTIC_REVIEW" and x["status"] == "RUNNING"
                            and x["binding"] in other]
                 return worker not in done + running
@@ -2616,7 +2632,7 @@ class Store(GenerationMixin, _BaseStore):
                                         self.accept_summary_review(w, result, t["worker"])),
              "FACTS": lambda: self.accept_facts(w, result, t["worker"]),
              "DECK": lambda: self.accept_deck(w, result, t["worker"]),
-             "SEMANTIC_REVIEW": lambda: self.accept_semantic(w, result, t["worker"], t["binding"]),
+             "SEMANTIC_REVIEW": lambda: self.accept_semantic(w, result, t["worker"], t["binding"], t["brief"]),
              "VISUAL_CRITIQUE": lambda: self.accept_critique(w, result, t["worker"])}[t["kind"]]()
             t.update(status="COMPLETE", completed_at=now(), lease_token=None, result_sha256=digest(result))
             t["result_path"] = self.snapshot(w, "task_result", result)
@@ -3031,7 +3047,7 @@ class Store(GenerationMixin, _BaseStore):
                                 "used": sorted({fid for p in checked(w, v)["pages"] for fid in p["facts"] + p["edge_facts"]})},
                       "confirmations": w["confirmations"], "deck": {"author": w["deck"]["author"], "result_sha256": w["deck"]["result_sha256"],
                                                                     "coverage": w["deck"]["coverage"], "warnings": w["deck"]["warnings"]},
-                      "semantic_review": w["semantic_review"], "semantic_checks": {c: {k: x.get(k) for k in ("reviewer", "at", "round", "counts", "unchecked", "regression", "viewed_source_pages")}
+                      "semantic_review": w["semantic_review"], "semantic_checks": {c: {k: x.get(k) for k in ("reviewer", "reviewers", "at", "round", "counts", "carried", "unchecked", "regression", "viewed_source_pages")}
                                                                                  for c, x in (w.get("semantic_checks") or {}).items()},
                       "issue_ledger": w.get("issue_ledger"), "render": {k: r[k] for k in ("input_sha256", "summary", "files", "at")},
                       "pages": [{"id": p["id"], "png_sha256": p["sha256"], "review": w["page_reviews"][p["id"]]} for p in r["pages"]],
