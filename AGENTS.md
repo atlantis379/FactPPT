@@ -69,6 +69,11 @@ visual direction; the production API has not yet integrated these tool stages.
   FIXED with evidence refs / OPEN / NEEDS_HUMAN / RETAINED); a deck revision answers each one in
   `issue_responses`. Send what a revision cannot fix to NEEDS_HUMAN instead of re-reporting it.
   Open the source page images you are asked to view; list only those you viewed.
+  SUMMARY_REVIEW and SEMANTIC_REVIEW carry forward items an earlier independent round passed whose
+  content fingerprint is unchanged (`carried_coverage` / `carried_review`): they are not in the brief
+  or the result contract; judge only what is listed. A result that judges a carried item is refused.
+  Carried verdicts stay their original reviewer's, so whoever holds one checklist's verdicts is not
+  given the other; items with unresolved issues are never carried.
   SUMMARY_REVIEW judges every point ENTAILED / PARTIAL / NOT_ENTAILED / CONTRADICTED. Report problems honestly; never approve medical text.
 - Route A may generate full-slide design references with text to establish the
   visual design. Generated text, numbers and medical relationships are not content
