@@ -1,0 +1,69 @@
+{# Landscape swimlane — lanes per drug class, Phase III bars on a year axis, end markers met / not met / ongoing. #}
+{% import "_pharma_macros.html.j2" as ph %}
+{% set g = page.geo %}
+{% macro marker(status, x, y) -%}
+  {% if status == 'met' %}
+  <circle cx="{{ x }}" cy="{{ y }}" r="7.5" class="f-pri"/><path d="M{{ x - 3.6 }},{{ y + 0.2 }} L{{ x - 0.9 }},{{ y + 3 }} L{{ x + 3.8 }},{{ y - 2.8 }}" style="stroke:#FFFFFF;stroke-width:1.9;fill:none"/>
+  {% elif status == 'not_met' %}
+  <circle cx="{{ x }}" cy="{{ y }}" r="7" style="fill:#FFFFFF;stroke:#6B6B6B;stroke-width:1.6"/><path d="M{{ x - 3 }},{{ y - 3 }} L{{ x + 3 }},{{ y + 3 }} M{{ x + 3 }},{{ y - 3 }} L{{ x - 3 }},{{ y + 3 }}" style="stroke:#6B6B6B;stroke-width:1.6"/>
+  {% else %}
+  <circle cx="{{ x }}" cy="{{ y }}" r="7" style="fill:#FFFFFF;stroke:var(--primary);stroke-width:1.6;stroke-dasharray:3 2"/><circle cx="{{ x }}" cy="{{ y }}" r="2.2" class="f-pri"/>
+  {% endif %}
+{%- endmacro %}
+<style>
+{% include "_pharma.css.j2" %}
+.L-ph-swim .lgd{position:absolute;left:0;top:0;width:896px;height:24px;display:flex;justify-content:flex-end;gap:20px;align-items:center;
+  font-size:9.5pt;color:var(--ink);white-space:nowrap}
+.L-ph-swim .lgd svg{display:inline-block;vertical-align:-3px;margin-right:5px}
+.L-ph-swim .lane-svg{position:absolute;left:0;top:30px}
+.L-ph-swim svg .bar-met{fill:var(--primary)}
+.L-ph-swim svg .bar-not_met{fill:#C9C9C9}
+.L-ph-swim svg .bar-ongoing{fill:#FFFFFF;stroke:var(--primary);stroke-width:1.4;stroke-dasharray:5 3}
+.L-ph-swim svg .today{stroke:var(--accent);stroke-width:1.8;stroke-dasharray:5 4}
+</style>
+{{ ph.open_slide(page, "L-ph-swim", "PHARMA-landscape-swimlane") }}
+  {{ ph.header(page) }}
+  <div class="main" data-slot="body">
+    <div class="lgd" data-shape="legend">
+      <span><svg width="16" height="16">{{ marker('met', 8, 8) }}</svg>{{ page.legend.met }}</span>
+      <span><svg width="16" height="16">{{ marker('not_met', 8, 8) }}</svg>{{ page.legend.not_met }}</span>
+      <span><svg width="16" height="16">{{ marker('ongoing', 8, 8) }}</svg>{{ page.legend.ongoing }}</span>
+      {% if g.today_x %}<span><svg width="10" height="16"><line x1="5" y1="0" x2="5" y2="16" class="today"/></svg>{{ page.today_label or '当前' }}</span>{% endif %}
+    </div>
+    <svg class="lane-svg" data-shape="swimlane" width="{{ g.width }}" height="{{ g.height }}" viewBox="0 0 {{ g.width }} {{ g.height }}" data-check="svg">
+      {% for ln in g.lanes %}{% if ln.zebra %}<rect class="f-zebra" x="0" y="{{ ln.y }}" width="{{ g.width }}" height="{{ ln.h }}"/>{% endif %}{% endfor %}
+      {% for y in g.years %}
+      <line class="ln-grid" x1="{{ y.x }}" y1="{{ g.axis_h - 6 }}" x2="{{ y.x }}" y2="{{ g.height }}"/>
+      <text x="{{ y.cx }}" y="{{ g.axis_h - 12 }}" text-anchor="middle" font-size="12" class="t-b t-pri">{{ y.y }}</text>
+      {% endfor %}
+      <line class="ln-ax" x1="0" y1="{{ g.axis_h }}" x2="{{ g.width }}" y2="{{ g.axis_h }}" style="stroke:var(--primary);stroke-width:1.5"/>
+      {% if g.today_x %}<line class="today" data-shape="today-line" x1="{{ g.today_x }}" y1="{{ g.axis_h }}" x2="{{ g.today_x }}" y2="{{ g.height }}"/>{% endif %}
+      {% for ln in g.lanes %}
+      <g data-shape="lane"{% if ln.focus %} data-focus="true"{% endif %}>
+        {% if ln.focus %}<rect x="0" y="{{ ln.y + 4 }}" width="4" height="{{ ln.h - 8 }}" style="fill:var(--accent)"/>{% endif %}
+        <text x="14" y="{{ ln.cy - 2 }}" font-size="14" class="t-b t-pri">{{ ln.label }}</text>
+        {% if ln.sub %}<text x="14" y="{{ ln.cy + 15 }}" font-size="11.5" class="t-mut">{{ ln.sub }}</text>{% endif %}
+        <line class="ln-hair" x1="0" y1="{{ ln.y + ln.h }}" x2="{{ g.width }}" y2="{{ ln.y + ln.h }}"/>
+        {% for b in ln.bars %}
+        <g data-shape="study-bar" data-status="{{ b.status }}">
+          {% if b.status == 'ongoing' %}
+          <path class="bar-ongoing" d="M{{ b.x }},{{ b.y }} L{{ b.xe - 9 }},{{ b.y }} L{{ b.xe }},{{ b.cy }} L{{ b.xe - 9 }},{{ b.y + b.h }} L{{ b.x }},{{ b.y + b.h }} Z"/>
+          {% else %}
+          <rect class="bar-{{ b.status }}" x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}" height="{{ b.h }}"/>
+          {% endif %}
+          <text x="{{ b.x + 8 }}" y="{{ b.cy + 4.3 }}" font-size="12.2" class="t-b {{ 't-wht' if b.status == 'met' else ('t-pri' if b.status == 'ongoing' else '') }}">{{ b.name }}</text>
+          {% if b.note %}<text x="{{ b.x + 2 }}" y="{{ b.y + b.h + 11 }}" font-size="11" class="t-mut">{{ b.note }}</text>{% endif %}
+          {{ marker(b.status, b.mx, b.cy) }}
+          {% if b.result %}
+          <text x="{{ b.mx + 11 if b.res_inline else b.xe }}" y="{{ b.cy + 4.5 if b.res_inline else b.y + b.h + 12 }}" {% if not b.res_inline %}text-anchor="end"{% endif %}
+                font-size="12" class="t-b {{ 't-pri' if b.status == 'met' else 't-mut' }}">{{ b.result }}</text>
+          {% endif %}
+        </g>
+        {% endfor %}
+      </g>
+      {% endfor %}
+    </svg>
+  </div>
+  {{ ph.rail(page) }}
+  {{ ph.footer(page) }}
+</div>

@@ -1,3 +1,4 @@
+{% if page.variant == "evidence_takeaways" %}{% include "evidence_takeaways.html.j2" %}{% else %}
 {# Key-points — tonal cards with accent rail + watermark index; NOT identical outline boxes. #}
 {% set items = page["items"] %}
 {% set n = items|length %}
@@ -105,3 +106,4 @@
   {% if page.page %}<div class="foot-page" data-slot="page" data-chrome>{{ page.page }}</div>{% endif %}
   {% if page.source %}<div class="foot-src" data-slot="source" data-chrome>{{ page.source }}</div>{% endif %}
 </section>
+{% endif %}

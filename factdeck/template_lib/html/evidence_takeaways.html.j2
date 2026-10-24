@@ -1,0 +1,31 @@
+{# key_points/evidence_takeaways — number-led conclusions, each with superscript evidence ids → refs (doc + page) and a verbatim quote column. #}
+{% import "_pharma_macros.html.j2" as ph %}
+<style>
+{% include "_pharma.css.j2" %}
+.L-ph-ev .evh{display:grid;grid-template-columns:190px 1fr 440px;gap:28px;font-size:9.5pt;font-weight:700;color:var(--primary);
+  letter-spacing:0.06em;padding-bottom:5px;border-bottom:2px solid var(--primary)}
+.L-ph-ev .evr{display:grid;grid-template-columns:190px 1fr 440px;gap:28px;align-items:center;padding:16px 0;border-bottom:1px solid var(--line);min-height:104px}
+.L-ph-ev .evr .v{font-size:28pt;font-weight:700;color:var(--primary);line-height:1;white-space:nowrap;font-variant-numeric:tabular-nums}
+.L-ph-ev .evr .v small{font-size:13pt;color:var(--muted);margin-left:4px}
+.L-ph-ev .evr .t{font-size:13.5pt;font-weight:600;line-height:1.45;color:var(--ink)}
+.L-ph-ev .evr .t sup.ev{font-size:9pt;color:var(--accent2)}
+.L-ph-ev .evr .q{border-left:3px solid var(--accent);padding:2px 0 2px 12px}
+.L-ph-ev .evr .q .qt{font-size:10.5pt;line-height:1.45;color:var(--muted)}
+.L-ph-ev .evr .q .loc{font-size:9.5pt;font-weight:700;color:var(--primary);margin-top:3px}
+.L-ph-ev .evr .q .loc .id{display:inline-block;min-width:16px;padding:0 4px;margin-right:6px;background:var(--primary);color:#FFFFFF;font-size:8.5pt;text-align:center}
+</style>
+{{ ph.open_slide(page, "L-ph-ev", "PHARMA-evidence-takeaways") }}
+  {{ ph.header(page) }}
+  <div class="main full" data-slot="body" data-check="fit">
+    <div class="evh"><span>{{ page.head_value }}</span><span>{{ page.head_text }}</span><span>{{ page.head_quote }}</span></div>
+    {% for it in page.ev_items %}
+    <div class="evr" data-takeaway="{{ it.index }}" data-evidence="{{ it.refs|join(',') }}">
+      <div class="v">{{ it.value }}{% if it.unit %}<small>{{ it.unit }}</small>{% endif %}</div>
+      <div class="t">{{ it.text }}{{ ph.evs(it.refs) }}</div>
+      <div class="q" data-shape="verbatim-quote"><div class="qt">{{ it.quote }}</div>
+        <div class="loc">{% for r in it.refs %}<span class="id">{{ r }}</span>{% endfor %}{{ it.loc }}</div></div>
+    </div>
+    {% endfor %}
+  </div>
+  {{ ph.footer(page) }}
+</div>

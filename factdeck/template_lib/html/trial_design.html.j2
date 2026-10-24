@@ -1,0 +1,104 @@
+{# Trial design schematic — screening → R (ratio, N) → arms with n → treatment → follow-up on a week axis. #}
+{% import "_pharma_macros.html.j2" as ph %}
+{% set g = page.geo %}
+<style>
+{% include "_pharma.css.j2" %}
+.L-ph-trial .dstrip{position:absolute;left:0;top:0;width:1224px;height:50px;background:var(--sky);
+  border-left:4px solid var(--primary);display:flex;align-items:center;gap:18px;padding:0 16px}
+.L-ph-trial .dstrip .k{font-size:9.5pt;font-weight:700;color:var(--primary);letter-spacing:0.08em;white-space:nowrap}
+.L-ph-trial .dstrip .d{font-size:11.5pt;font-weight:700;color:var(--ink);white-space:nowrap}
+.L-ph-trial .dstrip .p{font-size:10pt;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.L-ph-trial .schem{position:absolute;left:0;top:60px}
+.L-ph-trial .lower{position:absolute;left:0;width:1224px;display:grid;overflow:hidden;
+  grid-template-columns:1fr 1fr 0.92fr;gap:26px}
+.L-ph-trial .col-h{font-size:10.5pt;font-weight:700;color:var(--primary);padding-bottom:4px;
+  border-bottom:2px solid var(--primary);margin-bottom:6px}
+.L-ph-trial ul{list-style:none}
+.L-ph-trial li{font-size:10pt;line-height:1.38;padding:3px 0 3px 14px;position:relative;border-bottom:1px solid #EBEBEB}
+.L-ph-trial li::before{content:"";position:absolute;left:2px;top:10px;width:5px;height:5px;background:var(--primary)}
+.L-ph-trial .ep{display:grid;grid-template-columns:62px 1fr;gap:8px;font-size:10pt;line-height:1.38;
+  padding:3px 0;border-bottom:1px solid #EBEBEB}
+.L-ph-trial .ep .tier{font-weight:700;color:var(--primary);font-size:9.5pt}
+.L-ph-trial .ep.primary .tier{color:var(--ink)}
+.L-ph-trial .ep.primary{border-left:3px solid var(--accent);padding-left:6px;margin-left:-9px}
+.L-ph-trial .kf{display:grid;grid-template-columns:76px 1fr;gap:10px;align-items:baseline;padding:4px 0;border-bottom:1px solid #EBEBEB}
+.L-ph-trial .kf .v{font-size:15pt;font-weight:700;color:var(--primary);white-space:nowrap}
+.L-ph-trial .kf .t{font-size:10pt;line-height:1.36}
+.L-ph-trial svg .flag{fill:#FFFFFF;stroke:var(--primary);stroke-width:1.4}
+.L-ph-trial svg .arm-c{fill:var(--surface2);stroke:#B5B5B5;stroke-width:1}
+.L-ph-trial svg .rbox{fill:#FFFFFF;stroke:var(--primary);stroke-width:1.6}
+.L-ph-trial svg .fu{stroke:#7A7A7A;stroke-width:1.6;stroke-dasharray:5 4;fill:none}
+.L-ph-trial svg .epl{stroke:var(--accent);stroke-width:2;stroke-dasharray:6 4;fill:none}
+</style>
+{{ ph.open_slide(page, "L-ph-trial", "PHARMA-trial-design") }}
+  {{ ph.header(page) }}
+  <div class="main full" data-slot="body">
+    <div class="dstrip" data-slot="design_label">
+      <span class="k">研究设计</span><span class="d">{{ page.design_label }}</span>
+      {% if page.population %}<span class="p" data-slot="population">{{ page.population }}</span>{% endif %}
+    </div>
+    <svg class="schem" data-shape="trial-schematic" width="{{ g.width }}" height="{{ g.height }}"
+         viewBox="0 0 {{ g.width }} {{ g.height }}" data-check="svg">
+      {% for p in g.phases %}
+      <g data-shape="phase">
+        <path class="ln-ax" d="M{{ p.x0 }},26 L{{ p.x0 }},32 L{{ p.x1 }},32 L{{ p.x1 }},26" style="stroke:#8A8A8A"/>
+        <text x="{{ p.cx }}" y="20" text-anchor="middle" font-size="13.3" class="t-pri t-b">{{ p.label }}</text>
+      </g>
+      {% endfor %}
+      <line class="ln-ax" x1="{{ g.axis_x0 }}" y1="{{ g.axis_y }}" x2="{{ g.axis_x1 }}" y2="{{ g.axis_y }}" style="stroke-width:2;stroke:var(--primary)"/>
+      <line class="epl" data-shape="endpoint-marker" x1="{{ g.endpoint_x }}" y1="{{ g.axis_y + 36 }}" x2="{{ g.endpoint_x }}" y2="{{ g.height - 20 }}"/>
+      <text x="{{ g.endpoint_x }}" y="{{ g.height - 5 }}" text-anchor="middle" font-size="12" class="t-b" style="fill:var(--accent2)">{{ g.endpoint_label }}</text>
+      {% for t in g.timepoints %}
+      <g data-shape="timepoint" data-week="{{ t.week }}">
+        <rect class="flag" x="{{ t.x - 44 }}" y="{{ g.axis_y - 12 }}" width="88" height="24"/>
+        <text x="{{ t.x }}" y="{{ g.axis_y + 5 }}" text-anchor="middle" font-size="12.5" class="t-pri t-b">{{ t.label }}</text>
+        {% if t.tag %}<text x="{{ t.x }}" y="{{ g.axis_y + 28 }}" text-anchor="middle" font-size="11.5" class="t-mut">{{ t.tag }}</text>{% endif %}
+      </g>
+      {% endfor %}
+      {% if g.screen %}
+      <g data-shape="screening-note">
+        {% for line in g.screen.lines %}
+        <text x="{{ g.screen.x }}" y="{{ g.screen.y + 12 + loop.index0 * 17 }}" text-anchor="middle" font-size="12.5" class="{{ 't-b t-pri' if loop.first else 't-mut' }}">{{ line }}</text>
+        {% endfor %}
+      </g>
+      {% endif %}
+      {% set r = g.r_box %}
+      <g data-shape="randomisation">
+        <rect class="rbox" x="{{ r.x }}" y="{{ r.y }}" width="{{ r.w }}" height="{{ r.h }}"/>
+        <text x="{{ r.cx }}" y="{{ r.cy - 17 }}" text-anchor="middle" font-size="12" class="t-mut">{{ page.rand_label }}</text>
+        <text x="{{ r.cx }}" y="{{ r.cy + 5 }}" text-anchor="middle" font-size="17" class="t-pri t-b">R {{ page.rand_ratio }}</text>
+        {% if page.rand_n %}<text x="{{ r.cx }}" y="{{ r.cy + 26 }}" text-anchor="middle" font-size="12" class="t-b">N = {{ page.rand_n }}</text>{% endif %}
+      </g>
+      {% for a in g.arms %}
+      <g data-shape="arm" data-role="{{ a.role }}">
+        <path class="ln-ax" d="M{{ r.x + r.w }},{{ r.cy }} L{{ g.elbow_x }},{{ r.cy }} L{{ g.elbow_x }},{{ a.cy }} L{{ a.x }},{{ a.cy }}"/>
+        <rect class="{{ 'f-pri' if a.role == 'active' else 'arm-c' }}" x="{{ a.x }}" y="{{ a.y }}" width="{{ a.w }}" height="{{ a.h }}"/>
+        <text x="{{ a.x + 14 }}" y="{{ a.y + (18 if a.detail else 27) }}" font-size="14" class="t-b {{ 't-wht' if a.role == 'active' else '' }}">{{ a.name }}</text>
+        {% if a.detail %}<text x="{{ a.x + 14 }}" y="{{ a.y + 35 }}" font-size="11.5" class="{{ 't-wht' if a.role == 'active' else 't-mut' }}" {% if a.role == 'active' %}style="opacity:.85"{% endif %}>{{ a.detail }}</text>{% endif %}
+        <text x="{{ a.x + a.w - 14 }}" y="{{ a.y + 28 }}" text-anchor="end" font-size="15" class="t-b {{ 't-wht' if a.role == 'active' else 't-pri' }}">n = {{ a.n }}</text>
+        <line class="fu" x1="{{ a.fu_x0 }}" y1="{{ a.cy }}" x2="{{ a.fu_x1 - 6 }}" y2="{{ a.cy }}"/>
+        <circle cx="{{ a.fu_x1 }}" cy="{{ a.cy }}" r="4.5" style="fill:#FFFFFF;stroke:#7A7A7A;stroke-width:1.6"/>
+      </g>
+      {% endfor %}
+    </svg>
+    <div class="lower" data-check="fit" style="top:{{ 60 + g.height + 12 }}px;height:{{ 512 - 60 - g.height - 12 }}px">
+      <div data-slot="inclusion" data-check="fit">
+        <div class="col-h">关键入选标准</div>
+        <ul>{% for x in page.inclusion %}<li>{{ x }}</li>{% endfor %}</ul>
+      </div>
+      <div data-slot="endpoints" data-check="fit">
+        <div class="col-h">终点层级</div>
+        {% for e in page.endpoints %}
+        <div class="ep{% if loop.first %} primary{% endif %}"><span class="tier">{{ e.tier }}</span><span>{{ e.text }}</span></div>
+        {% endfor %}
+      </div>
+      <div data-slot="takeaways" data-shape="key-facts" data-check="fit">
+        <div class="col-h">{{ page.rail_label }}</div>
+        {% for t in page.takeaways %}
+        <div class="kf" data-takeaway="{{ t.index }}"><span class="v">{{ t.value }}</span><span class="t">{{ t.text }}{{ ph.evs(t.refs) }}</span></div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {{ ph.footer(page) }}
+</div>

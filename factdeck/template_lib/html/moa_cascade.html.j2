@@ -1,0 +1,75 @@
+{# MoA cascade — editable structural boxes + arrows; drug action points as gold callouts with T-bar connectors. No illustrations. #}
+{% import "_pharma_macros.html.j2" as ph %}
+{% set g = page.geo %}
+<style>
+{% include "_pharma.css.j2" %}
+.L-ph-moa .moa{position:absolute;left:0;top:0;width:{{ g.width }}px;height:{{ g.height }}px}
+.L-ph-moa .moa svg{position:absolute;left:0;top:0}
+.L-ph-moa .stg{position:absolute;display:flex;align-items:center;gap:8px;padding:0 8px;
+  border-bottom:2px solid var(--primary);background:var(--sky)}
+.L-ph-moa .stg .n{font-size:10pt;font-weight:700;color:#FFFFFF;background:var(--primary);width:18px;height:18px;
+  display:flex;align-items:center;justify-content:center;flex:0 0 18px}
+.L-ph-moa .stg .l{font-size:10.5pt;font-weight:700;color:var(--primary);white-space:nowrap}
+.L-ph-moa .it{position:absolute;background:var(--surface);border:1px solid #D2D2D2;padding:5px 9px;
+  display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+.L-ph-moa .it.tgt{background:#FFFFFF;border:1.6px solid var(--accent)}
+.L-ph-moa .it .l{font-size:10.5pt;font-weight:700;line-height:1.25;color:var(--ink)}
+.L-ph-moa .it .s{font-size:8.5pt;line-height:1.25;color:var(--muted);margin-top:1px}
+.L-ph-moa .co{position:absolute;background:var(--takeaway-bg);border:1.6px solid var(--accent);
+  display:flex;align-items:center;gap:8px;padding:4px 8px;overflow:hidden}
+.L-ph-moa .co .k{flex:0 0 20px;height:20px;background:var(--accent);color:#FFFFFF;font-size:10pt;font-weight:700;
+  display:flex;align-items:center;justify-content:center}
+.L-ph-moa .co .l{font-size:10pt;font-weight:700;line-height:1.2;color:var(--ink);white-space:nowrap}
+.L-ph-moa .co .s{font-size:8.5pt;line-height:1.2;color:var(--muted);white-space:nowrap}
+.L-ph-moa .band-h{position:absolute;left:0;font-size:9pt;font-weight:700;color:var(--accent2);letter-spacing:0.06em}
+.L-ph-moa .pheno{position:absolute;left:0;width:896px;border-top:1px solid var(--line);padding-top:8px;
+  display:flex;justify-content:space-between;gap:16px;align-items:center}
+.L-ph-moa .pheno .p{font-size:10pt;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.L-ph-moa .pheno .p b{color:var(--primary)}
+.L-ph-moa .pheno .lg{font-size:9pt;color:var(--muted);white-space:nowrap;display:flex;gap:14px;align-items:center}
+.L-ph-moa svg .flow{stroke:var(--primary);stroke-width:1.8;fill:none}
+.L-ph-moa svg .flowhead{fill:var(--primary)}
+.L-ph-moa svg .tbar{stroke:var(--accent);stroke-width:3.2}
+</style>
+{{ ph.open_slide(page, "L-ph-moa", "PHARMA-moa-cascade") }}
+  {{ ph.header(page) }}
+  <div class="main" data-slot="body">
+    <div class="moa" data-shape="moa-cascade">
+      {% for c in g.cols %}
+      <div class="stg" data-shape="stage" style="left:{{ c.x }}px;top:0;width:{{ c.w }}px;height:{{ g.head_h }}px"><span class="n">{{ c.num }}</span><span class="l">{{ c.label }}</span></div>
+      {% for it in c["items"] %}
+      <div class="it{% if it.target %} tgt{% endif %}" data-box="item" data-node="{{ it.id }}"{% if it.target %} data-target="true"{% endif %}
+           style="left:{{ it.x }}px;top:{{ it.y }}px;width:{{ it.w }}px;height:{{ it.h }}px">
+        <div class="l">{{ it.label }}</div>{% if it.sub %}<div class="s">{{ it.sub }}</div>{% endif %}
+      </div>
+      {% endfor %}
+      {% endfor %}
+      {% if g.callouts %}<div class="band-h" style="top:{{ g.band_top - 20 }}px">药物作用点</div>{% endif %}
+      {% for co in g.callouts %}
+      <div class="co" data-box="callout" data-shape="drug-callout" data-target-label="{{ co.target_label }}"
+           style="left:{{ co.x }}px;top:{{ co.y }}px;width:{{ co.w }}px;height:{{ co.h }}px">
+        <span class="k">{{ co.key }}</span><span><div class="l">{{ co.label }}</div>{% if co.sub %}<div class="s">{{ co.sub }}</div>{% endif %}</span>
+      </div>
+      {% endfor %}
+      <svg width="{{ g.width }}" height="{{ g.height }}" viewBox="0 0 {{ g.width }} {{ g.height }}" data-shape="moa-connectors">
+        {% for a in g.arrows %}
+        <line class="flow" x1="{{ a.x0 }}" y1="{{ a.y }}" x2="{{ a.x1 - 7 }}" y2="{{ a.y }}"/>
+        <polygon class="flowhead" points="{{ a.x1 }},{{ a.y }} {{ a.x1 - 8 }},{{ a.y - 5 }} {{ a.x1 - 8 }},{{ a.y + 5 }}"/>
+        {% endfor %}
+        {% for co in g.callouts %}
+        <path class="ln-acc" data-shape="inhibition-connector" d="{{ co.path }}"/>
+        <line class="tbar" data-shape="t-bar" x1="{{ co.tbar_x }}" y1="{{ co.tbar_y - 9 }}" x2="{{ co.tbar_x }}" y2="{{ co.tbar_y + 9 }}"/>
+        {% endfor %}
+      </svg>
+    </div>
+    <div class="pheno" style="top:{{ g.height + 14 }}px">
+      {% if page.phenotype_note %}<div class="p" data-slot="phenotype_note"><b>2 型炎症表型</b>　{{ page.phenotype_note }}</div>{% endif %}
+      <div class="lg" data-shape="legend">
+        <span><svg width="26" height="12" style="display:inline-block;vertical-align:-1px"><line x1="0" y1="6" x2="22" y2="6" class="ln-acc"/><line x1="23" y1="0" x2="23" y2="12" class="tbar" style="stroke:var(--accent);stroke-width:3"/></svg> 抑制（作用点）</span>
+        <span><svg width="26" height="12" style="display:inline-block;vertical-align:-1px"><line x1="0" y1="6" x2="18" y2="6" style="stroke:var(--primary);stroke-width:1.8"/><polygon points="26,6 18,1 18,11" style="fill:var(--primary)"/></svg> 通路激活</span>
+      </div>
+    </div>
+  </div>
+  {{ ph.rail(page) }}
+  {{ ph.footer(page) }}
+</div>

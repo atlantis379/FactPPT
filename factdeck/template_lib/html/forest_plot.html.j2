@@ -1,0 +1,67 @@
+{# Forest plot — subgroup table and log-axis CI plot drawn in ONE aligned SVG; one highlighted row. #}
+{% import "_pharma_macros.html.j2" as ph %}
+{% set g = page.geo %}
+{% set c = g.cols %}
+<style>
+{% include "_pharma.css.j2" %}
+.L-ph-forest svg .pt{fill:var(--primary)}
+.L-ph-forest svg .ci{stroke:var(--primary);stroke-width:1.6;fill:none}
+.L-ph-forest svg .ref1{stroke:#333333;stroke-width:1.2}
+</style>
+{{ ph.open_slide(page, "L-ph-forest", "PHARMA-forest-table") }}
+  {{ ph.header(page) }}
+  <div class="main" data-slot="body">
+    <svg data-shape="forest-plot" data-axis="log" width="{{ g.width }}" height="{{ g.height }}"
+         viewBox="0 0 {{ g.width }} {{ g.height }}" data-check="svg">
+      {# column heads #}
+      <g data-shape="forest-head">
+        <text x="{{ c.label }}" y="30" font-size="12.5" class="t-b t-pri">亚组</text>
+        <text x="{{ c.n_a }}" y="14" text-anchor="end" font-size="12" class="t-b t-pri">{{ page.col_a }}</text>
+        <text x="{{ c.n_a }}" y="30" text-anchor="end" font-size="12" class="t-mut">n</text>
+        <text x="{{ c.n_c }}" y="14" text-anchor="end" font-size="12" class="t-b t-pri">{{ page.col_c }}</text>
+        <text x="{{ c.n_c }}" y="30" text-anchor="end" font-size="12" class="t-mut">n</text>
+        <text x="{{ c.est }}" y="30" text-anchor="end" font-size="12.5" class="t-b t-pri">{{ page.est_head }}</text>
+        <text x="{{ c.ci }}" y="30" text-anchor="end" font-size="12.5" class="t-b t-pri">95% CI</text>
+        <text x="{{ (g.px0 + g.px1) / 2 }}" y="30" text-anchor="middle" font-size="12" class="t-b t-pri">{{ page.effect_label }}</text>
+        <line class="ln-ax" x1="0" y1="{{ g.head_h - 2 }}" x2="{{ g.width }}" y2="{{ g.head_h - 2 }}" style="stroke:var(--primary);stroke-width:1.5"/>
+      </g>
+      {% for r in g.rows %}
+        {% if r.zebra and not r.highlight and r.kind != 'group' %}<rect class="f-zebra" x="0" y="{{ r.y }}" width="{{ g.width }}" height="{{ r.h }}"/>{% endif %}
+      {% endfor %}
+      <line class="ref1" data-shape="ref-line-1" x1="{{ g.x_ref }}" y1="{{ g.head_h }}" x2="{{ g.x_ref }}" y2="{{ g.axis_y }}"/>
+      {% for r in g.rows %}
+      <g data-shape="forest-row" data-kind="{{ r.kind }}"{% if r.highlight %} data-highlight="true"{% endif %}>
+        {% if r.highlight %}<rect class="f-hl" data-shape="highlight-row" x="1" y="{{ r.y + 1 }}" width="{{ g.width - 2 }}" height="{{ r.h - 2 }}"/>{% endif %}
+        {% if r.kind == 'group' %}
+          <text x="{{ c.label }}" y="{{ r.cy + 5 }}" font-size="12.5" class="t-b t-pri">{{ r.label }}</text>
+        {% else %}
+          <text x="{{ c.label if r.kind == 'overall' else c.label_in }}" y="{{ r.cy + 5 }}" font-size="12.5" class="{{ 't-b' if r.kind == 'overall' or r.highlight else '' }}">{{ r.label }}</text>
+          <text x="{{ c.n_a }}" y="{{ r.cy + 5 }}" text-anchor="end" font-size="12.5">{{ r.n_a }}</text>
+          <text x="{{ c.n_c }}" y="{{ r.cy + 5 }}" text-anchor="end" font-size="12.5">{{ r.n_c }}</text>
+          <text x="{{ c.est }}" y="{{ r.cy + 5 }}" text-anchor="end" font-size="12.5" class="t-b">{{ r.est_txt }}</text>
+          <text x="{{ c.ci }}" y="{{ r.cy + 5 }}" text-anchor="end" font-size="12.5">{{ r.ci_txt }}</text>
+          {% if r.kind == 'overall' %}
+            <polygon class="pt" data-shape="overall-diamond" points="{{ r.xl }},{{ r.cy }} {{ r.xe }},{{ r.cy - 7 }} {{ r.xh }},{{ r.cy }} {{ r.xe }},{{ r.cy + 7 }}"/>
+          {% else %}
+            <line class="ci" data-shape="ci" x1="{{ r.xl }}" y1="{{ r.cy }}" x2="{{ r.xh }}" y2="{{ r.cy }}"/>
+            <line class="ci" x1="{{ r.xl }}" y1="{{ r.cy - 4 }}" x2="{{ r.xl }}" y2="{{ r.cy + 4 }}"/>
+            <line class="ci" x1="{{ r.xh }}" y1="{{ r.cy - 4 }}" x2="{{ r.xh }}" y2="{{ r.cy + 4 }}"/>
+            <rect class="pt" data-shape="point" x="{{ r.xe - 5 }}" y="{{ r.cy - 5 }}" width="10" height="10"/>
+          {% endif %}
+        {% endif %}
+      </g>
+      {% endfor %}
+      <g data-shape="log-axis">
+        <line class="ln-ax" x1="{{ g.px0 }}" y1="{{ g.axis_y }}" x2="{{ g.px1 }}" y2="{{ g.axis_y }}"/>
+        {% for t in g.ticks %}
+        <line class="ln-ax" x1="{{ t.x }}" y1="{{ g.axis_y }}" x2="{{ t.x }}" y2="{{ g.axis_y + 5 }}"/>
+        <text x="{{ t.x }}" y="{{ g.axis_y + 19 }}" text-anchor="middle" font-size="12" class="t-mut">{{ t.txt }}</text>
+        {% endfor %}
+        <text x="{{ g.x_ref - 8 }}" y="{{ g.axis_y + 40 }}" text-anchor="end" font-size="12" class="t-b t-pri">◀ {{ page.favours_left }}</text>
+        <text x="{{ g.x_ref + 8 }}" y="{{ g.axis_y + 40 }}" font-size="12" class="t-mut t-b">{{ page.favours_right }} ▶</text>
+      </g>
+    </svg>
+  </div>
+  {{ ph.rail(page) }}
+  {{ ph.footer(page) }}
+</div>

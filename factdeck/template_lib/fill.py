@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from . import pharma
 from . import slots as slotmod
 from .themes import get_theme
 
@@ -63,6 +64,10 @@ def normalize_fill(family: str, fill: dict, *, variant: str | None = None,
             "title": (fill.get("title") or "").strip(),
             "subtitle": (fill.get("subtitle") or "").strip(),
         })
+    elif family == "key_points" and chosen == pharma.EVIDENCE_VARIANT:
+        page.update(pharma.normalize(pharma.EVIDENCE_VARIANT, fill, variant=chosen))
+    elif family in pharma.FAMILIES:
+        page.update(pharma.normalize(family, fill, variant=chosen))
     elif family == "key_points":
         items = []
         for i, it in enumerate(fill.get("items") or []):

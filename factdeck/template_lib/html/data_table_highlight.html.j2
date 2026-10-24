@@ -1,0 +1,51 @@
+{# Dense data table — arms + total, zebra greys, exactly one highlighted row, footnotes. Native-table ready. #}
+{% import "_pharma_macros.html.j2" as ph %}
+<style>
+{% include "_pharma.css.j2" %}
+.L-ph-table table{width:896px;border-collapse:collapse;table-layout:fixed;font-variant-numeric:tabular-nums}
+.L-ph-table col.stub{width:340px}
+.L-ph-table thead th{background:var(--primary);color:#FFFFFF;font-size:10.5pt;font-weight:700;text-align:right;
+  padding:5px 12px 4px;line-height:1.25;vertical-align:bottom}
+.L-ph-table thead th.stub{text-align:left}
+.L-ph-table thead th small{display:block;font-size:9pt;font-weight:500;color:var(--accent-on-dark)}
+.L-ph-table thead th.total{background:var(--primary2)}
+.L-ph-table tbody td{font-size:10.5pt;padding:0 12px;height:26.5px;text-align:right;white-space:nowrap;border-bottom:1px solid #E6E6E6}
+.L-ph-table tbody td.stub{text-align:left;padding-left:22px;color:var(--ink)}
+.L-ph-table tbody td.total{font-weight:600}
+.L-ph-table tbody tr.zebra td{background:#F5F5F5}
+.L-ph-table tbody tr.group td{text-align:left;font-weight:700;color:var(--primary);padding-left:10px;background:#FFFFFF;
+  border-bottom:1px solid var(--line);height:26px;padding-top:3px}
+.L-ph-table tbody tr.hl td{background:var(--takeaway-bg);font-weight:700;border-top:2px solid var(--accent);border-bottom:2px solid var(--accent)}
+.L-ph-table tbody tr.hl td:first-child{border-left:2px solid var(--accent)}
+.L-ph-table tbody tr.hl td:last-child{border-right:2px solid var(--accent)}
+.L-ph-table tbody tr:last-child td{border-bottom:1.5px solid var(--primary)}
+.L-ph-table .tfn{margin-top:7px;font-size:9pt;line-height:1.45;color:var(--muted)}
+.L-ph-table .tfn sup{font-size:7pt;font-weight:700;color:var(--primary);margin-right:3px}
+</style>
+{{ ph.open_slide(page, "L-ph-table", "PHARMA-data-table") }}
+  {{ ph.header(page) }}
+  <div class="main" data-slot="body" data-check="fit">
+    <table data-shape="data-table" data-rows="{{ page.rows|length }}">
+      <colgroup><col class="stub">{% for c in page.columns %}<col>{% endfor %}</colgroup>
+      <thead><tr>
+        <th class="stub">{{ page.stub_head }}</th>
+        {% for c in page.columns %}<th class="{{ 'total' if loop.last and page.columns|length > 2 else '' }}">{{ c.label }}{% if c.sub %}<small>{{ c.sub }}</small>{% endif %}</th>{% endfor %}
+      </tr></thead>
+      <tbody>
+      {% for r in page.rows %}
+        {% if r.kind == 'group' %}
+        <tr class="group"><td colspan="{{ page.columns|length + 1 }}">{{ r.label }}</td></tr>
+        {% else %}
+        <tr class="{{ 'hl' if r.highlight else ('zebra' if r.zebra else '') }}"{% if r.highlight %} data-highlight="true"{% endif %}>
+          <td class="stub">{{ r.label }}{% if r.mark %}<sup>{{ r.mark }}</sup>{% endif %}</td>
+          {% for v in r.cells %}<td class="{{ 'total' if loop.last and r.cells|length > 2 else '' }}">{{ v }}</td>{% endfor %}
+        </tr>
+        {% endif %}
+      {% endfor %}
+      </tbody>
+    </table>
+    {% if page.footnotes %}<div class="tfn" data-slot="footnotes">{% for f in page.footnotes %}<div><sup>{{ 'abcdef'[loop.index0] }}</sup>{{ f }}</div>{% endfor %}</div>{% endif %}
+  </div>
+  {{ ph.rail(page) }}
+  {{ ph.footer(page) }}
+</div>

@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from . import pharma
+
 HERE = Path(__file__).parent
 MANIFEST_PATH = HERE / "manifest.json"
 
@@ -222,9 +224,15 @@ def validate_fill(family: str, fill: dict, variant: str | None = None,
             continue
         _check_text(name, fill.get(name), rule, errors)
 
-    if family == "key_points":
+    if family == "key_points" and chosen == pharma.EVIDENCE_VARIANT:
+        pharma.validate(pharma.EVIDENCE_VARIANT, fill, errors, warnings, variant=chosen)
+
+    elif family == "key_points":
         item_rule = (slots.get("items") or {}).get("item") or {}
         _check_item_list("items", fill.get("items"), item_rule, errors, required=True, cap=cap)
+
+    elif family in pharma.FAMILIES:
+        pharma.validate(family, fill, errors, warnings, variant=chosen)
 
     elif family == "comparison":
         if chosen == "table_2n":

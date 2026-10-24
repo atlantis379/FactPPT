@@ -1,0 +1,43 @@
+{# Chrome macros for pharma chart-led families: action title + figure id, subtitle, rail, footer. #}
+{% macro header(page) -%}
+  <div class="hbar">
+    <div class="htitle" data-slot="title" data-check="fit">{{ page.title }}</div>
+    <div class="hfig" data-slot="figure">{{ page.figure }}</div>
+  </div>
+  <div class="hacc" data-shape="gold-accent"></div>
+  {% if page.subtitle or page.section %}
+  <div class="sub" data-slot="subtitle" data-check="fit">{% if page.section %}<span class="sec" data-slot="section">{{ page.section }}</span>{% endif %}{{ page.subtitle }}</div>
+  {% endif %}
+{%- endmacro %}
+
+{% macro evs(refs) -%}{% if refs %}<sup class="ev" data-evidence="{{ refs|join(',') }}">{{ refs|join(',') }}</sup>{% endif %}{%- endmacro %}
+
+{% macro rail(page) -%}
+  <div class="rail" data-slot="takeaways" data-shape="takeaway-rail" data-check="fit">
+    <div class="rail-h">{{ page.rail_label }}</div>
+    {% for t in page.takeaways %}
+    <div class="tk" data-takeaway="{{ t.index }}">
+      <div class="v">{{ t.value }}{% if t.unit %}<small>{{ t.unit }}</small>{% endif %}</div>
+      <div class="t">{{ t.text }}{{ evs(t.refs) }}</div>
+    </div>
+    {% endfor %}
+  </div>
+{%- endmacro %}
+
+{% macro footer(page) -%}
+  <div class="foot" data-slot="footer" data-check="fit">
+    {% if page.abbrev %}<div class="row" data-slot="abbrev"><b>缩写</b>{{ page.abbrev }}</div>{% endif %}
+    {% if page.footnote %}<div class="row" data-slot="footnote"><b>注</b>{{ page.footnote }}</div>{% endif %}
+    {% if page.refs %}<div class="row" data-slot="refs"><b>参考</b>{% for r in page.refs %}<span data-ref="{{ r.id }}"><sup class="ev">{{ r.id }}</sup>{{ r.text }}</span>{% if not loop.last %}；{% endif %}{% endfor %}</div>{% endif %}
+    <div class="row last">
+      <span><span class="dn" data-slot="data_note">{{ page.data_note }}</span> · <span data-slot="source">{{ page.source }}</span></span>
+      {% if page.page %}<span class="pg" data-slot="page">{{ page.page }}</span>{% endif %}
+    </div>
+  </div>
+{%- endmacro %}
+
+{% macro open_slide(page, cls, pattern) -%}
+<div class="slide ph {{ cls }}" id="{{ page.id }}" data-family="{{ page.family }}"
+     data-variant="{{ page.variant }}" data-theme="{{ page.theme_name }}"
+     data-pattern="{{ pattern }}" data-library="factdeck.template_lib.v1" data-batch="pharma">
+{%- endmacro %}

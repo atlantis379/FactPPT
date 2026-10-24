@@ -1,0 +1,100 @@
+{# Endpoint readout — one main chart (bar | line; KM planned) + stats box + number-led rail. #}
+{% import "_pharma_macros.html.j2" as ph %}
+{% set g = page.geo %}
+<style>
+{% include "_pharma.css.j2" %}
+.L-ph-end .ctop{position:absolute;left:0;top:0;width:896px;height:66px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.L-ph-end .ctitle{font-size:11.5pt;font-weight:700;color:var(--primary);white-space:nowrap}
+.L-ph-end .legend{display:flex;gap:18px;margin-top:8px;font-size:10pt;color:var(--ink);white-space:nowrap}
+.L-ph-end .legend i{display:inline-block;width:14px;height:10px;margin-right:6px;vertical-align:-1px}
+.L-ph-end .legend i.control{background:#BDBDBD}
+.L-ph-end .legend i.active{background:var(--primary)}
+.L-ph-end .legend i.ln{height:0;border-top:2.5px solid #8A8A8A;width:22px;vertical-align:3px}
+.L-ph-end .legend i.ln.active{border-top-color:var(--primary);background:none}
+.L-ph-end .stats{width:340px;flex:0 0 340px;background:var(--primary);color:#FFFFFF;padding:7px 14px 8px}
+.L-ph-end .stats .h{font-size:9.5pt;font-weight:600;color:var(--accent-on-dark);letter-spacing:0.04em}
+.L-ph-end .stats .l{font-size:11.5pt;font-weight:700;line-height:1.38;white-space:nowrap}
+.L-ph-end .chart{position:absolute;left:0;top:78px}
+.L-ph-end svg .ebar{stroke:var(--ink);stroke-width:1.3;fill:none}
+.L-ph-end svg .s-control{stroke:#8A8A8A;stroke-width:2;fill:none}
+.L-ph-end svg .s-active{stroke:var(--primary);stroke-width:2.4;fill:none}
+.L-ph-end svg .m-control{fill:#FFFFFF;stroke:#8A8A8A;stroke-width:1.8}
+.L-ph-end svg .m-active{fill:var(--primary)}
+.L-ph-end svg .w-control{stroke:#8A8A8A;stroke-width:1.2}
+.L-ph-end svg .w-active{stroke:var(--primary);stroke-width:1.2}
+.L-ph-end svg .zero{stroke:#9A9A9A;stroke-width:1;stroke-dasharray:4 3}
+</style>
+{{ ph.open_slide(page, "L-ph-end", "PHARMA-endpoint-readout") }}
+  {{ ph.header(page) }}
+  <div class="main" data-slot="body">
+    <div class="ctop">
+      <div>
+        {% if page.chart_title %}<div class="ctitle" data-slot="chart_title">{{ page.chart_title }}</div>{% endif %}
+        <div class="legend" data-shape="legend">
+          {% for s in g.series %}<span><i class="{{ 'ln ' if g.kind == 'line' else '' }}{{ s.role }}"></i>{{ s.name }}</span>{% endfor %}
+        </div>
+      </div>
+      <div class="stats" data-slot="stats" data-shape="stats-box" data-check="fit">
+        {% if page.stats.title %}<div class="h">{{ page.stats.title }}</div>{% endif %}
+        {% for l in page.stats.lines %}<div class="l">{{ l }}</div>{% endfor %}
+      </div>
+    </div>
+    <svg class="chart" data-shape="{{ g.kind }}-chart" data-chart-kind="{{ g.kind }}" width="{{ g.width }}" height="{{ g.height }}"
+         viewBox="0 0 {{ g.width }} {{ g.height }}" data-check="svg">
+      {% for t in g.ticks %}
+      <line class="ln-grid" x1="{{ g.pl }}" y1="{{ t.y }}" x2="{{ g.pr }}" y2="{{ t.y }}"/>
+      <text x="{{ g.pl - 8 }}" y="{{ t.y + 4 }}" text-anchor="end" font-size="12" class="t-mut">{{ t.txt }}</text>
+      {% endfor %}
+      <line class="ln-ax" x1="{{ g.pl }}" y1="{{ g.pt }}" x2="{{ g.pl }}" y2="{{ g.pb }}"/>
+      <text transform="translate(14 {{ (g.pt + g.pb) / 2 }}) rotate(-90)" text-anchor="middle" font-size="12" class="t-mut">{{ page.y_label }}</text>
+      {% if g.kind == 'bar' %}
+        <line class="ln-ax" x1="{{ g.pl }}" y1="{{ g.pb }}" x2="{{ g.pr }}" y2="{{ g.pb }}"/>
+        {% for grp in g.groups %}
+        <g data-shape="bar-group">
+          {% for b in grp.bars %}
+          <rect class="{{ 'f-pri' if b.role == 'active' else 'f-ctl' }}" data-shape="bar" data-value="{{ b.label }}" x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}" height="{{ b.h }}"/>
+          <line class="ebar" data-shape="error-bar" x1="{{ b.cx }}" y1="{{ b.ylo }}" x2="{{ b.cx }}" y2="{{ b.yhi }}"/>
+          <line class="ebar" x1="{{ b.cx - 7 }}" y1="{{ b.yhi }}" x2="{{ b.cx + 7 }}" y2="{{ b.yhi }}"/>
+          <line class="ebar" x1="{{ b.cx - 7 }}" y1="{{ b.ylo }}" x2="{{ b.cx + 7 }}" y2="{{ b.ylo }}" {% if b.role == 'active' %}style="stroke:#FFFFFF"{% endif %}/>
+          <text x="{{ b.cx }}" y="{{ b.yhi - 7 }}" text-anchor="middle" font-size="13.3" class="t-b">{{ b.label }}</text>
+          {% if b.n %}<text x="{{ b.cx }}" y="{{ g.pb + 42 }}" text-anchor="middle" font-size="11.5" class="t-mut">n = {{ b.n }}</text>{% endif %}
+          {% endfor %}
+          {% if grp.annot and grp.bars|length >= 2 %}
+          {% set b0 = grp.bars[0] %}{% set b1 = grp.bars[-1] %}
+          <path class="ln-acc" data-shape="comparison-bracket" d="M{{ b0.cx }},{{ grp.bracket_y + 10 }} L{{ b0.cx }},{{ grp.bracket_y }} L{{ b1.cx }},{{ grp.bracket_y }} L{{ b1.cx }},{{ grp.bracket_y + 10 }}" style="stroke-width:2"/>
+          <text x="{{ (b0.cx + b1.cx) / 2 - 6 }}" y="{{ grp.bracket_y - 8 }}" text-anchor="end" font-size="18.7" class="t-b t-pri">{{ grp.annot }}</text>
+          {% if grp.annot_sub %}<text x="{{ (b0.cx + b1.cx) / 2 + 2 }}" y="{{ grp.bracket_y - 8 }}" font-size="12" class="t-mut">{{ grp.annot_sub }}</text>{% endif %}
+          {% endif %}
+          <text x="{{ grp.cx }}" y="{{ g.pb + 22 }}" text-anchor="middle" font-size="13.3" class="t-b">{{ grp.label }}</text>
+        </g>
+        {% endfor %}
+      {% else %}
+        <line class="zero" x1="{{ g.pl }}" y1="{{ g.y_zero }}" x2="{{ g.pr }}" y2="{{ g.y_zero }}"/>
+        <line class="ln-ax" x1="{{ g.pl }}" y1="{{ g.pb }}" x2="{{ g.pr }}" y2="{{ g.pb }}"/>
+        {% for t in g.xticks %}
+        <line class="ln-ax" x1="{{ t.x }}" y1="{{ g.pb }}" x2="{{ t.x }}" y2="{{ g.pb + 5 }}"/>
+        <text x="{{ t.x }}" y="{{ g.pb + 19 }}" text-anchor="middle" font-size="12" class="t-mut">{{ t.txt }}</text>
+        {% endfor %}
+        {% if page.x_label %}<text x="{{ g.pr }}" y="{{ g.pb + 36 }}" text-anchor="end" font-size="12" class="t-mut">{{ page.x_label }}</text>{% endif %}
+        {% for s in g.series %}
+        <g data-shape="line-series" data-role="{{ s.role }}">
+          {% for p in s.pts %}<line class="w-{{ s.role }}" data-shape="ci-whisker" x1="{{ p.x }}" y1="{{ p.ylo }}" x2="{{ p.x }}" y2="{{ p.yhi }}"/>{% endfor %}
+          <path class="s-{{ s.role }}" d="{{ s.path }}"/>
+          {% for p in s.pts %}
+            {% if s.role == 'active' %}<circle class="m-active" cx="{{ p.x }}" cy="{{ p.y }}" r="4"/>{% else %}<rect class="m-control" x="{{ p.x - 3.5 }}" y="{{ p.y - 3.5 }}" width="7" height="7"/>{% endif %}
+          {% endfor %}
+        </g>
+        {% endfor %}
+        <g data-shape="n-at-risk">
+          <text x="0" y="{{ g.n_top + 2 }}" font-size="11.5" class="t-b t-pri">各时间点有观测值人数</text>
+          {% for r in g.n_rows %}
+          <text x="0" y="{{ r.y + 2 }}" font-size="11.5" class="{{ 't-pri t-b' if r.role == 'active' else 't-mut' }}">{{ r.name }}</text>
+          {% for c in r.cells %}<text x="{{ c.x }}" y="{{ r.y + 2 }}" text-anchor="middle" font-size="11.5" class="{{ 't-pri' if r.role == 'active' else 't-mut' }}">{{ c.txt }}</text>{% endfor %}
+          {% endfor %}
+        </g>
+      {% endif %}
+    </svg>
+  </div>
+  {{ ph.rail(page) }}
+  {{ ph.footer(page) }}
+</div>

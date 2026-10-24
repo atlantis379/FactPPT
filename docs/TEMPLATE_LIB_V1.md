@@ -156,6 +156,39 @@ Theme **`gold_clinical`**: deep navy header bar, single gold accent line, functi
 
 Previews: `/workspace/sync/template-lib-gold/` (`01-algorithm`, `02-abe-matrix`, `03-tx-tree`).
 
+## v1.3.1 — Pharma / congress chart-led families
+
+Layout language from public pharma IR / congress decks (structure only; research in
+`/workspace/sync/layout-research-pharma/REPORT.md`). Every page = action title (conclusion
+sentence) + figure/table id + ONE main chart/diagram + 3–4 number-led takeaways + abbreviation /
+reference / honesty footer (`示例数据，教学示意，非诊疗建议` · `版式参考药企学术会议幻灯（仅结构）`
+are defaulted when omitted).
+
+| Family | Grammar | COPD demo page |
+|---|---|---|
+| `trial_design` | week axis + R box (ratio, N) + arms with n + follow-up + endpoint marker; inclusion / endpoint hierarchy / design facts | 52 周双盲 1:1 随机设计 |
+| `forest_plot` | table + log-axis CI plot in one aligned SVG, ref line at 1, one highlighted row, favours labels | eos / 年龄 / 吸烟亚组 RR |
+| `endpoint_readout` (`bar` / `line`; KM planned) | main chart with 95% CI error bars or weekly line + n-at-risk, stats box, rail | 年化加重率 −30%；FEV1 +82 mL |
+| `moa_cascade` | 5 stage columns, item boxes, gold drug callouts with T-bar connectors routed in gutters | 2 型炎症级联 4 个作用点 |
+| `data_table_highlight` | 12–18 rows, arms + total, zebra greys, exactly one highlighted row, footnotes | 基线特征表 |
+| `landscape_swimlane` | lanes per class, Phase III bars on year axis, met / not met / ongoing markers (shape + text), today line | 5 类靶点 10 项研究（虚构） |
+| `key_points` / `evidence_takeaways` | 3–4 number-led conclusions; superscript evidence ids → footer refs; verbatim quote + doc/page column | 本节小结 |
+
+Chart geometry is computed in `factdeck/template_lib/pharma.py` from the fill payload (explicit px
+coordinates → maps 1:1 to native PPTX shapes later); templates only draw SVG/HTML primitives.
+Validation checks data, not just text length (lo ≤ est ≤ hi, log axis brackets 1, one highlight,
+series length = categories, callout targets exist, study status ∈ met/not_met/ongoing, evidence ids
+defined, takeaways number-led).
+
+Fixtures (demo data, fictional study names): `factdeck/template_lib/pharma_fixtures.py`.
+Render + Playwright layout QA (overflow / outside-canvas / footer overlap / SVG text collisions):
+
+```bash
+.venv/bin/python tools/render_pharma_previews.py --out /workspace/sync/template-lib-pharma
+.venv/bin/python tools/pharma_contact_sheet.py
+.venv/bin/python -m pytest tests/test_template_lib_v1.py tests/test_template_lib_pharma.py -q
+```
+
 ## Coordinates
 
 Upstream inches (13.333" × 7.5") × 96 → FactDeck 1280 × 720 px. Zone tables live in `manifest.json` (`zones_in`); `zone_map_px()` converts for templates. Content families share the medical-ppt four-zone skeleton (header / headline / body card / footer).
