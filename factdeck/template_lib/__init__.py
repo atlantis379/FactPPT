@@ -7,12 +7,16 @@ remains reference-only). See ATTRIBUTION.md and docs/TEMPLATE_LIB_V1.md.
 """
 from .fill import fill_deck, normalize_fill
 from .html_render import render_deck_html, render_page_html, write_deck_html
+from .selector import classify as classify_relation, report_markdown as selection_report, select_deck
 from .native_hook import TASK as T_TEMPLATE_NATIVE, describe as native_describe, prepare as native_prepare
 from .slots import load_manifest, validate_fill, zone_map_px
 from .themes import THEMES, get_theme, list_themes
 
 __all__ = [
     "THEMES",
+    "classify_relation",
+    "select_deck",
+    "selection_report",
     "T_TEMPLATE_NATIVE",
     "fill_deck",
     "get_theme",

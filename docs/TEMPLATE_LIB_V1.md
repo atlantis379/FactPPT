@@ -210,3 +210,19 @@ cd /path/to/FactPPTv2
 ```
 
 No PowerPoint, ImageGen, or Adobe required.
+
+## Layout selector (v1.3.1 + selector)
+
+`factdeck/template_lib/selector.py` picks one layout per slide from its *content* (title, text, optional
+structured data) and records why. Steps: rule-based relation classifier (中文 + English signals, plus
+structured-data signals) → per-layout minimum-data check with a fixed downgrade chain (never fabricates
+data) → optional tie-break among qualified candidates whose scores are close (pluggable; LLM answers must
+be in the candidate set, otherwise the deterministic rule wins) → deck rhythm (no identical layout on
+consecutive content pages; chart pages ≥ 1/3 when qualified candidates allow; cover/section exempt).
+
+```bash
+.venv/bin/python tools/copd_layout_plan.py                 # COPD sample → slide-level content plan
+.venv/bin/python tools/select_layouts.py --render          # selection.json + selection-report.md + PNGs
+.venv/bin/python tools/select_layouts.py --llm             # optional LLM tie-break (EASYPPT_SEMANTIC_MODEL_*)
+.venv/bin/python -m pytest tests/test_layout_selector.py -q
+```
