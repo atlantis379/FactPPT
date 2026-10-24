@@ -226,6 +226,29 @@ def settings(workflow_id: str, body: Settings):
     return call(store.settings, workflow_id, changes)
 
 
+@router.get("/job-stats")
+def job_stats_list(limit: int = Query(20, ge=1, le=200)):
+    """Recent jobs' observability summaries (wall time, per-stage time, LLM calls/tokens)."""
+    from factdeck.jobstats import list_jobs
+    return {"jobs": list_jobs(limit)}
+
+
+@router.get("/job-stats/{job_id}")
+def job_stats_one(job_id: str):
+    from factdeck.jobstats import get_job
+    s = get_job(job_id)
+    if s is None:
+        raise HTTPException(404, "job not found")
+    return s
+
+
+@router.get("/workflows/{workflow_id}/task-stats")
+def workflow_task_stats_api(workflow_id: str):
+    """Executor (Codex worker) tasks: counts and claimed→completed time per kind; tokens reported as unknown."""
+    from factdeck.jobstats import workflow_task_stats
+    return workflow_task_stats(call(store.get, workflow_id))
+
+
 @router.get("/workflows/{workflow_id}/progress")
 def workbench_progress(workflow_id: str):
     w = call(store.get, workflow_id)

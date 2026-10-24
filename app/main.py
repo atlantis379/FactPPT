@@ -41,6 +41,7 @@ from app.read_units import (CLASSIFICATIONS, DECLINE_REASONS, EXCLUSION_REASONS,
                             audit_read_receipts, classify_units, terms)
 from app.semantic_fidelity import contradiction_signals, missing_source_signals
 from app.source_extract import SourceCapacityError, extract_source
+from factdeck.jobstats import ensure_job, stage as job_stage
 from app.semantic_model import (SemanticGatewayError, build_payload, call_semantic_model,
                                 configured_semantic_model, describe_capabilities, egress_plan,
                                 payload_fingerprint, qualified_engine)
@@ -3371,7 +3372,8 @@ def extract_candidates_with_model(project: Project, document_id: str,
     payload = build_payload("source_candidate_extraction", {"pages": pages})
     if payload_fingerprint(payload)["payload_bytes"] > 1_000_000:
         raise HTTPException(413, "Model reading exceeds the 1 MB request limit; split the source into smaller files")
-    answer = call_semantic_model("source_candidate_extraction", payload, route["model"])
+    with ensure_job("semantic:source_candidate_extraction", meta={"project_id": project.id}), job_stage("source_candidate_extraction"):
+        answer = call_semantic_model("source_candidate_extraction", payload, route["model"])
     offered = answer.get("candidates")
     if not isinstance(offered, list):
         raise HTTPException(422, "Model reading did not return a candidate list")
@@ -3514,7 +3516,8 @@ def triage_with_model(project: Project, route: dict) -> tuple[list[TriageDecisio
                                        "audience": project.audience,
                                        "duration_minutes": project.duration_minutes,
                                        "claims": claims})
-    answer = call_semantic_model("triage", payload, route["model"])
+    with ensure_job("semantic:triage", meta={"project_id": project.id}), job_stage("triage"):
+        answer = call_semantic_model("triage", payload, route["model"])
     proposed = answer.get("decisions")
     if not isinstance(proposed, list):
         raise HTTPException(422, "Model triage did not return a decision list")
@@ -3562,7 +3565,8 @@ def architect_with_model(project: Project, route: dict) -> tuple[NarrativePlan, 
         "claims": [{"claim_id": claim.id, "claim_text": claim.normalized_claim, "bucket": claim.triage,
                     "conditions": claim.conditions, "provenance": claim.provenance, "risk": claim.risk}
                    for claim in selected]})
-    answer = call_semantic_model("architect", payload, route["model"])
+    with ensure_job("semantic:architect", meta={"project_id": project.id}), job_stage("architect"):
+        answer = call_semantic_model("architect", payload, route["model"])
     spine = str(answer.get("narrative_spine") or "").strip()
     proposed = answer.get("pages")
     if not spine:
@@ -3918,7 +3922,8 @@ def run_full_summary(project_id: str):
         raise HTTPException(422, "Configure a qualified semantic model or submit a model-authored full summary")
     payload = build_payload("full_source_summary", brief)
     try:
-        answer = call_semantic_model("full_source_summary", payload, route["model"])
+        with ensure_job("semantic:full_source_summary", meta={"project_id": project.id}), job_stage("full_source_summary"):
+            answer = call_semantic_model("full_source_summary", payload, route["model"])
     except SemanticGatewayError as error:
         raise HTTPException(422, str(error)) from error
     issues = validate_full_summary(answer, project.reading_structure)

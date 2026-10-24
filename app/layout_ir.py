@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import base64
 import json
+import time
 import math
 import os
 import urllib.request
@@ -241,13 +242,20 @@ def _call_json_model(messages: list[dict[str, Any]], model: dict[str, Any]) -> d
     request = urllib.request.Request(model["url"],
                                      data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
                                      headers=headers, method="POST")
+    from factdeck.jobstats import record_llm_call
+    started, body = time.perf_counter(), None
     try:
         class NoRedirect(urllib.request.HTTPRedirectHandler):
             def redirect_request(self, request, fp, code, msg, headers, newurl):
                 return None
 
-        with urllib.request.build_opener(NoRedirect).open(request, timeout=90) as response:
-            body = json.loads(response.read().decode("utf-8"))
+        try:
+            with urllib.request.build_opener(NoRedirect).open(request, timeout=90) as response:
+                body = json.loads(response.read().decode("utf-8"))
+        finally:   # observability: the endpoint's own usage, or unknown — never estimated
+            record_llm_call(stage=None, model=model["model_id"], source="app.layout_ir",
+                            usage=(body or {}).get("usage") if isinstance(body, dict) else None,
+                            elapsed=time.perf_counter() - started, ok=isinstance(body, dict))
         content = body["choices"][0]["message"]["content"]
         if isinstance(content, list):
             content = "".join(part.get("text", "") for part in content if isinstance(part, dict))

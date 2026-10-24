@@ -31,12 +31,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 import os
 import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
+
+from factdeck.jobstats import record_llm_call
 
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY_PATH = ROOT / "config" / "semantic_model_capabilities.json"
@@ -335,8 +338,14 @@ def call_semantic_model(capability: str, payload: dict[str, Any],
             def redirect_request(self, request, fp, code, msg, headers, newurl):
                 return None
 
-        with urllib.request.build_opener(NoRedirect).open(request, timeout=180) as response:
-            answer = json.loads(response.read().decode("utf-8"))
+        answer, started = None, time.perf_counter()
+        try:
+            with urllib.request.build_opener(NoRedirect).open(request, timeout=180) as response:
+                answer = json.loads(response.read().decode("utf-8"))
+        finally:   # observability: the endpoint's own usage, or unknown — never estimated
+            record_llm_call(stage=capability, model=model["model_id"], source="app.semantic_model",
+                            usage=answer.get("usage") if isinstance(answer, dict) else None,
+                            elapsed=time.perf_counter() - started, ok=isinstance(answer, dict))
         content = answer["choices"][0]["message"]["content"]
         if isinstance(content, list):
             content = "".join(part.get("text", "") for part in content if isinstance(part, dict))

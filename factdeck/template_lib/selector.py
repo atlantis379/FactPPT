@@ -566,8 +566,18 @@ def env_llm_tiebreaker() -> TieBreaker | None:
             headers["Authorization"] = f"Bearer {key}"
         req = urllib.request.Request(model["url"], data=json.dumps(body, ensure_ascii=False).encode(),
                                      headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=60) as r:
-            content = json.loads(r.read().decode())["choices"][0]["message"]["content"]
+        import time
+
+        from factdeck.jobstats import record_llm_call
+        raw, started = None, time.perf_counter()
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                raw = json.loads(r.read().decode())
+        finally:   # observability: the endpoint's own usage, or unknown — never estimated
+            record_llm_call(stage="select", model=model["model_id"], source="selector.tie_break",
+                            usage=raw.get("usage") if isinstance(raw, dict) else None,
+                            elapsed=time.perf_counter() - started, ok=isinstance(raw, dict))
+        content = raw["choices"][0]["message"]["content"]
         return content if isinstance(content, str) else json.dumps(content)
 
     return make_llm_tiebreaker(complete)

@@ -291,6 +291,24 @@ v4总结是客户确认的完整笔记，DECK在确认之后按它出页（用�
 
 项目目录包含 `facts.json`、`deck.json`、`sources_manifest.json` 与可选的 `transcriptions/`。
 
+## 可观测性（每次生成的耗时与 token）
+
+`factdeck/jobstats.py` 为每个 job 记录：总墙钟时间、各阶段耗时（`stage`）、每次模型调用的
+`model / stage / source / 耗时 / prompt_tokens / completion_tokens / total_tokens`。token 只取接口返回的
+`usage`；接口没返回就记为 `null`（`tokens_known: false`，汇总里计入 `calls_tokens_unknown`），**从不估算**。
+
+- 记录点：`app/semantic_model.call_semantic_model`（摘要、抽取、分诊、编排等能力，stage = 能力名）、
+  `app/layout_ir._call_json_model`、选版式的大模型 tie-break（stage = `select`）、模板库整份生成
+  `template_lib.pipeline.run`（select / fill / render_html / measure / native / verify）。没有活动 job 时不记录。
+  `app/main.py` 的四个语义模型调用点各自开一个 job（若已在 job 中则并入）。
+- 持久化：job 的输出目录写 `job_stats.json`；同时写入索引 `data/job_stats.sqlite`
+  （或环境变量 `FACTDECK_JOB_STATS_DB`）。
+- 执行端（Codex worker）任务：应用拿不到执行端的 token，`workflow_task_stats` 只统计每类任务的数量、尝试次数、
+  领取→完成的墙钟时间（含执行端等待，非计费依据）和视觉回执里的 `elapsed_seconds`；token 一律标“unknown”。
+- 查看：`python tools/job_stats.py`（最近 job）、`python tools/job_stats.py <job_id 或 job_stats.json>`、
+  `python tools/job_stats.py --workflow <workflow_id>`；接口 `GET /api/deck/job-stats`、
+  `GET /api/deck/job-stats/{job_id}`、`GET /api/deck/workflows/{workflow_id}/task-stats`。
+
 ### 已知限制（2026-10-14 代码审查，待下一轮处理）
 - 更正转录或重新执行 `backfill-structure` 会改变候选关系，但不会让当前总结失效：总结中的 `from_candidate` 可能指向已不存在的候选，新候选没有决定。重算候选后须人工检查或重写总结。
 - `rules_version` 只拦住新排的内容任务；采纳新规则前已排队的旧任务、人工编辑和 SUMMARY_AMEND 会按新规则校验。旧总结缺少 `candidate_decisions` 时只能重写，不能局部修订。
