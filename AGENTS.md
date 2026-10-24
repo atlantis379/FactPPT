@@ -35,9 +35,16 @@
 - [ ] 10 位医生各完成一份真实汇报 PPT；至少 3 位愿意付费。
 - [ ] 医生试用后的反馈中，视觉被评价为“可以直接拿去讲”。
 
-### 尚未完成
-- 选版式模块未接入主流程（`factdeck/deck.py` 仍由页面规划自由选版式）。
-- 原生 PPTX 输出仍是占位（`native_hook.py` 只做准备）。
+### 尚未完成（2026-10-25 更新，分支 `miso/integration`）
+- 选版式已接入两处：模板库整份生成（`template_lib/pipeline.py`、`tools/template_deck.py`）和 `factdeck/deck.py`
+  （页面写 `"template": {"layout": …}` 时由选择器决定并记录理由）。但 `/api/deck` 主线的 DECK 任务 brief 还没要求
+  执行端写 `template` 字段，RENDER 仍走 `factdeck.render`；模板库页面还不是主线默认产出。
+- 原生 PPTX：模板库页面已输出原生对象（文本框、原生表格、形状/连接线、图表为形状，0 图片、0 嵌入 SVG）。
+  只用 LibreOffice 渲染核对过，**尚未在 PowerPoint / WPS 中人工打开核对**；渐变（预混合）、局部圆角、
+  小阴影、上标为近似处理。
+- 溯源：模板页的填充内容（plan 的 `fills`）是示例数据，尚未与事实库逐字绑定，模板页也还没有溯源报告。
+- 可观测性：模板库生成、语义模型调用、选版式 tie-break 已记录耗时与 token（只取接口返回值）；执行端
+  （Codex worker）任务只能记次数和墙钟时间，token 未知。尚未用真实模型跑出 20 页汇报的耗时/token 基线。
 - 大模型 tie-break 未在真实接口上验证；规则权重只在 COPD 样例上手工调过。
 
 Read `docs/FACTPPTV2.md` before processing a project. This repository is independent
