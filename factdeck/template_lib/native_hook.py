@@ -1,7 +1,10 @@
-"""T_TEMPLATE_NATIVE stub — hook for later native PPTX fill without changing Route A.
+"""T_TEMPLATE_NATIVE — native PPTX for template-library pages.
 
-v1 only validates the slot contract and can emit HTML. Native path assembly
-(reusing factdeck.render / Route A decorative paths) is intentionally stubbed.
+The builder lives in ``native.py`` (HTML render -> Playwright measure -> python-pptx
+text boxes / tables / shapes / connectors / freeforms, no bitmaps) and the
+end-to-end job in ``pipeline.py`` (selector -> fill -> render -> measure -> native).
+This module keeps the old describe/prepare envelope so callers that only need a
+validated page model keep working.
 """
 from __future__ import annotations
 
@@ -19,13 +22,17 @@ def describe() -> dict[str, Any]:
     hook = m.get("native_hook") or {}
     return {
         "task": hook.get("task") or TASK,
-        "status": hook.get("status") or "stub",
+        "status": hook.get("status") or "native",
         "note": hook.get("note") or "",
         "accepts_families": sorted(m["families"]),
-        "requires": ["slot fill dict", "theme name (journal|steel)"],
-        "produces_when_ready": ["native PPTX shapes + text boxes"],
-        "produces_now": ["validated page model", "HTML via html_render"],
-        "artwork": "factdeck/template_lib/artwork/paths.stub.json (empty TODO)",
+        "requires": ["slot fill dict", "theme name (journal|steel)", "playwright chromium (measure)"],
+        "produces": ["native PPTX: editable text boxes, native tables, shapes/lines/connectors, freeform charts"],
+        "entry_points": {
+            "deck": "factdeck.template_lib.pipeline.run(plan, out)",
+            "cli": "python tools/template_deck.py --plan PLAN.json --out DIR",
+            "slides": "factdeck.template_lib.native.build_pptx(models, out)",
+            "inspect": "factdeck.template_lib.native.inspect_pptx(path)",
+        },
         "does_not_touch": [
             "Route A VISUAL_* task chain",
             "output/academic_templates runtime fill",
@@ -36,17 +43,22 @@ def describe() -> dict[str, Any]:
 
 def prepare(family: str, fill: dict, *, theme: str = "journal",
             variant: str | None = None) -> dict[str, Any]:
-    """Validate/normalize a fill and return a native-ready envelope (no PPTX write)."""
+    """Validate/normalize a fill and return the envelope consumed by the native builder.
+
+    No PPTX is written here; ``pipeline.run`` renders + measures the page and calls
+    ``native.build_pptx``. Shapes are only known after browser measurement.
+    """
     page = normalize_fill(family, fill, variant=variant, theme=theme)
     return {
         "task": TASK,
         "status": "prepared",
         "page": page,
         "native": {
-            "status": "stub",
+            "status": "ready",
+            "builder": "factdeck.template_lib.native.build_pptx",
             "shapes": [],
             "text_boxes": [],
             "artwork_paths": page.get("artwork_paths") or [],
-            "todo": "Wire python-pptx text boxes from zones_px; optional Route A path groups.",
+            "note": "shapes/text boxes are produced from the measured HTML render (pipeline.run).",
         },
     }

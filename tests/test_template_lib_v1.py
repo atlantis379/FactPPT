@@ -208,13 +208,13 @@ def test_deck_html_shell_and_write(tmp_path):
     assert out.is_file() and "慢性阻塞性肺疾病" in out.read_text(encoding="utf-8")
 
 
-def test_native_hook_is_stub_but_prepares_model():
+def test_native_hook_points_to_native_builder():
     info = tl.native_describe()
     assert info["task"] == tl.T_TEMPLATE_NATIVE == "T_TEMPLATE_NATIVE"
-    assert info["status"] == "stub"
+    assert info["status"] == "native"
     prepared = tl.native_prepare("cover", COVER_ZH, theme="journal")
     assert prepared["status"] == "prepared"
-    assert prepared["native"]["status"] == "stub"
+    assert prepared["native"]["status"] == "ready"
     assert prepared["page"]["title"] == COVER_ZH["title"]
     assert prepared["native"]["shapes"] == []
 

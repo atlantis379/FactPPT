@@ -1033,7 +1033,7 @@
       "chart_geometry": "factdeck.template_lib.pharma"
     }
   },
-  "native_hook": {"task": "T_TEMPLATE_NATIVE", "status": "stub", "note": "v1 validates slot contract + HTML render. Native PPTX fill reuses Route A / factdeck.render later; decorative paths may be empty."},
+  "native_hook": {"task": "T_TEMPLATE_NATIVE", "status": "native", "note": "pipeline.run: selector -> fill -> HTML -> Playwright measure -> python-pptx native text boxes/tables/shapes/connectors/freeforms (no bitmaps). See docs/TEMPLATE_LIB_V1.md."},
   "craft_note": {
     "paid_quality": "v1.2 premium_clinical — tonal panels; v1.3 gold_clinical — GOLD teaching density (algorithm/matrix/dual-path); v1.3.1 pharma — chart-led congress/IR data pages (trial design, forest, endpoint readout, MoA, data table, swimlane, evidence takeaways)",
     "showcase_theme": "gold_clinical",

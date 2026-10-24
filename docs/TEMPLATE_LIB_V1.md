@@ -120,7 +120,7 @@ deck_html = render_deck_html([
     }},
 ], theme="steel")
 
-# Native hook (stub): validates + returns envelope; no PPTX write yet
+# Native hook: validates + returns envelope; the PPTX is built by pipeline.run (see "Native PPTX")
 native_prepare("cover", fill, theme="journal")
 ```
 
@@ -196,8 +196,7 @@ Upstream inches (13.333" × 7.5") × 96 → FactDeck 1280 × 720 px. Zone tables
 ## Not in v1.3 (same as v1.2 gaps)
 
 - Full DECK contract change / auto-selection inside `/api/deck`
-- Browser density fit / playwright measure for these packs (reuse later)
-- Native PPTX writer for slot packs (stub only)
+- Browser density fit for these packs (Playwright measure + QA now exist; no automatic re-fit)
 - Route A decorative path art (artwork stub empty)
 - Patterns A–B / D–G / I / L from medical-ppt-design
 - Pulling commercial template files into the repo
@@ -246,3 +245,36 @@ consecutive content pages; chart pages ≥ 1/3 when qualified candidates allow; 
   biomedical); a plan or deck may add project terms under `layout_signals` (same JSON shape:
   `{relation: [{name, patterns, weight}]}`). The COPD sample adds its own `mMRC/CAT × 加重` matrix term this way.
 - The LLM tie-break stays off unless a tie-breaker is passed (`--llm`).
+
+## Native PPTX (template pages)
+
+`factdeck/template_lib/pipeline.run(plan, out)` (CLI `tools/template_deck.py`) runs one job:
+select (integrate.decide) → fill (plan `fills[layout]`; falls back only to a *qualified* candidate's fill, recorded)
+→ render HTML (Jinja) → Playwright measure (overflow/overlap QA + `native_extract.js`) → `native.build_pptx`
+→ verify (`native.inspect_pptx`). Outputs: `deck.pptx`, `pages/*.html|png` (HTML previews), `job.json`
+(per page: decision, rendered layout, QA issues, PPTX shape counts), `decisions.json`, `job_stats.json`.
+
+```bash
+.venv/bin/python tools/template_deck.py --plan factdeck/examples/copd_layout_sample/plan.json --out output/template_deck
+.venv/bin/python tools/template_deck.py ... --office-render     # + LibreOffice PNGs of the PPTX (QA)
+```
+
+How the native writer works (`native_extract.js` → `native.py`, domain-neutral, no per-template code):
+
+- The extractor walks the rendered slide DOM: boxes (fill / gradient / border / radius / shadow; `::before` /
+  `::after` materialised), text owners (per-line client rects, runs with font / size / weight / colour / sup),
+  tables (grid from cell edges, merges, cell borders/fills), and inline SVG (`rect`/`circle`/`line`/`path`/
+  `polyline`/`polygon`/`text`, mapped with `getScreenCTM`). `<img>` and CSS `url()` backgrounds are reported
+  as `unsupported` (none in the library).
+- The writer emits, in paint order: auto shapes (rect / rounded / top- or bottom-rounded / oval), text boxes
+  with editable runs (no autofit, zero insets, exact line spacing, CJK font set as latin + ea), native tables,
+  straight connectors (with arrowheads), freeform polygons/polylines for chart marks and arrows.
+  Charts are therefore native shapes + text boxes (axis ticks, bars, CI whiskers, points, labels), not pictures.
+- Slide 1280×720 px → 13.333 × 7.5 in (16:9). Default font `Noto Sans CJK SC` (`--font` to change).
+- Speaker notes per slide: 【版式】layout + selector reason, 【版式提议】keep/override reason, 【数据说明】plan note.
+- Demo data: every non-cover page of the COPD sample carries "示例数据，教学示意，非诊疗建议"; trial names are
+  fictitious ("研究药 X", "示例研究报告").
+
+Known approximations: translucent gradients are pre-blended onto the slide background; partial-corner radii
+are mapped to the nearest preset; small shadows (blur < 4 px) are dropped; LibreOffice (QA renderer) adds
+CJK/Latin auto-spacing that PowerPoint does not, so a few lines wrap earlier in the LibreOffice PNGs.
