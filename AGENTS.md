@@ -32,3 +32,9 @@ Report the implementation plan, test results, independent audit result, and Mile
 
 ## Completion
 A milestone is not complete until required tests, relevant Golden regression, CI gates, and independent Audit Pass succeed.
+
+## Cursor Cloud specific instructions
+- M0 is a Python 3.12 standard-library CLI. There is no lockfile, third-party package, or long-running service.
+- GitHub Actions provides `python`. On the default Cloud Agent image only `python3` is present; link it to `/usr/local/bin/python` before the commands below.
+- From the repository root: `python -m unittest discover -s tests/governance -v`
+- Local gate: `python tools/governance/check.py --changed-file <path>` for a path on the current milestone allow-list. A forbidden path must fail closed.
