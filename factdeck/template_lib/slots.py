@@ -213,6 +213,7 @@ def validate_fill(family: str, fill: dict, variant: str | None = None,
     # Scalar slots (skip list slots handled below)
     list_slot_names = {
         "items", "nodes", "left_items", "right_items", "rows",
+        "no_items", "follow_nodes", "left_nodes", "right_nodes",
     }
     for name, rule in slots.items():
         if name in list_slot_names:
@@ -243,6 +244,29 @@ def validate_fill(family: str, fill: dict, variant: str | None = None,
     elif family in ("flow", "timeline"):
         node_rule = (slots.get("nodes") or {}).get("item") or {}
         _check_item_list("nodes", fill.get("nodes"), node_rule, errors, required=True, cap=cap)
+
+    elif family == "algorithm_tree":
+        no_rule = (slots.get("no_items") or {}).get("item") or {}
+        _check_item_list("no_items", fill.get("no_items"), no_rule, errors, required=True, cap=8)
+        follow_rule = (slots.get("follow_nodes") or {}).get("item") or {}
+        if fill.get("follow_nodes"):
+            _check_item_list("follow_nodes", fill.get("follow_nodes"), follow_rule, errors,
+                             required=False, cap=cap)
+
+    elif family == "assessment_matrix":
+        # Scalar groups validated via generic scalar loop; nothing list-based.
+        pass
+
+    elif family == "dual_path_tree":
+        left_rule = (slots.get("left_nodes") or {}).get("item") or {}
+        right_rule = (slots.get("right_nodes") or {}).get("item") or {}
+        # kind/branch are optional soft fields — only enforce heading
+        soft_left = {k: v for k, v in left_rule.items() if k in ("heading", "body")}
+        soft_right = {k: v for k, v in right_rule.items() if k in ("heading", "body")}
+        _check_item_list("left_nodes", fill.get("left_nodes"), soft_left or left_rule, errors,
+                         required=True, cap=cap)
+        _check_item_list("right_nodes", fill.get("right_nodes"), soft_right or right_rule, errors,
+                         required=True, cap=cap)
 
     if family in ("cover", "section") and not fill.get("title"):
         if not any(e.startswith("title：") for e in errors):

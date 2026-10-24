@@ -1,0 +1,178 @@
+{# GOLD-style diagnosis algorithm: solid yes / dashed no branches — not a card grid. #}
+<style>
+.L-tl-algo{background:var(--canvas)}
+.L-tl-algo .gbar{
+  position:absolute;left:0;top:0;width:1280px;height:68px;
+  background:var(--primary);display:flex;align-items:center;justify-content:space-between;
+  padding:0 28px;z-index:2
+}
+.L-tl-algo .gbar .gtitle{
+  font-size:20pt;font-weight:700;color:#fff;letter-spacing:-0.01em;
+  white-space:nowrap;overflow:hidden;max-width:980px
+}
+.L-tl-algo .gbar .gfig{
+  font-size:12pt;font-weight:600;color:var(--accent-on-dark);letter-spacing:0.04em;white-space:nowrap
+}
+.L-tl-algo .gaccent{
+  position:absolute;left:0;top:68px;width:1280px;height:4px;background:var(--accent);z-index:2
+}
+.L-tl-algo .body{
+  position:absolute;left:28px;top:88px;width:1224px;height:560px;
+  display:grid;grid-template-rows:auto 1fr auto;gap:8px
+}
+.L-tl-algo .takeaway{
+  font-size:11.5pt;font-weight:600;color:var(--primary);padding:2px 0 4px;
+  border-bottom:1px solid var(--line)
+}
+.L-tl-algo .diagram{
+  position:relative;display:grid;
+  grid-template-columns:1fr 1.15fr 1fr;
+  grid-template-rows:auto auto 1fr auto;
+  gap:6px 14px;min-height:0;padding:4px 0
+}
+.L-tl-algo .node{
+  background:var(--node-fill,#F2F2F2);border:1px solid var(--line);
+  border-radius:2px;padding:10px 12px;text-align:center
+}
+.L-tl-algo .node .h{font-size:12.5pt;font-weight:700;color:var(--ink);line-height:1.25}
+.L-tl-algo .node .b{font-size:10pt;font-weight:400;color:var(--muted);margin-top:4px;line-height:1.35}
+.L-tl-algo .node.is-start{background:var(--primary);border-color:var(--primary)}
+.L-tl-algo .node.is-start .h,.L-tl-algo .node.is-start .b{color:#fff}
+.L-tl-algo .node.is-start .b{color:rgba(255,255,255,0.85)}
+.L-tl-algo .node.is-decision{
+  background:var(--paper);border:2px solid var(--primary);
+  box-shadow:inset 0 0 0 1px var(--accent)
+}
+.L-tl-algo .node.is-decision .thr{
+  margin-top:6px;display:inline-block;font-size:11pt;font-weight:700;
+  color:var(--primary);background:var(--takeaway-bg);padding:3px 10px;border-radius:2px;
+  border-left:3px solid var(--accent)
+}
+.L-tl-algo .node.is-yes{background:var(--node-alt,#E8EEF2);border-color:#B8C9D6}
+.L-tl-algo .node.is-no{background:var(--surface2,#E6E6E6);border-style:dashed}
+.L-tl-algo .node.is-follow{text-align:left;background:var(--paper)}
+.L-tl-algo .start-wrap{grid-column:1 / -1;display:flex;justify-content:center}
+.L-tl-algo .start-wrap .node{min-width:420px;max-width:560px}
+.L-tl-algo .dec-wrap{grid-column:1 / -1;display:flex;justify-content:center}
+.L-tl-algo .dec-wrap .node{min-width:480px;max-width:640px}
+.L-tl-algo .branch-row{grid-column:1 / -1;display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+.L-tl-algo .branch{
+  display:flex;flex-direction:column;align-items:center;gap:6px
+}
+.L-tl-algo .edge{
+  display:flex;flex-direction:column;align-items:center;gap:2px;width:100%
+}
+.L-tl-algo .edge .line{
+  width:0;height:18px;border-left:2px solid var(--branch-yes,var(--primary))
+}
+.L-tl-algo .edge.is-dashed .line{
+  border-left:2px dashed var(--branch-no,#888);height:18px
+}
+.L-tl-algo .edge .lab{
+  font-size:9.5pt;font-weight:700;color:var(--primary);letter-spacing:0.02em;
+  background:var(--canvas);padding:0 6px;white-space:nowrap
+}
+.L-tl-algo .edge.is-dashed .lab{color:var(--branch-no,#888);font-weight:600}
+.L-tl-algo .no-list{
+  margin-top:6px;text-align:left;font-size:10pt;color:var(--muted);line-height:1.45;
+  columns:2;column-gap:12px
+}
+.L-tl-algo .no-list li{list-style:none;padding-left:10px;position:relative;break-inside:avoid}
+.L-tl-algo .no-list li::before{
+  content:"";position:absolute;left:0;top:0.55em;width:5px;height:5px;background:var(--accent)
+}
+.L-tl-algo .follow-row{
+  grid-column:1 / -1;display:flex;gap:12px;justify-content:center;flex-wrap:nowrap
+}
+.L-tl-algo .follow-row .node{flex:1;min-width:0}
+.L-tl-algo .vconn{
+  grid-column:1 / -1;display:flex;justify-content:center;height:16px
+}
+.L-tl-algo .vconn span{
+  display:block;width:0;height:100%;border-left:2px solid var(--primary)
+}
+.L-tl-algo .foot{
+  position:absolute;left:28px;bottom:14px;right:28px;
+  display:flex;justify-content:space-between;align-items:flex-end;gap:16px
+}
+.L-tl-algo .src{font-size:9pt;color:var(--caption);line-height:1.3;max-width:1000px}
+.L-tl-algo .pg{font-size:10pt;font-weight:600;color:var(--muted)}
+</style>
+<div class="slide L-tl-algo" id="{{ page.id }}" data-family="algorithm_tree"
+     data-variant="{{ page.variant }}" data-theme="{{ page.theme_name }}"
+     data-pattern="GOLD-algorithm-branch" data-library="factdeck.template_lib.v1">
+  <div class="gbar">
+    <div class="gtitle" data-slot="title">{{ page.title }}</div>
+    {% if page.figure %}<div class="gfig" data-slot="figure">{{ page.figure }}</div>{% endif %}
+  </div>
+  <div class="gaccent" data-shape="gold-accent"></div>
+  <div class="body">
+    {% if page.takeaway %}<div class="takeaway" data-slot="takeaway">{{ page.takeaway }}</div>{% endif %}
+    <div class="diagram" data-slot="diagram">
+      <div class="start-wrap">
+        <div class="node is-start" data-shape="start-node">
+          <div class="h" data-slot="start_heading">{{ page.start_heading }}</div>
+          {% if page.start_body %}<div class="b" data-slot="start_body">{{ page.start_body }}</div>{% endif %}
+        </div>
+      </div>
+      <div class="vconn"><span></span></div>
+      <div class="dec-wrap">
+        <div class="node is-decision" data-shape="decision-node">
+          <div class="h" data-slot="decision_heading">{{ page.decision_heading }}</div>
+          <div class="thr" data-slot="decision_threshold">{{ page.decision_threshold }}</div>
+        </div>
+      </div>
+      <div class="branch-row">
+        <div class="branch" data-shape="yes-branch">
+          <div class="edge">
+            <div class="line"></div>
+            <div class="lab" data-slot="yes_label">{{ page.yes_label }}</div>
+            <div class="line"></div>
+          </div>
+          <div class="node is-yes" style="width:100%">
+            <div class="h" data-slot="yes_heading">{{ page.yes_heading }}</div>
+            {% if page.yes_body %}<div class="b" data-slot="yes_body">{{ page.yes_body }}</div>{% endif %}
+          </div>
+        </div>
+        <div class="branch" data-shape="no-branch">
+          <div class="edge is-dashed">
+            <div class="line"></div>
+            <div class="lab" data-slot="no_label">{{ page.no_label }}</div>
+            <div class="line"></div>
+          </div>
+          <div class="node is-no" style="width:100%">
+            <div class="h" data-slot="no_heading">{{ page.no_heading }}</div>
+            {% if page.no_items %}
+            <ul class="no-list" data-slot="no_items">
+              {% for it in page.no_items %}<li>{{ it.text }}</li>{% endfor %}
+            </ul>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% if page.follow_nodes %}
+      <div class="follow-row" style="align-items:stretch">
+        <div style="flex:0 0 48%;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <div class="vconn" style="height:14px"><span></span></div>
+          <div style="display:flex;gap:10px;width:100%;align-items:stretch">
+          {% for n in page.follow_nodes %}
+            <div class="node is-follow" data-shape="follow-node" style="flex:1">
+              <div class="h" data-slot="heading">{{ n.heading }}</div>
+              {% if n.body %}<div class="b" data-slot="body">{{ n.body }}</div>{% endif %}
+            </div>
+            {% if not loop.last %}
+            <div style="flex:0 0 18px;display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:14pt;font-weight:700">→</div>
+            {% endif %}
+          {% endfor %}
+          </div>
+        </div>
+        <div style="flex:1"></div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="foot">
+    <div class="src" data-slot="source">{{ page.source }}</div>
+    {% if page.page %}<div class="pg" data-slot="page">{{ page.page }}</div>{% endif %}
+  </div>
+</div>

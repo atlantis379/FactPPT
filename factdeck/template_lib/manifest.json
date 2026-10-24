@@ -1,6 +1,6 @@
 {
   "library_id": "factdeck.template_lib.v1",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "canvas": {"width_px": 1280, "height_px": 720, "width_in": 13.333, "height_in": 7.5, "dpi": 96},
   "source_layout": {
     "name": "medical-ppt-design",
@@ -10,7 +10,7 @@
     "branding_stripped": ["SNUBH", "SNUH", "분당서울대학교병원", "박상민", "Starbucks Green system as product brand"]
   },
   "academic_reference_only": {"note": "The 10-set academic template library (output/academic_templates) remains style/QA reference only and is NOT a runtime fill source.", "doc": "docs/ACADEMIC_TEMPLATE_LIBRARY.md"},
-  "themes": ["premium_clinical", "journal", "steel"],
+  "themes": ["premium_clinical", "gold_clinical", "journal", "steel"],
   "families": {
     "cover": {
       "template_id": "tl_v1.cover",
@@ -153,11 +153,651 @@
       "pattern": "J-timeline-milestone",
       "overflow": "refuse_over_capacity_or_split_page",
       "note": "Case course milestone track 就诊→检查→治疗→随访. 4 or 6 nodes."
+    },
+  "algorithm_tree": {
+      "template_id": "tl_v1.algorithm_tree",
+      "family": "algorithm_tree",
+      "variants": [
+        "branch_decision"
+      ],
+      "html": "algorithm_tree.html.j2",
+      "capacity": {
+        "branch_decision": 6
+      },
+      "slots": {
+        "section": {
+          "required": false,
+          "max_chars": 32,
+          "font_steps_pt": [
+            12,
+            11
+          ],
+          "overflow": "ellipsis"
+        },
+        "title": {
+          "required": true,
+          "max_chars": 48,
+          "max_lines": 1,
+          "font_steps_pt": [
+            22,
+            20,
+            18
+          ],
+          "overflow": "shrink_then_ellipsis"
+        },
+        "figure": {
+          "required": false,
+          "max_chars": 16,
+          "font_steps_pt": [
+            12,
+            11
+          ],
+          "overflow": "ellipsis"
+        },
+        "takeaway": {
+          "required": false,
+          "max_chars": 90,
+          "max_lines": 1,
+          "font_steps_pt": [
+            13,
+            12,
+            11
+          ],
+          "overflow": "shrink_then_ellipsis"
+        },
+        "source": {
+          "required": false,
+          "max_chars": 110,
+          "font_steps_pt": [
+            10,
+            9
+          ],
+          "overflow": "ellipsis"
+        },
+        "page": {
+          "required": false,
+          "max_chars": 4,
+          "font_steps_pt": [
+            11
+          ],
+          "overflow": "clip"
+        },
+        "start_heading": {
+          "required": true,
+          "max_chars": 32,
+          "font_steps_pt": [
+            14,
+            13
+          ],
+          "overflow": "ellipsis"
+        },
+        "start_body": {
+          "required": false,
+          "max_chars": 56,
+          "font_steps_pt": [
+            11,
+            10
+          ],
+          "overflow": "ellipsis"
+        },
+        "decision_heading": {
+          "required": true,
+          "max_chars": 36,
+          "font_steps_pt": [
+            13,
+            12
+          ],
+          "overflow": "ellipsis"
+        },
+        "decision_threshold": {
+          "required": true,
+          "max_chars": 48,
+          "font_steps_pt": [
+            12,
+            11
+          ],
+          "overflow": "ellipsis"
+        },
+        "yes_label": {
+          "required": true,
+          "max_chars": 28,
+          "font_steps_pt": [
+            11,
+            10
+          ],
+          "overflow": "ellipsis"
+        },
+        "yes_heading": {
+          "required": true,
+          "max_chars": 24,
+          "font_steps_pt": [
+            13,
+            12
+          ],
+          "overflow": "ellipsis"
+        },
+        "yes_body": {
+          "required": false,
+          "max_chars": 64,
+          "font_steps_pt": [
+            11,
+            10
+          ],
+          "overflow": "ellipsis"
+        },
+        "no_label": {
+          "required": true,
+          "max_chars": 28,
+          "font_steps_pt": [
+            11,
+            10
+          ],
+          "overflow": "ellipsis"
+        },
+        "no_heading": {
+          "required": true,
+          "max_chars": 24,
+          "font_steps_pt": [
+            13,
+            12
+          ],
+          "overflow": "ellipsis"
+        },
+        "no_items": {
+          "required": true,
+          "item": {
+            "text": {
+              "required": true,
+              "max_chars": 28,
+              "font_steps_pt": [
+                11,
+                10
+              ],
+              "overflow": "ellipsis"
+            }
+          }
+        },
+        "follow_nodes": {
+          "required": false,
+          "item": {
+            "heading": {
+              "required": true,
+              "max_chars": 28,
+              "font_steps_pt": [
+                13,
+                12
+              ],
+              "overflow": "ellipsis"
+            },
+            "body": {
+              "required": false,
+              "max_chars": 72,
+              "font_steps_pt": [
+                11,
+                10
+              ],
+              "overflow": "ellipsis"
+            }
+          }
+        }
+      },
+      "zones_in": {
+        "header_bar": {
+          "x": 0.0,
+          "y": 0.0,
+          "w": 13.333,
+          "h": 0.72
+        },
+        "body": {
+          "x": 0.35,
+          "y": 0.95,
+          "w": 12.633,
+          "h": 5.85
+        },
+        "footer_source": {
+          "x": 0.35,
+          "y": 7.0,
+          "w": 10.5,
+          "h": 0.28
+        },
+        "footer_page": {
+          "x": 12.2,
+          "y": 7.0,
+          "w": 0.8,
+          "h": 0.28
+        }
+      },
+      "pattern": "GOLD-algorithm-branch",
+      "overflow": "refuse_over_capacity_or_split_page",
+      "note": "Suspected→confirm algorithm with solid/dashed branch conditions (FEV1/FVC thresholds)."
+    },
+    "assessment_matrix": {
+      "template_id": "tl_v1.assessment_matrix",
+      "family": "assessment_matrix",
+      "variants": [
+        "abe_2x2"
+      ],
+      "html": "assessment_matrix.html.j2",
+      "capacity": {
+        "abe_2x2": 3
+      },
+      "slots": {
+        "section": {
+          "required": false,
+          "max_chars": 32,
+          "font_steps_pt": [
+            12,
+            11
+          ],
+          "overflow": "ellipsis"
+        },
+        "title": {
+          "required": true,
+          "max_chars": 48,
+          "max_lines": 1,
+          "font_steps_pt": [
+            22,
+            20,
+            18
+          ],
+          "overflow": "shrink_then_ellipsis"
+        },
+        "figure": {
+          "required": false,
+          "max_chars": 16,
+          "font_steps_pt": [
+            12,
+            11
+          ],
+          "overflow": "ellipsis"
+        },
+        "takeaway": {
+          "required": false,
+          "max_chars": 90,
+          "max_lines": 1,
+          "font_steps_pt": [
+            13,
+            12,
+            11
+          ],
+          "overflow": "shrink_then_ellipsis"
+        },
+        "source": {
+          "required": false,
+          "max_chars": 110,
+          "font_steps_pt": [
+            10,
+            9
+          ],
+          "overflow": "ellipsis"
+        },
+        "page": {
+          "required": false,
+          "max_chars": 4,
+          "font_steps_pt": [
+            11
+          ],
+          "overflow": "clip"
+        },
+        "x_left": {
+          "required": true,
+          "max_chars": 44,
+          "font_steps_pt": [
+            12,
+            11
+          ],
+          "overflow": "ellipsis"
+        },
+        "x_right": {
+          "required": true,
+          "max_chars": 44,
+          "font_steps_pt": [
+            12,
+            11
+          ],
+          "overflow": "ellipsis"
+        },
+        "y_top": {
+          "required": true,
+          "max_chars": 56,
+          "font_steps_pt": [
+            11,
+            10
+          ],
+          "overflow": "ellipsis"
+        },
+        "y_bottom": {
+          "required": true,
+          "max_chars": 56,
+          "font_steps_pt": [
+            11,
+            10
+          ],
+          "overflow": "ellipsis"
+        },
+        "e_label": {
+          "required": true,
+          "max_chars": 12,
+          "font_steps_pt": [
+            14,
+            13
+          ],
+          "overflow": "ellipsis"
+        },
+        "e_rx": {
+          "required": true,
+          "max_chars": 40,
+          "font_steps_pt": [
+            14,
+            13
+          ],
+          "overflow": "ellipsis"
+        },
+        "e_note": {
+          "required": false,
+          "max_chars": 64,
+          "font_steps_pt": [
+            11,
+            10
+          ],
+          "overflow": "ellipsis"
+        },
+        "a_label": {
+          "required": true,
+          "max_chars": 12,
+          "font_steps_pt": [
+            14,
+            13
+          ],
+          "overflow": "ellipsis"
+        },
+        "a_rx": {
+          "required": true,
+          "max_chars": 40,
+          "font_steps_pt": [
+            14,
+            13
+          ],
+          "overflow": "ellipsis"
+        },
+        "a_note": {
+          "required": false,
+          "max_chars": 48,
+          "font_steps_pt": [
+            11,
+            10
+          ],
+          "overflow": "ellipsis"
+        },
+        "b_label": {
+          "required": true,
+          "max_chars": 12,
+          "font_steps_pt": [
+            14,
+            13
+          ],
+          "overflow": "ellipsis"
+        },
+        "b_rx": {
+          "required": true,
+          "max_chars": 40,
+          "font_steps_pt": [
+            14,
+            13
+          ],
+          "overflow": "ellipsis"
+        },
+        "b_note": {
+          "required": false,
+          "max_chars": 48,
+          "font_steps_pt": [
+            11,
+            10
+          ],
+          "overflow": "ellipsis"
+        },
+        "footnote": {
+          "required": false,
+          "max_chars": 140,
+          "font_steps_pt": [
+            10,
+            9
+          ],
+          "overflow": "ellipsis"
+        }
+      },
+      "zones_in": {
+        "header_bar": {
+          "x": 0.0,
+          "y": 0.0,
+          "w": 13.333,
+          "h": 0.72
+        },
+        "body": {
+          "x": 0.35,
+          "y": 0.95,
+          "w": 12.633,
+          "h": 5.85
+        },
+        "footer_source": {
+          "x": 0.35,
+          "y": 7.0,
+          "w": 10.5,
+          "h": 0.28
+        },
+        "footer_page": {
+          "x": 12.2,
+          "y": 7.0,
+          "w": 0.8,
+          "h": 0.28
+        }
+      },
+      "pattern": "GOLD-ABE-matrix",
+      "overflow": "refuse_over_capacity_or_split_page",
+      "note": "mMRC/CAT × exacerbation history → groups A/B/E with numeric thresholds."
+    },
+    "dual_path_tree": {
+      "template_id": "tl_v1.dual_path_tree",
+      "family": "dual_path_tree",
+      "variants": [
+        "dyspnea_exacerbation"
+      ],
+      "html": "dual_path_tree.html.j2",
+      "capacity": {
+        "dyspnea_exacerbation": 10
+      },
+      "slots": {
+        "section": {
+          "required": false,
+          "max_chars": 32,
+          "font_steps_pt": [
+            12,
+            11
+          ],
+          "overflow": "ellipsis"
+        },
+        "title": {
+          "required": true,
+          "max_chars": 48,
+          "max_lines": 1,
+          "font_steps_pt": [
+            22,
+            20,
+            18
+          ],
+          "overflow": "shrink_then_ellipsis"
+        },
+        "figure": {
+          "required": false,
+          "max_chars": 16,
+          "font_steps_pt": [
+            12,
+            11
+          ],
+          "overflow": "ellipsis"
+        },
+        "takeaway": {
+          "required": false,
+          "max_chars": 90,
+          "max_lines": 1,
+          "font_steps_pt": [
+            13,
+            12,
+            11
+          ],
+          "overflow": "shrink_then_ellipsis"
+        },
+        "source": {
+          "required": false,
+          "max_chars": 110,
+          "font_steps_pt": [
+            10,
+            9
+          ],
+          "overflow": "ellipsis"
+        },
+        "page": {
+          "required": false,
+          "max_chars": 4,
+          "font_steps_pt": [
+            11
+          ],
+          "overflow": "clip"
+        },
+        "left_label": {
+          "required": true,
+          "max_chars": 20,
+          "font_steps_pt": [
+            14,
+            13
+          ],
+          "overflow": "ellipsis"
+        },
+        "right_label": {
+          "required": true,
+          "max_chars": 20,
+          "font_steps_pt": [
+            14,
+            13
+          ],
+          "overflow": "ellipsis"
+        },
+        "left_nodes": {
+          "required": true,
+          "item": {
+            "heading": {
+              "required": true,
+              "max_chars": 32,
+              "font_steps_pt": [
+                12,
+                11
+              ],
+              "overflow": "ellipsis"
+            },
+            "body": {
+              "required": false,
+              "max_chars": 72,
+              "font_steps_pt": [
+                10,
+                9
+              ],
+              "overflow": "ellipsis"
+            },
+            "kind": {
+              "required": false,
+              "max_chars": 12,
+              "font_steps_pt": [
+                10
+              ],
+              "overflow": "clip"
+            }
+          }
+        },
+        "right_nodes": {
+          "required": true,
+          "item": {
+            "heading": {
+              "required": true,
+              "max_chars": 40,
+              "font_steps_pt": [
+                12,
+                11
+              ],
+              "overflow": "ellipsis"
+            },
+            "body": {
+              "required": false,
+              "max_chars": 80,
+              "font_steps_pt": [
+                10,
+                9
+              ],
+              "overflow": "ellipsis"
+            },
+            "kind": {
+              "required": false,
+              "max_chars": 12,
+              "font_steps_pt": [
+                10
+              ],
+              "overflow": "clip"
+            },
+            "branch": {
+              "required": false,
+              "max_chars": 48,
+              "font_steps_pt": [
+                10,
+                9
+              ],
+              "overflow": "ellipsis"
+            }
+          }
+        },
+        "footnote": {
+          "required": false,
+          "max_chars": 160,
+          "font_steps_pt": [
+            10,
+            9
+          ],
+          "overflow": "ellipsis"
+        }
+      },
+      "zones_in": {
+        "header_bar": {
+          "x": 0.0,
+          "y": 0.0,
+          "w": 13.333,
+          "h": 0.72
+        },
+        "body": {
+          "x": 0.35,
+          "y": 0.95,
+          "w": 12.633,
+          "h": 5.85
+        },
+        "footer_source": {
+          "x": 0.35,
+          "y": 7.0,
+          "w": 10.5,
+          "h": 0.28
+        },
+        "footer_page": {
+          "x": 12.2,
+          "y": 7.0,
+          "w": 0.8,
+          "h": 0.28
+        }
+      },
+      "pattern": "GOLD-dual-path-escalation",
+      "overflow": "refuse_over_capacity_or_split_page",
+      "note": "CME dual-column escalation: dyspnea pathway vs exacerbation pathway (LABA/LAMA/ICS)."
     }
   },
   "native_hook": {"task": "T_TEMPLATE_NATIVE", "status": "stub", "note": "v1 validates slot contract + HTML render. Native PPTX fill reuses Route A / factdeck.render later; decorative paths may be empty."},
   "craft_note": {
-    "paid_quality": "v1.2 premium_clinical — tonal panels, accent rails, soft elevation, pathway rails; not thin-border outline boxes",
-    "showcase_theme": "premium_clinical"
+    "paid_quality": "v1.2 premium_clinical — tonal panels; v1.3 gold_clinical — GOLD teaching density (algorithm/matrix/dual-path)",
+    "showcase_theme": "gold_clinical",
+    "ban": ["three equal empty cards", "giant watermark numbers", "full-width bottom summary bars", "breadcrumb chips", "first-card gradient decoration"]
   }
 }

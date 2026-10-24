@@ -71,7 +71,7 @@ def test_manifest_declares_cover_section_keypoints_and_cc_by():
     m = tl.load_manifest()
     assert m["library_id"] == "factdeck.template_lib.v1"
     assert "premium_clinical" in m["themes"]
-    assert m["version"].startswith("1.2")
+    assert m["version"].startswith("1.")  # 1.2 craft + 1.3 GOLD density
     assert set(m["families"]) >= {"cover", "section", "key_points"}
     assert m["families"]["key_points"]["capacity"]["cards_3"] == 3
     assert m["families"]["key_points"]["capacity"]["cards_6"] == 6
@@ -438,3 +438,142 @@ def test_deck_html_includes_logic_layouts(tmp_path):
     assert 'data-family="key_points"' in html
     out = tl.write_deck_html(pages, tmp_path / "tl_v1_logic.html", theme="steel")
     assert out.is_file() and "急性加重" in out.read_text(encoding="utf-8")
+
+
+# --- GOLD density layouts (algorithm / ABE matrix / dual-path) ---------------
+
+ALGO_ZH = {
+    "id": "gold-algo",
+    "title": "疑诊 COPD → 肺功能确诊算法",
+    "figure": "图 2.1",
+    "takeaway": "支气管舒张后 FEV1/FVC < 0.70 是确认持续气流受限的关键阈值",
+    "source": "Adapted from GOLD 2026 teaching materials (structure only)",
+    "page": "01",
+    "start_heading": "疑诊 COPD",
+    "start_body": "症状 + 危险因素",
+    "decision_heading": "支气管舒张试验后肺功能",
+    "decision_threshold": "FEV1/FVC < 0.70（post-BD）",
+    "yes_label": "是 · < 0.70",
+    "yes_heading": "确认 COPD",
+    "yes_body": "进入 ABE 评估",
+    "no_label": "否 · ≥ 0.70",
+    "no_heading": "考虑其他诊断",
+    "no_items": ["哮喘", "支气管扩张", "充血性心衰"],
+    "follow_nodes": [
+        {"heading": "鉴别与合并症", "body": "影像与嗜酸粒细胞"},
+        {"heading": "进入 ABE 评估", "body": "症状 × 加重史"},
+    ],
+}
+
+ABE_ZH = {
+    "id": "gold-abe",
+    "title": "初始药物治疗：ABE 分组评估矩阵",
+    "figure": "图 3.1",
+    "x_left": "mMRC 0–1 · CAT < 10",
+    "x_right": "mMRC ≥ 2 · CAT ≥ 10",
+    "y_top": "≥2 次中度加重或 ≥1 次住院",
+    "y_bottom": "0 或 1 次中度加重（未住院）",
+    "e_label": "组别 E",
+    "e_rx": "LABA + LAMA",
+    "e_note": "血 eos ≥ 300 考虑 +ICS",
+    "a_label": "组别 A",
+    "a_rx": "一种支气管舒张剂",
+    "b_label": "组别 B",
+    "b_rx": "LABA + LAMA",
+    "source": "Adapted from GOLD 2026 teaching materials (structure only)",
+    "page": "02",
+}
+
+TX_ZH = {
+    "id": "gold-tx",
+    "title": "随访治疗调整：双路径升级树",
+    "figure": "图 4.1",
+    "left_label": "呼吸困难路径",
+    "right_label": "急性加重路径",
+    "left_nodes": [
+        {"heading": "LABA 或 LAMA", "kind": "drug"},
+        {"heading": "LABA + LAMA", "kind": "drug"},
+        {"heading": "装置与鉴别", "body": "非药物与其他气促原因", "kind": "note"},
+    ],
+    "right_nodes": [
+        {"heading": "LABA 或 LAMA", "kind": "drug"},
+        {"heading": "LABA+LAMA+ICS", "kind": "split_left", "branch": "eos ≥ 300"},
+        {"heading": "LABA + LAMA", "kind": "split_right", "branch": "eos < 300"},
+        {"heading": "Roflumilast / Azithromycin", "kind": "end"},
+    ],
+    "source": "Adapted from GOLD 2026 teaching materials (structure only)",
+    "page": "03",
+}
+
+
+def test_manifest_declares_gold_families_and_theme():
+    m = tl.load_manifest()
+    assert m["version"].startswith("1.3")
+    assert "gold_clinical" in m["themes"]
+    assert set(m["families"]) >= {
+        "algorithm_tree", "assessment_matrix", "dual_path_tree",
+        "cover", "key_points", "comparison", "flow", "timeline",
+    }
+    assert m["families"]["algorithm_tree"]["pattern"].startswith("GOLD-")
+    assert m["families"]["assessment_matrix"]["pattern"].startswith("GOLD-")
+    assert m["families"]["dual_path_tree"]["pattern"].startswith("GOLD-")
+    t = tl.get_theme("gold_clinical")
+    assert t["accent"] == "#C4A35A"
+    assert t["primary"] == "#0B3A5C"
+    assert t["canvas"] == "#FFFFFF"
+
+
+def test_algorithm_tree_branch_not_cards():
+    r = tl.validate_fill("algorithm_tree", ALGO_ZH)
+    assert r["ok"] and r["variant"] == "branch_decision"
+    html = tl.render_page_html("algorithm_tree", ALGO_ZH, theme="gold_clinical")
+    assert 'data-family="algorithm_tree"' in html
+    assert 'data-pattern="GOLD-algorithm-branch"' in html
+    assert "FEV1/FVC" in html and "0.70" in html
+    assert 'data-shape="yes-branch"' in html and 'data-shape="no-branch"' in html
+    assert "is-dashed" in html
+    assert "pillar" not in html.lower()
+    assert "is-lead" not in html  # no premium card lead gradient
+
+
+def test_assessment_matrix_abe_thresholds():
+    r = tl.validate_fill("assessment_matrix", ABE_ZH)
+    assert r["ok"] and r["variant"] == "abe_2x2"
+    html = tl.render_page_html("assessment_matrix", ABE_ZH, theme="gold_clinical")
+    assert 'data-family="assessment_matrix"' in html
+    assert 'data-shape="abe-matrix"' in html
+    assert "mMRC" in html and "CAT" in html
+    assert "组别 E" in html and "组别 A" in html and "组别 B" in html
+    assert "eos ≥ 300" in html or "eos" in html
+    assert "pillar" not in html.lower()
+
+
+def test_dual_path_tree_escalation_splits():
+    r = tl.validate_fill("dual_path_tree", TX_ZH)
+    assert r["ok"] and r["variant"] == "dyspnea_exacerbation"
+    page = tl.normalize_fill("dual_path_tree", TX_ZH, theme="gold_clinical")
+    assert any(s["type"] == "split" for s in page["right_steps"])
+    html = tl.render_page_html("dual_path_tree", TX_ZH, theme="gold_clinical")
+    assert 'data-family="dual_path_tree"' in html
+    assert 'data-shape="dyspnea-path"' in html
+    assert 'data-shape="exacerbation-path"' in html
+    assert 'data-shape="eos-split"' in html
+    assert "呼吸困难" in html and "急性加重" in html
+    assert "LABA" in html and "ICS" in html
+    assert "pillar" not in html.lower()
+
+
+def test_gold_deck_html_three_grammars(tmp_path):
+    pages = [
+        {"family": "algorithm_tree", "fill": ALGO_ZH},
+        {"family": "assessment_matrix", "fill": ABE_ZH},
+        {"family": "dual_path_tree", "fill": TX_ZH},
+    ]
+    html = tl.render_deck_html(pages, theme="gold_clinical")
+    assert html.count('class="slide') == 3
+    assert 'data-family="algorithm_tree"' in html
+    assert 'data-family="assessment_matrix"' in html
+    assert 'data-family="dual_path_tree"' in html
+    assert html.count('data-shape="gold-accent"') == 3
+    out = tl.write_deck_html(pages, tmp_path / "gold_copd.html", theme="gold_clinical")
+    assert out.is_file() and "FEV1/FVC" in out.read_text(encoding="utf-8")

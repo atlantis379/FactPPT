@@ -1,0 +1,143 @@
+{# GOLD dual-path escalation: dyspnea vs exacerbation — CME dual-column tree, not cards. #}
+<style>
+.L-tl-dpt{background:var(--canvas)}
+.L-tl-dpt .gbar{
+  position:absolute;left:0;top:0;width:1280px;height:68px;
+  background:var(--primary);display:flex;align-items:center;justify-content:space-between;
+  padding:0 28px;z-index:2
+}
+.L-tl-dpt .gbar .gtitle{
+  font-size:19pt;font-weight:700;color:#fff;letter-spacing:-0.01em;
+  white-space:nowrap;overflow:hidden;max-width:980px
+}
+.L-tl-dpt .gbar .gfig{
+  font-size:12pt;font-weight:600;color:var(--accent-on-dark);letter-spacing:0.04em;white-space:nowrap
+}
+.L-tl-dpt .gaccent{
+  position:absolute;left:0;top:68px;width:1280px;height:4px;background:var(--accent);z-index:2
+}
+.L-tl-dpt .body{
+  position:absolute;left:24px;top:86px;width:1232px;height:564px;
+  display:flex;flex-direction:column;gap:6px
+}
+.L-tl-dpt .takeaway{
+  font-size:11.5pt;font-weight:600;color:var(--primary);padding:2px 0 4px;
+  border-bottom:1px solid var(--line);flex:0 0 auto
+}
+.L-tl-dpt .cols{
+  flex:1;min-height:0;display:grid;grid-template-columns:1fr 1.15fr;gap:16px
+}
+.L-tl-dpt .path{
+  display:flex;flex-direction:column;min-height:0;border:1px solid var(--line);
+  background:var(--paper);overflow:hidden
+}
+.L-tl-dpt .path-head{
+  flex:0 0 auto;background:var(--primary);color:#fff;
+  font-size:12.5pt;font-weight:700;text-align:center;padding:7px 12px;
+  letter-spacing:0.04em;border-bottom:3px solid var(--accent)
+}
+.L-tl-dpt .path-body{
+  flex:1;min-height:0;padding:8px 10px 6px;display:flex;flex-direction:column;
+  align-items:stretch;gap:0;overflow:hidden;justify-content:flex-start
+}
+.L-tl-dpt .n{
+  background:var(--node-fill,#F2F2F2);border:1px solid var(--line);
+  border-radius:2px;padding:7px 9px;text-align:center
+}
+.L-tl-dpt .n .h{font-size:11pt;font-weight:700;color:var(--ink);line-height:1.25}
+.L-tl-dpt .n .b{font-size:9pt;color:var(--muted);margin-top:2px;line-height:1.3}
+.L-tl-dpt .n.is-drug{background:var(--node-alt,#E8EEF2);border-color:#B8C9D6}
+.L-tl-dpt .n.is-note{
+  background:var(--surface);text-align:left;border-style:dashed
+}
+.L-tl-dpt .n.is-note .h{font-size:9.5pt;font-weight:700;color:var(--muted)}
+.L-tl-dpt .n.is-note .b{font-size:9pt}
+.L-tl-dpt .n.is-end{background:var(--primary);border-color:var(--primary)}
+.L-tl-dpt .n.is-end .h{color:#fff}
+.L-tl-dpt .n.is-end .b{color:rgba(255,255,255,0.85);font-size:9pt}
+.L-tl-dpt .n.is-crit{
+  background:var(--takeaway-bg);border:1px solid var(--accent);border-left-width:3px
+}
+.L-tl-dpt .n.is-crit .h{font-size:10pt;color:var(--primary)}
+.L-tl-dpt .arrow{
+  display:flex;justify-content:center;align-items:center;height:12px;
+  color:var(--primary);font-size:10pt;font-weight:700;flex:0 0 12px
+}
+.L-tl-dpt .split{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:1px 0 2px
+}
+.L-tl-dpt .split .arm{display:flex;flex-direction:column;gap:3px;min-width:0}
+.L-tl-dpt .blab{
+  text-align:center;font-size:8.5pt;font-weight:700;color:var(--primary);
+  padding:1px 2px;line-height:1.25
+}
+.L-tl-dpt .blab.is-alt{color:#666;font-weight:600}
+.L-tl-dpt .fn{
+  flex:0 0 auto;font-size:8.5pt;color:var(--caption);line-height:1.35;padding-top:1px
+}
+.L-tl-dpt .foot{
+  position:absolute;left:28px;bottom:14px;right:28px;
+  display:flex;justify-content:space-between;align-items:flex-end;gap:16px
+}
+.L-tl-dpt .src{font-size:9pt;color:var(--caption);line-height:1.3;max-width:1000px}
+.L-tl-dpt .pg{font-size:10pt;font-weight:600;color:var(--muted)}
+</style>
+{% macro node_block(n) -%}
+  {% set kind = n.kind or "drug" %}
+  <div class="n is-{{ kind }}" data-shape="path-node" data-kind="{{ kind }}">
+    <div class="h" data-slot="heading">{{ n.heading }}</div>
+    {% if n.body %}<div class="b" data-slot="body">{{ n.body }}</div>{% endif %}
+  </div>
+{%- endmacro %}
+<div class="slide L-tl-dpt" id="{{ page.id }}" data-family="dual_path_tree"
+     data-variant="{{ page.variant }}" data-theme="{{ page.theme_name }}"
+     data-pattern="GOLD-dual-path-escalation" data-library="factdeck.template_lib.v1">
+  <div class="gbar">
+    <div class="gtitle" data-slot="title">{{ page.title }}</div>
+    {% if page.figure %}<div class="gfig" data-slot="figure">{{ page.figure }}</div>{% endif %}
+  </div>
+  <div class="gaccent" data-shape="gold-accent"></div>
+  <div class="body">
+    {% if page.takeaway %}<div class="takeaway" data-slot="takeaway">{{ page.takeaway }}</div>{% endif %}
+    <div class="cols">
+      <div class="path" data-slot="left_nodes" data-shape="dyspnea-path">
+        <div class="path-head" data-slot="left_label">{{ page.left_label }}</div>
+        <div class="path-body">
+          {% for n in page.left_nodes %}
+            {{ node_block(n) }}
+            {% if not loop.last %}<div class="arrow" data-shape="connector">▼</div>{% endif %}
+          {% endfor %}
+        </div>
+      </div>
+      <div class="path" data-slot="right_nodes" data-shape="exacerbation-path">
+        <div class="path-head" data-slot="right_label">{{ page.right_label }}</div>
+        <div class="path-body">
+          {% for step in page.right_steps %}
+            {% if step.type == "split" %}
+              <div class="split" data-shape="eos-split">
+                <div class="arm">
+                  {% if step.left.branch %}<div class="blab">{{ step.left.branch }}</div>{% endif %}
+                  {{ node_block(step.left) }}
+                </div>
+                <div class="arm">
+                  {% if step.right.branch %}<div class="blab is-alt">{{ step.right.branch }}</div>{% endif %}
+                  {{ node_block(step.right) }}
+                </div>
+              </div>
+            {% else %}
+              {% set n = step.node %}
+              {% if n.branch %}<div class="blab">{{ n.branch }}</div>{% endif %}
+              {{ node_block(n) }}
+            {% endif %}
+            {% if not loop.last %}<div class="arrow" data-shape="connector">▼</div>{% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% if page.footnote %}<div class="fn" data-slot="footnote">{{ page.footnote }}</div>{% endif %}
+  </div>
+  <div class="foot">
+    <div class="src" data-slot="source">{{ page.source }}</div>
+    {% if page.page %}<div class="pg" data-slot="page">{{ page.page }}</div>{% endif %}
+  </div>
+</div>

@@ -1,4 +1,5 @@
-"""FactDeck Template Library v1 — cover / section / key-points / comparison / flow / timeline.
+"""FactDeck Template Library v1 — cover / section / key-points / comparison / flow / timeline
++ GOLD density: algorithm_tree / assessment_matrix / dual_path_tree.
 
 Layouts adapted from medical-ppt-design (CC BY 4.0); SNUBH branding stripped.
 Colors from journal + steel academic palettes (runtime tokens here; 10-set library

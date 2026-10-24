@@ -141,6 +141,101 @@ def normalize_fill(family: str, fill: dict, *, variant: str | None = None,
             "page": str(fill.get("page") or "").strip(),
             "capacity": slotmod.family_spec(family).get("capacity", {}).get(chosen),
         })
+    elif family == "algorithm_tree":
+        follow = []
+        for i, it in enumerate(fill.get("follow_nodes") or []):
+            follow.append({
+                "heading": (it.get("heading") or "").strip(),
+                "body": (it.get("body") or "").strip(),
+                "index": i + 1,
+            })
+        page.update({
+            "section": (fill.get("section") or "").strip(),
+            "title": (fill.get("title") or "").strip(),
+            "figure": (fill.get("figure") or "").strip(),
+            "takeaway": (fill.get("takeaway") or "").strip(),
+            "source": (fill.get("source") or "").strip(),
+            "page": str(fill.get("page") or "").strip(),
+            "start_heading": (fill.get("start_heading") or "").strip(),
+            "start_body": (fill.get("start_body") or "").strip(),
+            "decision_heading": (fill.get("decision_heading") or "").strip(),
+            "decision_threshold": (fill.get("decision_threshold") or "").strip(),
+            "yes_label": (fill.get("yes_label") or "").strip(),
+            "yes_heading": (fill.get("yes_heading") or "").strip(),
+            "yes_body": (fill.get("yes_body") or "").strip(),
+            "no_label": (fill.get("no_label") or "").strip(),
+            "no_heading": (fill.get("no_heading") or "").strip(),
+            "no_items": _as_text_items(fill.get("no_items")),
+            "follow_nodes": follow,
+            "capacity": slotmod.family_spec(family).get("capacity", {}).get(chosen),
+        })
+    elif family == "assessment_matrix":
+        page.update({
+            "section": (fill.get("section") or "").strip(),
+            "title": (fill.get("title") or "").strip(),
+            "figure": (fill.get("figure") or "").strip(),
+            "takeaway": (fill.get("takeaway") or "").strip(),
+            "source": (fill.get("source") or "").strip(),
+            "page": str(fill.get("page") or "").strip(),
+            "x_left": (fill.get("x_left") or "").strip(),
+            "x_right": (fill.get("x_right") or "").strip(),
+            "y_top": (fill.get("y_top") or "").strip(),
+            "y_bottom": (fill.get("y_bottom") or "").strip(),
+            "e_label": (fill.get("e_label") or "").strip(),
+            "e_rx": (fill.get("e_rx") or "").strip(),
+            "e_note": (fill.get("e_note") or "").strip(),
+            "a_label": (fill.get("a_label") or "").strip(),
+            "a_rx": (fill.get("a_rx") or "").strip(),
+            "a_note": (fill.get("a_note") or "").strip(),
+            "b_label": (fill.get("b_label") or "").strip(),
+            "b_rx": (fill.get("b_rx") or "").strip(),
+            "b_note": (fill.get("b_note") or "").strip(),
+            "footnote": (fill.get("footnote") or "").strip(),
+            "capacity": slotmod.family_spec(family).get("capacity", {}).get(chosen),
+        })
+    elif family == "dual_path_tree":
+        def _path_nodes(raw: list | None) -> list[dict[str, Any]]:
+            out = []
+            for i, it in enumerate(raw or []):
+                if not isinstance(it, dict):
+                    continue
+                out.append({
+                    "heading": (it.get("heading") or "").strip(),
+                    "body": (it.get("body") or "").strip(),
+                    "kind": (it.get("kind") or "drug").strip() or "drug",
+                    "branch": (it.get("branch") or "").strip(),
+                    "index": i + 1,
+                })
+            return out
+
+        left = _path_nodes(fill.get("left_nodes"))
+        right = _path_nodes(fill.get("right_nodes"))
+        # Collapse split_left + split_right into render steps
+        right_steps: list[dict[str, Any]] = []
+        i = 0
+        while i < len(right):
+            n = right[i]
+            if n["kind"] == "split_left" and i + 1 < len(right) and right[i + 1]["kind"] == "split_right":
+                right_steps.append({"type": "split", "left": n, "right": right[i + 1]})
+                i += 2
+            else:
+                right_steps.append({"type": "node", "node": n})
+                i += 1
+        page.update({
+            "section": (fill.get("section") or "").strip(),
+            "title": (fill.get("title") or "").strip(),
+            "figure": (fill.get("figure") or "").strip(),
+            "takeaway": (fill.get("takeaway") or "").strip(),
+            "source": (fill.get("source") or "").strip(),
+            "page": str(fill.get("page") or "").strip(),
+            "left_label": (fill.get("left_label") or "").strip(),
+            "right_label": (fill.get("right_label") or "").strip(),
+            "left_nodes": left,
+            "right_nodes": right,
+            "right_steps": right_steps,
+            "footnote": (fill.get("footnote") or "").strip(),
+            "capacity": slotmod.family_spec(family).get("capacity", {}).get(chosen),
+        })
     else:
         raise KeyError(family)
     return page

@@ -15,11 +15,12 @@ SNUBH / SNUH logos, presenter defaults, and institutional copy are **not** inclu
 | Piece | Path | Status |
 |---|---|---|
 | Manifest (families, slots, capacity, font steps, overflow) | `factdeck/template_lib/manifest.json` | done (v1.1.0) |
-| Themes journal + steel + **premium_clinical** | `factdeck/template_lib/themes.py` | done (v1.2 paid-quality showcase) |
+| Themes journal + steel + premium_clinical + **gold_clinical** | `factdeck/template_lib/themes.py` | done (v1.3 GOLD density) |
 | Slot validate + inch→px zones | `factdeck/template_lib/slots.py` | done |
 | Fill → page model | `factdeck/template_lib/fill.py` | done |
 | HTML/Jinja: cover, section, key_points (3/4/6) | `factdeck/template_lib/html/` | done |
 | HTML/Jinja: **comparison**, **flow**, **timeline** | `factdeck/template_lib/html/` | done (v1.1) |
+| HTML/Jinja: **algorithm_tree**, **assessment_matrix**, **dual_path_tree** | `factdeck/template_lib/html/` | done (v1.3 GOLD) |
 | `T_TEMPLATE_NATIVE` stub | `factdeck/template_lib/native_hook.py` | stub (prepare only) |
 | Artwork paths | `factdeck/template_lib/artwork/` | stub / empty TODO |
 | Tests (schema + HTML + 中文样例) | `tests/test_template_lib_v1.py` | done |
@@ -123,7 +124,7 @@ deck_html = render_deck_html([
 native_prepare("cover", fill, theme="journal")
 ```
 
-Themes: **`"premium_clinical"`** (showcase / paid quality) | `"journal"` | `"steel"`. Tokens reuse the FactDeck CSS variable names expected by `deck.html.j2` (`ink`, `primary`, `accent`, …) plus `canvas` / `headline` / `surface` / `rail` / `shadow` for craft.
+Themes: **`"gold_clinical"`** (GOLD teaching density) | `"premium_clinical"` | `"journal"` | `"steel"`. Tokens reuse the FactDeck CSS variable names expected by `deck.html.j2` (`ink`, `primary`, `accent`, …) plus `canvas` / `headline` / `surface` / `rail` / `shadow` for craft.
 
 ## Paid quality (v1.2)
 
@@ -141,11 +142,25 @@ User feedback 2026-10-24: v1.1 previews looked like cheap bordered cards. Craft 
 
 Previews: `/workspace/sync/template-lib-v1/previews/premium-*.png`.
 
+## GOLD density (v1.3)
+
+User feedback after v1.2: premium_* still read as empty SaaS cards. Remake three COPD teaching pages with **non-isomorphic diagram grammars** inspired by public GOLD Pocket/Teaching slide *layout language* (structure only — no GOLD artwork/logo copy):
+
+| Family | Pattern | COPD demo |
+|---|---|---|
+| `algorithm_tree` | Decision tree, solid yes / dashed no | 疑诊→肺功能确诊（FEV1/FVC < 0.70） |
+| `assessment_matrix` | Dense ABE 2×2 matrix | mMRC/CAT × 加重史 → A/B/E |
+| `dual_path_tree` | CME dual-column escalation | 呼吸困难 vs 急性加重（eos 分层） |
+
+Theme **`gold_clinical`**: deep navy header bar, single gold accent line, functional greys. Ban: three equal empty cards, giant watermark numbers, full-width bottom summary bars, breadcrumb chips, first-card gradient.
+
+Previews: `/workspace/sync/template-lib-gold/` (`01-algorithm`, `02-abe-matrix`, `03-tx-tree`).
+
 ## Coordinates
 
 Upstream inches (13.333" × 7.5") × 96 → FactDeck 1280 × 720 px. Zone tables live in `manifest.json` (`zones_in`); `zone_map_px()` converts for templates. Content families share the medical-ppt four-zone skeleton (header / headline / body card / footer).
 
-## Not in v1.2
+## Not in v1.3 (same as v1.2 gaps)
 
 - Full DECK contract change / auto-selection inside `/api/deck`
 - Browser density fit / playwright measure for these packs (reuse later)

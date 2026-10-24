@@ -2,7 +2,7 @@
 
 Colors are adapted from the existing academic 10-set *style* palettes
 (`app.academic_templates.STYLES` journal + steel) plus a paid-quality
-`premium_clinical` system for showcase / commercial craft.
+`premium_clinical` showcase plus `gold_clinical` GOLD-density teaching figures.
 
 Those ten academic sets remain reference/QA only — this module is the
 runtime fill source for slot packs.
@@ -97,10 +97,45 @@ def _expand(accent: str, background: str, ink: str) -> dict[str, str]:
     }
 
 
+
+# GOLD clinical teaching — deep navy header + single gold accent + functional greys.
+# Inspired by public GOLD Pocket/Teaching slide language (structure only; no artwork copy).
+_GOLD = {
+    "ink": "#1A1A1A",
+    "primary": "#0B3A5C",
+    "primary2": "#0E4A72",
+    "accent": "#C4A35A",
+    "accent2": "#B08D45",
+    "accent-on-dark": "#E8D5A3",
+    "soft": "#EDEDED",
+    "sky": "#F5F5F5",
+    "line": "#C8C8C8",
+    "muted": "#555555",
+    "canvas": "#FFFFFF",
+    "paper": "#FFFFFF",
+    "headline": "#0B3A5C",
+    "caption": "#6B6B6B",
+    "surface": "#F0F0F0",
+    "surface2": "#E6E6E6",
+    "rail": "#C4A35A",
+    "shadow": "rgba(11, 58, 92, 0.08)",
+    "shadow-soft": "rgba(0, 0, 0, 0.04)",
+    "on-accent": "#FFFFFF",
+    "takeaway-bg": "#F7F3E8",
+    "node-fill": "#F2F2F2",
+    "node-alt": "#E8EEF2",
+    "branch-yes": "#0B3A5C",
+    "branch-no": "#888888",
+    "group-e": "#D9E2EC",
+    "group-a": "#F0F0F0",
+    "group-b": "#E4E4E4",
+}
+
 THEMES: dict[str, dict[str, str]] = {
     "journal": _expand(*_JOURNAL),
     "steel": _expand(*_STEEL),
     "premium_clinical": dict(_PREMIUM),
+    "gold_clinical": dict(_GOLD),
 }
 
 THEME_META = {
@@ -126,6 +161,14 @@ THEME_META = {
         "reference_academic_id": None,
         "craft": "paid_quality_v1.2",
     },
+    "gold_clinical": {
+        "id": "gold_clinical",
+        "name": "GOLD 教学图",
+        "suitable_for": "指南教学图、算法树、评估矩阵、双路径升级树；付费级医学课件。",
+        "tone": "深蓝顶栏、单金色强调线、功能灰填充；无 SaaS 卡片装饰",
+        "reference_academic_id": None,
+        "craft": "gold_density_v1.3",
+    },
 }
 
 
@@ -136,5 +179,5 @@ def get_theme(name: str) -> dict[str, str]:
 
 
 def list_themes() -> list[dict]:
-    order = ("premium_clinical", "journal", "steel")
+    order = ("premium_clinical", "gold_clinical", "journal", "steel")
     return [dict(THEME_META[k], tokens=dict(THEMES[k])) for k in order]
