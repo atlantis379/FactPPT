@@ -6,6 +6,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from .fill import fill_deck, normalize_fill
+from .slots import load_manifest
 from .themes import get_theme
 
 HERE = Path(__file__).parent
@@ -20,15 +21,17 @@ def _env() -> Environment:
     return env
 
 
+def _family_html(family: str) -> str:
+    fam = load_manifest()["families"].get(family)
+    if not fam or not fam.get("html"):
+        raise KeyError(family)
+    return fam["html"]
+
+
 def render_page_html(family: str, fill: dict, *, theme: str = "journal",
                      variant: str | None = None) -> str:
     page = normalize_fill(family, fill, variant=variant, theme=theme)
-    fam_html = {
-        "cover": "cover.html.j2",
-        "section": "section.html.j2",
-        "key_points": "key_points.html.j2",
-    }[family]
-    return _env().get_template(fam_html).render(page=page, theme=page["theme"])
+    return _env().get_template(_family_html(family)).render(page=page, theme=page["theme"])
 
 
 def render_deck_html(pages: list[dict], *, theme: str = "journal") -> str:
@@ -36,12 +39,9 @@ def render_deck_html(pages: list[dict], *, theme: str = "journal") -> str:
     env = _env()
     bodies = []
     for page in deck["pages"]:
-        fam_html = {
-            "cover": "cover.html.j2",
-            "section": "section.html.j2",
-            "key_points": "key_points.html.j2",
-        }[page["family"]]
-        bodies.append(env.get_template(fam_html).render(page=page, theme=page["theme"]))
+        bodies.append(env.get_template(_family_html(page["family"])).render(
+            page=page, theme=page["theme"]
+        ))
     shell = env.get_template("deck_shell.html.j2")
     return shell.render(deck=deck, slides=bodies, theme=get_theme(theme))
 

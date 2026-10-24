@@ -1,7 +1,8 @@
 # Attribution — medical-ppt-design (CC BY 4.0)
 
-Layout geometry for FactDeck Template Library v1 (cover, section divider, and
-key-points / pillar-card slot packs) is adapted from:
+Layout geometry for FactDeck Template Library v1 (cover, section divider,
+key-points / pillar-card, comparison, process flow, and timeline slot packs)
+is adapted from:
 
 **medical-ppt-design**  
 https://github.com/grotyx/medical-ppt-design  
@@ -22,8 +23,9 @@ presentation system, originally described for SNUBH).
   podium stack; Pretendard is not required.
 - **Coordinates remapped** from 13.333" × 7.5" inches to FactDeck's 1280 × 720 px
   canvas (×96 dpi).
-- **Scope.** Only cover, section divider, and key-points card families in v1;
-  Patterns A–G / I–L from the upstream spec are not ported yet.
+- **Scope.** Cover, section divider, key-points (Pattern H), comparison
+  (Pattern C dual-column contrast + table_2n), process flow (Pattern K), and
+  timeline (Pattern J). Patterns A–B / D–G / I / L remain unported.
 
 A copy of the upstream CC BY 4.0 license text is retained for reference under
 `third_party/medical-ppt-design/LICENSE` when vendored; otherwise see the URI

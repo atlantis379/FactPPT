@@ -1,0 +1,96 @@
+{# Process flow — Pattern K outline boxes + arrows (NOT pillar cards). horizontal_4/5/6 | vertical_4. #}
+{% set nodes = page["nodes"] %}
+{% set n = nodes|length %}
+{% set orient = page.get("orientation") or "horizontal" %}
+<style>
+.L-tl-flow{background:var(--canvas)}
+.L-tl-flow .section{
+  position:absolute;left:{{ page.zones_px.header.x }}px;top:{{ page.zones_px.header.y }}px;
+  width:{{ page.zones_px.header.w }}px;height:{{ page.zones_px.header.h }}px;
+  font-size:13pt;font-weight:600;color:var(--caption);letter-spacing:0.04em;
+  white-space:nowrap;overflow:hidden
+}
+.L-tl-flow .headline{
+  position:absolute;left:{{ page.zones_px.headline.x }}px;top:{{ page.zones_px.headline.y }}px;
+  width:{{ page.zones_px.headline.w }}px;height:{{ page.zones_px.headline.h }}px;
+  font-size:32pt;font-weight:700;color:var(--headline);white-space:nowrap;overflow:hidden;
+  display:flex;align-items:center
+}
+.L-tl-flow .body-card{
+  position:absolute;left:{{ page.zones_px.body_card.x }}px;top:{{ page.zones_px.body_card.y }}px;
+  width:{{ page.zones_px.body_card.w }}px;height:{{ page.zones_px.body_card.h }}px;
+  background:var(--paper);border:1px solid #D9D9D9;border-radius:12px;
+  padding:28px 32px 24px;display:flex;flex-direction:column;gap:16px
+}
+.L-tl-flow .track{
+  flex:1;display:flex;align-items:stretch;justify-content:center;gap:0;min-height:0;overflow:hidden
+}
+.L-tl-flow .track.is-horizontal{flex-direction:row;align-items:center}
+.L-tl-flow .track.is-vertical{flex-direction:column;align-items:stretch;padding:0 18%}
+.L-tl-flow .node{
+  flex:1;min-width:0;border:1.5px solid var(--accent);border-radius:12px;background:transparent;
+  padding:16px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;
+  gap:8px;overflow:hidden
+}
+.L-tl-flow .track.is-vertical .node{flex-direction:row;text-align:left;align-items:flex-start;gap:16px;padding:14px 18px}
+.L-tl-flow .node .num{
+  width:32px;height:32px;border-radius:50%;border:1.5px solid var(--accent);color:var(--accent);
+  font-size:14pt;font-weight:700;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;background:transparent
+}
+.L-tl-flow .node .meta{display:flex;flex-direction:column;gap:4px;min-width:0;overflow:hidden;
+  {% if orient == "horizontal" %}align-items:center{% else %}align-items:flex-start;flex:1{% endif %}
+}
+.L-tl-flow .node .tag{
+  font-size:12pt;font-weight:700;color:var(--accent);letter-spacing:0.04em;
+  white-space:nowrap;overflow:hidden;max-width:100%
+}
+.L-tl-flow .node .heading{
+  font-size:{% if n >= 6 %}14pt{% else %}16pt{% endif %};font-weight:700;color:var(--ink);
+  line-height:1.2;overflow:hidden;max-width:100%
+}
+.L-tl-flow .node .body{
+  font-size:13pt;font-weight:400;color:var(--muted);line-height:1.3;overflow:hidden;max-width:100%
+}
+.L-tl-flow .arrow{
+  flex:0 0 36px;display:flex;align-items:center;justify-content:center;color:var(--accent);
+  font-size:22pt;font-weight:700;line-height:1;user-select:none
+}
+.L-tl-flow .track.is-vertical .arrow{flex:0 0 28px;transform:rotate(90deg)}
+.L-tl-flow .takeaway{
+  border:1.5px solid var(--primary);border-radius:10px;padding:12px 18px;
+  font-size:15pt;font-weight:700;color:var(--primary);overflow:hidden;white-space:nowrap
+}
+.L-tl-flow .foot-page{
+  position:absolute;left:{{ page.zones_px.footer_page.x }}px;top:{{ page.zones_px.footer_page.y }}px;
+  width:{{ page.zones_px.footer_page.w }}px;height:{{ page.zones_px.footer_page.h }}px;
+  font-size:11pt;font-weight:500;color:var(--caption)
+}
+.L-tl-flow .foot-src{
+  position:absolute;left:{{ page.zones_px.footer_source.x }}px;top:{{ page.zones_px.footer_source.y }}px;
+  width:{{ page.zones_px.footer_source.w }}px;height:{{ page.zones_px.footer_source.h }}px;
+  font-size:12pt;font-weight:400;color:var(--caption);text-align:right;overflow:hidden;white-space:nowrap
+}
+</style>
+<section class="slide L-tl-flow" id="{{ page.id }}" data-template="{{ page.template_id }}" data-family="flow" data-variant="{{ page.variant }}" data-theme="{{ page.theme_name }}" data-pattern="K-process-flow" data-orientation="{{ orient }}">
+  {% if page.section %}<div class="section" data-slot="section">{{ page.section }}</div>{% endif %}
+  <div class="headline" data-slot="title">{{ page.title }}</div>
+  <div class="body-card" data-shape="body-card">
+    <div class="track is-{{ orient }}" data-slot="nodes" data-count="{{ n }}">
+      {% for it in nodes %}
+      {% if not loop.first %}<div class="arrow" data-shape="connector" aria-hidden="true">{% if orient == "horizontal" %}→{% else %}↓{% endif %}</div>{% endif %}
+      <div class="node" data-item="{{ it.index }}">
+        <div class="num" data-slot="index">{{ it.index }}</div>
+        <div class="meta">
+          {% if it.tag %}<div class="tag" data-slot="tag">{{ it.tag }}</div>{% endif %}
+          <div class="heading" data-slot="heading">{{ it.heading }}</div>
+          {% if it.body %}<div class="body" data-slot="body">{{ it.body }}</div>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% if page.takeaway %}<div class="takeaway" data-slot="takeaway">{{ page.takeaway }}</div>{% endif %}
+  </div>
+  {% if page.page %}<div class="foot-page" data-slot="page" data-chrome>{{ page.page }}</div>{% endif %}
+  {% if page.source %}<div class="foot-src" data-slot="source" data-chrome>{{ page.source }}</div>{% endif %}
+</section>

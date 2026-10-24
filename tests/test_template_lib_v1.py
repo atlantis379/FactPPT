@@ -205,3 +205,209 @@ def test_html_templates_exist_for_all_manifest_families():
     m = tl.load_manifest()
     for fam, spec in m["families"].items():
         assert (LIB / "html" / spec["html"]).is_file(), fam
+
+
+# --- Non-card logic layouts (comparison / flow / timeline) --------------------
+
+CMP_DUAL_ZH = {
+    "id": "cmp-ae-stable",
+    "section": "COPD · 对照",
+    "title": "急性加重期与稳定期对照",
+    "left_label": "急性加重",
+    "right_label": "稳定期",
+    "left_items": [
+        {"text": "呼吸困难急性加重或痰量脓性增加"},
+        {"text": "需评估是否合并感染与呼吸衰竭"},
+        {"text": "短期全身糖皮质激素可缩短恢复"},
+        {"text": "抗菌药物用于有感染指征者"},
+    ],
+    "right_items": [
+        {"text": "症状相对平稳，活动耐量可评估"},
+        {"text": "以长效支气管舒张剂维持治疗"},
+        {"text": "强调戒烟、疫苗与肺康复"},
+        {"text": "定期随访加重频率与合并症"},
+    ],
+    "takeaway": "加重期抢救症状，稳定期减少未来加重",
+    "source": "教学示意 · 非诊疗建议",
+    "page": "12",
+}
+
+CMP_TABLE_ZH = {
+    "id": "cmp-rec",
+    "section": "COPD · 推荐",
+    "title": "推荐与不推荐对照",
+    "left_label": "推荐",
+    "right_label": "不推荐",
+    "rows": [
+        {"left": "支气管舒张剂吸入作为基石", "right": "长期口服糖皮质激素维持"},
+        {"left": "有指征时联合 ICS", "right": "经验性长期广谱抗菌预防"},
+        {"left": "戒烟与疫苗接种", "right": "忽视吸入装置核查"},
+        {"left": "肺康复与随访计划", "right": "仅靠短效缓解剂长期控制"},
+    ],
+    "takeaway": "稳定期管理优先可验证的非药物与吸入方案",
+    "page": "13",
+}
+
+FLOW4_ZH = {
+    "id": "flow-dx",
+    "section": "COPD · 诊断路径",
+    "title": "疑诊到确诊的四步路径",
+    "nodes": [
+        {"tag": "问诊", "heading": "危险因素", "body": "吸烟史与症状询问"},
+        {"tag": "体检", "heading": "体征筛查", "body": "呼吸音与呼吸形态"},
+        {"tag": "检查", "heading": "肺功能", "body": "舒张后 FEV1/FVC"},
+        {"tag": "分级", "heading": "综合评估", "body": "症状与加重史"},
+    ],
+    "takeaway": "肺功能是确认持续气流受限的关键步骤",
+    "page": "14",
+}
+
+FLOW6_ZH = {
+    "id": "flow-step",
+    "section": "COPD · 阶梯治疗",
+    "title": "稳定期阶梯治疗六节点",
+    "nodes": [
+        {"heading": "评估", "body": "症状与表型"},
+        {"heading": "戒烟", "body": "行为与药物"},
+        {"heading": "疫苗", "body": "流感/肺炎球菌"},
+        {"heading": "支气管舒张", "body": "长效吸入"},
+        {"heading": "加用 ICS", "body": "有指征时"},
+        {"heading": "随访", "body": "加重与依从"},
+    ],
+    "page": "15",
+}
+
+TL4_ZH = {
+    "id": "tl-case4",
+    "section": "病例 · 时间轴",
+    "title": "一例 COPD 患者就诊病程",
+    "nodes": [
+        {"label": "D0", "heading": "就诊", "body": "活动后气促加重"},
+        {"label": "D1", "heading": "检查", "body": "肺功能与胸片"},
+        {"label": "D3", "heading": "治疗", "body": "启动吸入方案"},
+        {"label": "W4", "heading": "随访", "body": "症状与装置复查"},
+    ],
+    "takeaway": "首诊确认气流受限后尽早进入维持与随访",
+    "page": "16",
+}
+
+TL6_ZH = {
+    "id": "tl-case6",
+    "section": "病例 · 时间轴",
+    "title": "从加重到稳定的六节点病程",
+    "nodes": [
+        {"label": "就诊", "heading": "急诊", "body": "气促与脓痰"},
+        {"label": "检验", "heading": "感染评估", "body": "血常规与血气"},
+        {"label": "影像", "heading": "胸片/CT", "body": "排除气胸肺炎"},
+        {"label": "治疗", "heading": "加重处理", "body": "氧疗与短程激素"},
+        {"label": "出院", "heading": "方案调整", "body": "长效吸入衔接"},
+        {"label": "随访", "heading": "门诊复查", "body": "加重诱因教育"},
+    ],
+    "page": "17",
+}
+
+
+def test_manifest_declares_comparison_flow_timeline():
+    m = tl.load_manifest()
+    assert set(m["families"]) >= {"cover", "section", "key_points", "comparison", "flow", "timeline"}
+    assert m["families"]["comparison"]["pattern"].startswith("C-")
+    assert m["families"]["flow"]["pattern"].startswith("K-")
+    assert m["families"]["timeline"]["pattern"].startswith("J-")
+    assert m["families"]["flow"]["capacity"]["horizontal_6"] == 6
+    assert m["families"]["timeline"]["capacity"]["nodes_4"] == 4
+    assert "table_2n" in m["families"]["comparison"]["variants"]
+    # Cards remain; new families are additive
+    assert "cards_3" in m["families"]["key_points"]["variants"]
+
+
+@pytest.mark.parametrize("theme", ["journal", "steel"])
+def test_comparison_dual_column_renders_not_cards(theme):
+    r = tl.validate_fill("comparison", CMP_DUAL_ZH)
+    assert r["ok"] and r["variant"] == "dual_column"
+    html = tl.render_page_html("comparison", CMP_DUAL_ZH, theme=theme)
+    assert 'data-family="comparison"' in html
+    assert 'data-variant="dual_column"' in html
+    assert "急性加重" in html and "稳定期" in html
+    assert "pillar" not in html.lower()
+    assert 'data-slot="left_items"' in html and 'data-slot="right_items"' in html
+    assert html.count('data-shape="column-divider"') == 1
+    assert "SNUBH" not in html
+
+
+def test_comparison_table_2n_variant():
+    r = tl.validate_fill("comparison", CMP_TABLE_ZH)
+    assert r["ok"] and r["variant"] == "table_2n"
+    html = tl.render_page_html("comparison", CMP_TABLE_ZH, theme="journal")
+    assert 'data-variant="table_2n"' in html
+    assert html.count("<tr") >= 5  # header + 4 rows
+    assert "推荐" in html and "不推荐" in html
+    assert "pillar" not in html.lower()
+
+
+@pytest.mark.parametrize("theme", ["journal", "steel"])
+def test_flow_horizontal_and_capacity(theme):
+    r4 = tl.validate_fill("flow", FLOW4_ZH)
+    assert r4["ok"] and r4["variant"] == "horizontal_4"
+    html4 = tl.render_page_html("flow", FLOW4_ZH, theme=theme)
+    assert 'data-family="flow"' in html4
+    assert 'data-orientation="horizontal"' in html4
+    assert html4.count('data-slot="heading"') == 4
+    assert html4.count('data-shape="connector"') == 3
+    assert "诊断路径" in html4 or "四步路径" in html4
+    assert "pillar" not in html4.lower()
+
+    r6 = tl.validate_fill("flow", FLOW6_ZH)
+    assert r6["ok"] and r6["variant"] == "horizontal_6"
+    html6 = tl.render_page_html("flow", FLOW6_ZH, theme=theme)
+    assert html6.count('data-slot="heading"') == 6
+
+    vertical = dict(FLOW4_ZH, id="flow-v")
+    rv = tl.validate_fill("flow", vertical, variant="vertical_4")
+    assert rv["ok"] and rv["variant"] == "vertical_4"
+    htmlv = tl.render_page_html("flow", vertical, theme=theme, variant="vertical_4")
+    assert 'data-orientation="vertical"' in htmlv
+
+    too_many = {"title": "过量流程", "nodes": [{"heading": f"步{i}"} for i in range(7)]}
+    bad = tl.validate_fill("flow", too_many)
+    assert not bad["ok"]
+    with pytest.raises(ValueError, match="容量|拆页"):
+        tl.normalize_fill("flow", too_many)
+
+
+@pytest.mark.parametrize("theme", ["journal", "steel"])
+def test_timeline_milestone_track_not_cards(theme):
+    r4 = tl.validate_fill("timeline", TL4_ZH)
+    assert r4["ok"] and r4["variant"] == "nodes_4"
+    html4 = tl.render_page_html("timeline", TL4_ZH, theme=theme)
+    assert 'data-family="timeline"' in html4
+    assert 'data-pattern="J-timeline-milestone"' in html4
+    assert html4.count('data-shape="milestone-dot"') == 4
+    assert "就诊" in html4 and "随访" in html4
+    assert "pillar" not in html4.lower()
+
+    r6 = tl.validate_fill("timeline", TL6_ZH)
+    assert r6["ok"] and r6["variant"] == "nodes_6"
+    html6 = tl.render_page_html("timeline", TL6_ZH, theme=theme)
+    assert html6.count('data-shape="milestone-dot"') == 6
+    assert 'data-variant="nodes_6"' in html6
+
+    too_many = {"title": "过长病程", "nodes": [{"label": f"T{i}", "heading": f"点{i}"} for i in range(7)]}
+    bad = tl.validate_fill("timeline", too_many)
+    assert not bad["ok"]
+
+
+def test_deck_html_includes_logic_layouts(tmp_path):
+    pages = [
+        {"family": "comparison", "fill": CMP_DUAL_ZH},
+        {"family": "flow", "fill": FLOW4_ZH},
+        {"family": "timeline", "fill": TL4_ZH},
+        {"family": "key_points", "fill": KEY3_ZH},  # cards still work
+    ]
+    html = tl.render_deck_html(pages, theme="journal")
+    assert html.count('class="slide') == 4
+    assert 'data-family="comparison"' in html
+    assert 'data-family="flow"' in html
+    assert 'data-family="timeline"' in html
+    assert 'data-family="key_points"' in html
+    out = tl.write_deck_html(pages, tmp_path / "tl_v1_logic.html", theme="steel")
+    assert out.is_file() and "急性加重" in out.read_text(encoding="utf-8")

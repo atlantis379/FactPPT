@@ -1,6 +1,6 @@
 {
   "library_id": "factdeck.template_lib.v1",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "canvas": {"width_px": 1280, "height_px": 720, "width_in": 13.333, "height_in": 7.5, "dpi": 96},
   "source_layout": {
     "name": "medical-ppt-design",
@@ -9,10 +9,7 @@
     "attribution": "factdeck/template_lib/ATTRIBUTION.md",
     "branding_stripped": ["SNUBH", "SNUH", "분당서울대학교병원", "박상민", "Starbucks Green system as product brand"]
   },
-  "academic_reference_only": {
-    "note": "The 10-set academic template library (output/academic_templates) remains style/QA reference only and is NOT a runtime fill source.",
-    "doc": "docs/ACADEMIC_TEMPLATE_LIBRARY.md"
-  },
+  "academic_reference_only": {"note": "The 10-set academic template library (output/academic_templates) remains style/QA reference only and is NOT a runtime fill source.", "doc": "docs/ACADEMIC_TEMPLATE_LIBRARY.md"},
   "themes": ["journal", "steel"],
   "families": {
     "cover": {
@@ -63,33 +60,100 @@
       "slots": {
         "section": {"required": false, "max_chars": 24, "font_steps_pt": [13, 12], "overflow": "ellipsis"},
         "title": {"required": true, "max_chars": 36, "max_lines": 1, "font_steps_pt": [32, 28, 24], "overflow": "shrink_then_ellipsis"},
-        "items": {
-          "required": true,
-          "item": {
-            "tag": {"required": false, "max_chars": 12, "font_steps_pt": [13, 12], "overflow": "ellipsis"},
-            "heading": {"required": true, "max_chars": 16, "max_lines": 1, "font_steps_pt": [28, 24, 20, 18], "overflow": "shrink_then_ellipsis"},
-            "sub": {"required": false, "max_chars": 24, "max_lines": 1, "font_steps_pt": [16, 14, 13], "overflow": "ellipsis"},
-            "body": {"required": false, "max_chars": 48, "max_lines": 3, "font_steps_pt": [16, 14, 13, 12], "overflow": "shrink_then_ellipsis"}
-          }
-        },
+        "items": {"required": true, "item": {"tag": {"required": false, "max_chars": 12, "font_steps_pt": [13, 12], "overflow": "ellipsis"}, "heading": {"required": true, "max_chars": 16, "max_lines": 1, "font_steps_pt": [28, 24, 20, 18], "overflow": "shrink_then_ellipsis"}, "sub": {"required": false, "max_chars": 24, "max_lines": 1, "font_steps_pt": [16, 14, 13], "overflow": "ellipsis"}, "body": {"required": false, "max_chars": 48, "max_lines": 3, "font_steps_pt": [16, 14, 13, 12], "overflow": "shrink_then_ellipsis"}}},
         "takeaway": {"required": false, "max_chars": 72, "max_lines": 1, "font_steps_pt": [16, 14, 13], "overflow": "shrink_then_ellipsis"},
         "source": {"required": false, "max_chars": 80, "font_steps_pt": [12, 11], "overflow": "ellipsis"},
         "page": {"required": false, "max_chars": 4, "font_steps_pt": [11], "overflow": "clip"}
       },
       "zones_in": {
         "header": {"x": 0.1512, "y": 0.135, "w": 6.0, "h": 0.28},
-        "headline": {"x": 0.2752, "y": 0.4771, "w": 12.0, "h": 0.50},
+        "headline": {"x": 0.2752, "y": 0.4771, "w": 12.0, "h": 0.5},
         "body_card": {"x": 0.2752, "y": 1.4111, "w": 12.7946, "h": 5.7167},
         "footer_page": {"x": 0.1512, "y": 7.24, "w": 0.6, "h": 0.25},
         "footer_source": {"x": 7.1822, "y": 7.2369, "w": 6.0, "h": 0.25}
       },
       "pattern": "H-pillar-cards",
       "overflow": "refuse_over_capacity_or_split_page"
+    },
+    "comparison": {
+      "template_id": "tl_v1.comparison",
+      "family": "comparison",
+      "variants": ["dual_column", "table_2n"],
+      "html": "comparison.html.j2",
+      "capacity": {"dual_column": 6, "table_2n": 8},
+      "slots": {
+        "section": {"required": false, "max_chars": 24, "font_steps_pt": [13, 12], "overflow": "ellipsis"},
+        "title": {"required": true, "max_chars": 36, "max_lines": 1, "font_steps_pt": [32, 28, 24], "overflow": "shrink_then_ellipsis"},
+        "takeaway": {"required": false, "max_chars": 72, "max_lines": 1, "font_steps_pt": [16, 14, 13], "overflow": "shrink_then_ellipsis"},
+        "source": {"required": false, "max_chars": 80, "font_steps_pt": [12, 11], "overflow": "ellipsis"},
+        "page": {"required": false, "max_chars": 4, "font_steps_pt": [11], "overflow": "clip"},
+        "left_label": {"required": true, "max_chars": 16, "font_steps_pt": [18, 16, 14], "overflow": "ellipsis"},
+        "right_label": {"required": true, "max_chars": 16, "font_steps_pt": [18, 16, 14], "overflow": "ellipsis"},
+        "left_items": {"required": true, "item": {"text": {"required": true, "max_chars": 40, "max_lines": 2, "font_steps_pt": [16, 14, 13], "overflow": "shrink_then_ellipsis"}}},
+        "right_items": {"required": true, "item": {"text": {"required": true, "max_chars": 40, "max_lines": 2, "font_steps_pt": [16, 14, 13], "overflow": "shrink_then_ellipsis"}}},
+        "rows": {"required": false, "item": {"left": {"required": true, "max_chars": 36, "font_steps_pt": [15, 14, 13], "overflow": "ellipsis"}, "right": {"required": true, "max_chars": 36, "font_steps_pt": [15, 14, 13], "overflow": "ellipsis"}}}
+      },
+      "zones_in": {
+        "header": {"x": 0.1512, "y": 0.135, "w": 6.0, "h": 0.28},
+        "headline": {"x": 0.2752, "y": 0.4771, "w": 12.0, "h": 0.5},
+        "body_card": {"x": 0.2752, "y": 1.4111, "w": 12.7946, "h": 5.7167},
+        "footer_page": {"x": 0.1512, "y": 7.24, "w": 0.6, "h": 0.25},
+        "footer_source": {"x": 7.1822, "y": 7.2369, "w": 6.0, "h": 0.25}
+      },
+      "pattern": "C-two-column-contrast",
+      "overflow": "refuse_over_capacity_or_split_page",
+      "note": "Dual-column contrast (e.g. 急性加重 vs 稳定期). table_2n uses rows[] instead of left/right_items."
+    },
+    "flow": {
+      "template_id": "tl_v1.flow",
+      "family": "flow",
+      "variants": ["horizontal_4", "horizontal_5", "horizontal_6", "vertical_4"],
+      "html": "flow.html.j2",
+      "capacity": {"horizontal_4": 4, "horizontal_5": 5, "horizontal_6": 6, "vertical_4": 4},
+      "slots": {
+        "section": {"required": false, "max_chars": 24, "font_steps_pt": [13, 12], "overflow": "ellipsis"},
+        "title": {"required": true, "max_chars": 36, "max_lines": 1, "font_steps_pt": [32, 28, 24], "overflow": "shrink_then_ellipsis"},
+        "takeaway": {"required": false, "max_chars": 72, "max_lines": 1, "font_steps_pt": [16, 14, 13], "overflow": "shrink_then_ellipsis"},
+        "source": {"required": false, "max_chars": 80, "font_steps_pt": [12, 11], "overflow": "ellipsis"},
+        "page": {"required": false, "max_chars": 4, "font_steps_pt": [11], "overflow": "clip"},
+        "nodes": {"required": true, "item": {"tag": {"required": false, "max_chars": 10, "font_steps_pt": [12, 11], "overflow": "ellipsis"}, "heading": {"required": true, "max_chars": 14, "max_lines": 1, "font_steps_pt": [16, 14, 13], "overflow": "shrink_then_ellipsis"}, "body": {"required": false, "max_chars": 36, "max_lines": 2, "font_steps_pt": [13, 12], "overflow": "shrink_then_ellipsis"}}}
+      },
+      "zones_in": {
+        "header": {"x": 0.1512, "y": 0.135, "w": 6.0, "h": 0.28},
+        "headline": {"x": 0.2752, "y": 0.4771, "w": 12.0, "h": 0.5},
+        "body_card": {"x": 0.2752, "y": 1.4111, "w": 12.7946, "h": 5.7167},
+        "footer_page": {"x": 0.1512, "y": 7.24, "w": 0.6, "h": 0.25},
+        "footer_source": {"x": 7.1822, "y": 7.2369, "w": 6.0, "h": 0.25}
+      },
+      "pattern": "K-process-flow",
+      "overflow": "refuse_over_capacity_or_split_page",
+      "note": "Horizontal/vertical stepwise pathway (诊断路径 / 阶梯治疗). 4–6 nodes."
+    },
+    "timeline": {
+      "template_id": "tl_v1.timeline",
+      "family": "timeline",
+      "variants": ["nodes_4", "nodes_6"],
+      "html": "timeline.html.j2",
+      "capacity": {"nodes_4": 4, "nodes_6": 6},
+      "slots": {
+        "section": {"required": false, "max_chars": 24, "font_steps_pt": [13, 12], "overflow": "ellipsis"},
+        "title": {"required": true, "max_chars": 36, "max_lines": 1, "font_steps_pt": [32, 28, 24], "overflow": "shrink_then_ellipsis"},
+        "takeaway": {"required": false, "max_chars": 72, "max_lines": 1, "font_steps_pt": [16, 14, 13], "overflow": "shrink_then_ellipsis"},
+        "source": {"required": false, "max_chars": 80, "font_steps_pt": [12, 11], "overflow": "ellipsis"},
+        "page": {"required": false, "max_chars": 4, "font_steps_pt": [11], "overflow": "clip"},
+        "nodes": {"required": true, "item": {"label": {"required": true, "max_chars": 12, "font_steps_pt": [16, 14, 13], "overflow": "ellipsis"}, "heading": {"required": true, "max_chars": 16, "max_lines": 1, "font_steps_pt": [16, 14, 13], "overflow": "shrink_then_ellipsis"}, "body": {"required": false, "max_chars": 40, "max_lines": 2, "font_steps_pt": [13, 12], "overflow": "shrink_then_ellipsis"}}}
+      },
+      "zones_in": {
+        "header": {"x": 0.1512, "y": 0.135, "w": 6.0, "h": 0.28},
+        "headline": {"x": 0.2752, "y": 0.4771, "w": 12.0, "h": 0.5},
+        "body_card": {"x": 0.2752, "y": 1.4111, "w": 12.7946, "h": 5.7167},
+        "footer_page": {"x": 0.1512, "y": 7.24, "w": 0.6, "h": 0.25},
+        "footer_source": {"x": 7.1822, "y": 7.2369, "w": 6.0, "h": 0.25}
+      },
+      "pattern": "J-timeline-milestone",
+      "overflow": "refuse_over_capacity_or_split_page",
+      "note": "Case course milestone track 就诊→检查→治疗→随访. 4 or 6 nodes."
     }
   },
-  "native_hook": {
-    "task": "T_TEMPLATE_NATIVE",
-    "status": "stub",
-    "note": "v1 validates slot contract + HTML render. Native PPTX fill reuses Route A / factdeck.render later; decorative paths may be empty."
-  }
+  "native_hook": {"task": "T_TEMPLATE_NATIVE", "status": "stub", "note": "v1 validates slot contract + HTML render. Native PPTX fill reuses Route A / factdeck.render later; decorative paths may be empty."}
 }

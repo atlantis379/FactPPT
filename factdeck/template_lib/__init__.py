@@ -1,4 +1,4 @@
-"""FactDeck Template Library v1 — cover / section / key-points slot packs.
+"""FactDeck Template Library v1 — cover / section / key-points / comparison / flow / timeline.
 
 Layouts adapted from medical-ppt-design (CC BY 4.0); SNUBH branding stripped.
 Colors from journal + steel academic palettes (runtime tokens here; 10-set library

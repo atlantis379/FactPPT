@@ -7,6 +7,20 @@ from . import slots as slotmod
 from .themes import get_theme
 
 
+def _as_text_items(raw: list | None) -> list[dict[str, Any]]:
+    """Normalize bullet lists that may be strings or {text: ...} dicts."""
+    out = []
+    for i, it in enumerate(raw or []):
+        if isinstance(it, str):
+            text = it.strip()
+        elif isinstance(it, dict):
+            text = (it.get("text") or "").strip()
+        else:
+            text = str(it or "").strip()
+        out.append({"text": text, "index": i + 1})
+    return out
+
+
 def normalize_fill(family: str, fill: dict, *, variant: str | None = None,
                    theme: str = "journal") -> dict[str, Any]:
     """Validate and normalize a fill into a page model ready for HTML render.
@@ -63,6 +77,65 @@ def normalize_fill(family: str, fill: dict, *, variant: str | None = None,
             "section": (fill.get("section") or "").strip(),
             "title": (fill.get("title") or "").strip(),
             "items": items,
+            "takeaway": (fill.get("takeaway") or "").strip(),
+            "source": (fill.get("source") or "").strip(),
+            "page": str(fill.get("page") or "").strip(),
+            "capacity": slotmod.family_spec(family).get("capacity", {}).get(chosen),
+        })
+    elif family == "comparison":
+        rows = []
+        for i, r in enumerate(fill.get("rows") or []):
+            if isinstance(r, dict):
+                rows.append({
+                    "left": (r.get("left") or "").strip(),
+                    "right": (r.get("right") or "").strip(),
+                    "index": i + 1,
+                })
+        page.update({
+            "section": (fill.get("section") or "").strip(),
+            "title": (fill.get("title") or "").strip(),
+            "left_label": (fill.get("left_label") or "").strip(),
+            "right_label": (fill.get("right_label") or "").strip(),
+            "left_items": _as_text_items(fill.get("left_items")),
+            "right_items": _as_text_items(fill.get("right_items")),
+            "rows": rows,
+            "takeaway": (fill.get("takeaway") or "").strip(),
+            "source": (fill.get("source") or "").strip(),
+            "page": str(fill.get("page") or "").strip(),
+            "capacity": slotmod.family_spec(family).get("capacity", {}).get(chosen),
+        })
+    elif family == "flow":
+        nodes = []
+        for i, it in enumerate(fill.get("nodes") or []):
+            nodes.append({
+                "tag": (it.get("tag") or "").strip(),
+                "heading": (it.get("heading") or "").strip(),
+                "body": (it.get("body") or "").strip(),
+                "index": i + 1,
+            })
+        page.update({
+            "section": (fill.get("section") or "").strip(),
+            "title": (fill.get("title") or "").strip(),
+            "nodes": nodes,
+            "orientation": "vertical" if str(chosen).startswith("vertical") else "horizontal",
+            "takeaway": (fill.get("takeaway") or "").strip(),
+            "source": (fill.get("source") or "").strip(),
+            "page": str(fill.get("page") or "").strip(),
+            "capacity": slotmod.family_spec(family).get("capacity", {}).get(chosen),
+        })
+    elif family == "timeline":
+        nodes = []
+        for i, it in enumerate(fill.get("nodes") or []):
+            nodes.append({
+                "label": (it.get("label") or "").strip(),
+                "heading": (it.get("heading") or "").strip(),
+                "body": (it.get("body") or "").strip(),
+                "index": i + 1,
+            })
+        page.update({
+            "section": (fill.get("section") or "").strip(),
+            "title": (fill.get("title") or "").strip(),
+            "nodes": nodes,
             "takeaway": (fill.get("takeaway") or "").strip(),
             "source": (fill.get("source") or "").strip(),
             "page": str(fill.get("page") or "").strip(),
