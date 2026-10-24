@@ -1,0 +1,95 @@
+{
+  "library_id": "factdeck.template_lib.v1",
+  "version": "1.0.0",
+  "canvas": {"width_px": 1280, "height_px": 720, "width_in": 13.333, "height_in": 7.5, "dpi": 96},
+  "source_layout": {
+    "name": "medical-ppt-design",
+    "uri": "https://github.com/grotyx/medical-ppt-design",
+    "license": "CC-BY-4.0",
+    "attribution": "factdeck/template_lib/ATTRIBUTION.md",
+    "branding_stripped": ["SNUBH", "SNUH", "분당서울대학교병원", "박상민", "Starbucks Green system as product brand"]
+  },
+  "academic_reference_only": {
+    "note": "The 10-set academic template library (output/academic_templates) remains style/QA reference only and is NOT a runtime fill source.",
+    "doc": "docs/ACADEMIC_TEMPLATE_LIBRARY.md"
+  },
+  "themes": ["journal", "steel"],
+  "families": {
+    "cover": {
+      "template_id": "tl_v1.cover",
+      "family": "cover",
+      "variants": ["default"],
+      "html": "cover.html.j2",
+      "slots": {
+        "kicker": {"required": false, "max_chars": 24, "font_steps_pt": [14, 13, 12], "overflow": "shrink_then_ellipsis"},
+        "title": {"required": true, "max_chars": 48, "max_lines": 2, "font_steps_pt": [40, 36, 32, 28], "overflow": "shrink_then_split"},
+        "subtitle": {"required": false, "max_chars": 72, "max_lines": 1, "font_steps_pt": [18, 16, 14], "overflow": "shrink_then_ellipsis"},
+        "affiliation": {"required": false, "max_chars": 40, "font_steps_pt": [18, 16, 14], "overflow": "ellipsis"},
+        "presenter": {"required": false, "max_chars": 24, "font_steps_pt": [28, 24, 20], "overflow": "ellipsis"},
+        "meta": {"required": false, "max_chars": 64, "font_steps_pt": [14, 12], "overflow": "ellipsis"}
+      },
+      "zones_in": {
+        "kicker": {"x": 0.6, "y": 1.11, "w": 3.5, "h": 0.49},
+        "title": {"x": 0.6, "y": 2.0512, "w": 12.2953, "h": 1.4909},
+        "accent_line": {"x": 0.6, "y": 3.7593, "w": 1.8, "h": 0.04},
+        "subtitle": {"x": 0.663, "y": 4.0517, "w": 9.0, "h": 0.3029},
+        "affiliation": {"x": 7.509, "y": 5.58, "w": 5.5, "h": 0.3029},
+        "presenter": {"x": 7.509, "y": 5.99, "w": 5.5, "h": 0.4712},
+        "meta": {"x": 0.2977, "y": 6.9752, "w": 8.0, "h": 0.2356}
+      }
+    },
+    "section": {
+      "template_id": "tl_v1.section",
+      "family": "section",
+      "variants": ["default"],
+      "html": "section.html.j2",
+      "slots": {
+        "number": {"required": false, "max_chars": 4, "font_steps_pt": [48], "overflow": "clip"},
+        "title": {"required": true, "max_chars": 36, "max_lines": 2, "font_steps_pt": [26, 24, 22, 20], "overflow": "shrink_then_ellipsis"},
+        "subtitle": {"required": false, "max_chars": 64, "max_lines": 2, "font_steps_pt": [14, 13, 12], "overflow": "shrink_then_ellipsis"}
+      },
+      "zones_in": {
+        "number": {"x": 10.5, "y": 5.8, "w": 2.2, "h": 0.9},
+        "title": {"x": 0.6, "y": 2.8, "w": 11.5, "h": 1.2},
+        "subtitle": {"x": 0.6, "y": 4.1, "w": 10.0, "h": 0.7}
+      }
+    },
+    "key_points": {
+      "template_id": "tl_v1.key_points",
+      "family": "key_points",
+      "variants": ["cards_3", "cards_4", "cards_6"],
+      "html": "key_points.html.j2",
+      "capacity": {"cards_3": 3, "cards_4": 4, "cards_6": 6},
+      "slots": {
+        "section": {"required": false, "max_chars": 24, "font_steps_pt": [13, 12], "overflow": "ellipsis"},
+        "title": {"required": true, "max_chars": 36, "max_lines": 1, "font_steps_pt": [32, 28, 24], "overflow": "shrink_then_ellipsis"},
+        "items": {
+          "required": true,
+          "item": {
+            "tag": {"required": false, "max_chars": 12, "font_steps_pt": [13, 12], "overflow": "ellipsis"},
+            "heading": {"required": true, "max_chars": 16, "max_lines": 1, "font_steps_pt": [28, 24, 20, 18], "overflow": "shrink_then_ellipsis"},
+            "sub": {"required": false, "max_chars": 24, "max_lines": 1, "font_steps_pt": [16, 14, 13], "overflow": "ellipsis"},
+            "body": {"required": false, "max_chars": 48, "max_lines": 3, "font_steps_pt": [16, 14, 13, 12], "overflow": "shrink_then_ellipsis"}
+          }
+        },
+        "takeaway": {"required": false, "max_chars": 72, "max_lines": 1, "font_steps_pt": [16, 14, 13], "overflow": "shrink_then_ellipsis"},
+        "source": {"required": false, "max_chars": 80, "font_steps_pt": [12, 11], "overflow": "ellipsis"},
+        "page": {"required": false, "max_chars": 4, "font_steps_pt": [11], "overflow": "clip"}
+      },
+      "zones_in": {
+        "header": {"x": 0.1512, "y": 0.135, "w": 6.0, "h": 0.28},
+        "headline": {"x": 0.2752, "y": 0.4771, "w": 12.0, "h": 0.50},
+        "body_card": {"x": 0.2752, "y": 1.4111, "w": 12.7946, "h": 5.7167},
+        "footer_page": {"x": 0.1512, "y": 7.24, "w": 0.6, "h": 0.25},
+        "footer_source": {"x": 7.1822, "y": 7.2369, "w": 6.0, "h": 0.25}
+      },
+      "pattern": "H-pillar-cards",
+      "overflow": "refuse_over_capacity_or_split_page"
+    }
+  },
+  "native_hook": {
+    "task": "T_TEMPLATE_NATIVE",
+    "status": "stub",
+    "note": "v1 validates slot contract + HTML render. Native PPTX fill reuses Route A / factdeck.render later; decorative paths may be empty."
+  }
+}

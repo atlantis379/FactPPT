@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>{{ deck.title }}</title>
+<style>
+{% include "_shared.css.j2" %}
+</style>
+</head>
+<body data-library="{{ deck.library }}">
+{% for slide in slides %}{{ slide|safe }}{% endfor %}
+</body>
+</html>

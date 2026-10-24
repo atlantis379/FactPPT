@@ -1,0 +1,83 @@
+{# Key-points (要点卡) — Pattern H pillar cards; variants cards_3 / cards_4 / cards_6. #}
+{% set items = page["items"] %}
+{% set n = items|length %}
+{% set cols = n if n <= 6 else 6 %}
+<style>
+.L-tl-kp{background:var(--canvas)}
+.L-tl-kp .section{
+  position:absolute;left:{{ page.zones_px.header.x }}px;top:{{ page.zones_px.header.y }}px;
+  width:{{ page.zones_px.header.w }}px;height:{{ page.zones_px.header.h }}px;
+  font-size:13pt;font-weight:600;color:var(--caption);letter-spacing:0.04em;
+  white-space:nowrap;overflow:hidden
+}
+.L-tl-kp .headline{
+  position:absolute;left:{{ page.zones_px.headline.x }}px;top:{{ page.zones_px.headline.y }}px;
+  width:{{ page.zones_px.headline.w }}px;height:{{ page.zones_px.headline.h }}px;
+  font-size:32pt;font-weight:700;color:var(--headline);white-space:nowrap;overflow:hidden;
+  display:flex;align-items:center
+}
+.L-tl-kp .body-card{
+  position:absolute;left:{{ page.zones_px.body_card.x }}px;top:{{ page.zones_px.body_card.y }}px;
+  width:{{ page.zones_px.body_card.w }}px;height:{{ page.zones_px.body_card.h }}px;
+  background:var(--paper);border:1px solid #D9D9D9;border-radius:12px;
+  padding:28px 32px 24px;display:flex;flex-direction:column;gap:18px
+}
+.L-tl-kp .pillars{
+  flex:1;display:grid;grid-template-columns:repeat({{ cols }},1fr);gap:18px;min-height:0
+}
+.L-tl-kp .pillar{
+  border:1px solid #D9D9D9;border-radius:12px;background:var(--paper);
+  padding:18px 16px;display:flex;flex-direction:column;align-items:center;text-align:center;
+  overflow:hidden
+}
+.L-tl-kp .pillar .tag{
+  font-size:13pt;font-weight:700;color:var(--accent);border:1.5px solid var(--accent);
+  border-radius:999px;padding:2px 12px;margin-bottom:12px;letter-spacing:0.06em;
+  text-transform:uppercase;white-space:nowrap;overflow:hidden;max-width:100%
+}
+.L-tl-kp .pillar .heading{
+  font-size:{% if cols >= 6 %}20pt{% elif cols == 4 %}24pt{% else %}28pt{% endif %};
+  font-weight:700;color:var(--headline);line-height:1.15;margin-bottom:6px;
+  overflow:hidden;max-width:100%
+}
+.L-tl-kp .pillar .sub{
+  font-size:16pt;font-weight:700;color:var(--ink);margin-bottom:10px;overflow:hidden;max-width:100%
+}
+.L-tl-kp .pillar .body{
+  font-size:{% if cols >= 6 %}13pt{% else %}15pt{% endif %};font-weight:400;color:var(--ink);
+  line-height:1.35;overflow:hidden;max-width:100%
+}
+.L-tl-kp .takeaway{
+  border:1.5px solid var(--primary);border-radius:10px;padding:12px 18px;
+  font-size:15pt;font-weight:700;color:var(--primary);overflow:hidden;white-space:nowrap
+}
+.L-tl-kp .foot-page{
+  position:absolute;left:{{ page.zones_px.footer_page.x }}px;top:{{ page.zones_px.footer_page.y }}px;
+  width:{{ page.zones_px.footer_page.w }}px;height:{{ page.zones_px.footer_page.h }}px;
+  font-size:11pt;font-weight:500;color:var(--caption)
+}
+.L-tl-kp .foot-src{
+  position:absolute;left:{{ page.zones_px.footer_source.x }}px;top:{{ page.zones_px.footer_source.y }}px;
+  width:{{ page.zones_px.footer_source.w }}px;height:{{ page.zones_px.footer_source.h }}px;
+  font-size:12pt;font-weight:400;color:var(--caption);text-align:right;overflow:hidden;white-space:nowrap
+}
+</style>
+<section class="slide L-tl-kp" id="{{ page.id }}" data-template="{{ page.template_id }}" data-family="key_points" data-variant="{{ page.variant }}" data-theme="{{ page.theme_name }}">
+  {% if page.section %}<div class="section" data-slot="section">{{ page.section }}</div>{% endif %}
+  <div class="headline" data-slot="title">{{ page.title }}</div>
+  <div class="body-card" data-shape="body-card">
+    <div class="pillars" data-slot="items" data-count="{{ n }}">
+      {% for it in items %}
+      <div class="pillar" data-item="{{ it.index }}">
+        {% if it.tag %}<div class="tag" data-slot="tag">{{ it.tag }}</div>{% endif %}
+        <div class="heading" data-slot="heading">{{ it.heading }}</div>
+        {% if it.sub %}<div class="sub" data-slot="sub">{{ it.sub }}</div>{% endif %}
+        {% if it.body %}<div class="body" data-slot="body">{{ it.body }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% if page.takeaway %}<div class="takeaway" data-slot="takeaway">{{ page.takeaway }}</div>{% endif %}
+  </div>
+  {% if page.page %}<div class="foot-page" data-slot="page" data-chrome>{{ page.page }}</div>{% endif %}
+  {% if page.source %}<div class="foot-src" data-slot="source" data-chrome>{{ page.source }}</div>{% endif %}
+</section>
