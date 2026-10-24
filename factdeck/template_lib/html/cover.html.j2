@@ -1,46 +1,60 @@
-{# Cover — light canvas adapted from medical-ppt-design; no institutional logo/branding. #}
+{# Cover — premium clinical: left ink band, display type, hairline, no cheap pill-as-design. #}
 <style>
 .L-tl-cover{background:var(--canvas)}
+.L-tl-cover .band{
+  position:absolute;left:0;top:0;width:18px;height:100%;
+  background:linear-gradient(180deg,var(--primary) 0%,var(--accent) 100%)
+}
+.L-tl-cover .wash{
+  position:absolute;right:0;top:0;width:42%;height:100%;
+  background:linear-gradient(90deg,transparent 0%,var(--surface) 100%);
+  opacity:0.55;pointer-events:none
+}
 .L-tl-cover .kicker{
   position:absolute;left:{{ page.zones_px.kicker.x }}px;top:{{ page.zones_px.kicker.y }}px;
-  width:{{ page.zones_px.kicker.w }}px;height:{{ page.zones_px.kicker.h }}px;
-  display:flex;align-items:center;justify-content:center;
-  background:var(--accent);color:#fff;font-size:14pt;font-weight:700;border-radius:999px;
-  letter-spacing:0.04em;white-space:nowrap;overflow:hidden;padding:0 18px
+  width:auto;max-width:{{ page.zones_px.kicker.w }}px;height:{{ page.zones_px.kicker.h }}px;
+  display:inline-flex;align-items:center;gap:12px;
+  color:var(--accent);font-size:13pt;font-weight:700;letter-spacing:0.14em;
+  white-space:nowrap;overflow:hidden;padding:0;background:transparent;border-radius:0
+}
+.L-tl-cover .kicker::before{
+  content:"";display:inline-block;width:28px;height:3px;background:var(--accent);flex-shrink:0
 }
 .L-tl-cover .title{
   position:absolute;left:{{ page.zones_px.title.x }}px;top:{{ page.zones_px.title.y }}px;
   width:{{ page.zones_px.title.w }}px;height:{{ page.zones_px.title.h }}px;
-  font-size:40pt;font-weight:700;line-height:1.2;color:var(--headline);
-  display:flex;align-items:flex-end;overflow:hidden
+  font-size:42pt;font-weight:700;line-height:1.18;color:var(--headline);
+  display:flex;align-items:flex-end;overflow:hidden;letter-spacing:-0.02em
 }
 .L-tl-cover .accent-line{
   position:absolute;left:{{ page.zones_px.accent_line.x }}px;top:{{ page.zones_px.accent_line.y }}px;
-  width:{{ page.zones_px.accent_line.w }}px;height:{{ page.zones_px.accent_line.h }}px;
-  background:var(--accent2)
+  width:{{ page.zones_px.accent_line.w }}px;height:5px;background:var(--accent);border-radius:2px
 }
 .L-tl-cover .subtitle{
   position:absolute;left:{{ page.zones_px.subtitle.x }}px;top:{{ page.zones_px.subtitle.y }}px;
   width:{{ page.zones_px.subtitle.w }}px;height:{{ page.zones_px.subtitle.h }}px;
-  font-size:18pt;font-weight:700;color:var(--muted);white-space:nowrap;overflow:hidden
+  font-size:17pt;font-weight:500;color:var(--muted);white-space:nowrap;overflow:hidden
 }
 .L-tl-cover .affiliation{
   position:absolute;left:{{ page.zones_px.affiliation.x }}px;top:{{ page.zones_px.affiliation.y }}px;
   width:{{ page.zones_px.affiliation.w }}px;height:{{ page.zones_px.affiliation.h }}px;
-  font-size:18pt;font-weight:400;color:var(--muted);text-align:right;overflow:hidden
+  font-size:15pt;font-weight:400;color:var(--muted);text-align:right;overflow:hidden
 }
 .L-tl-cover .presenter{
   position:absolute;left:{{ page.zones_px.presenter.x }}px;top:{{ page.zones_px.presenter.y }}px;
   width:{{ page.zones_px.presenter.w }}px;height:{{ page.zones_px.presenter.h }}px;
-  font-size:28pt;font-weight:700;color:var(--headline);text-align:right;overflow:hidden
+  font-size:26pt;font-weight:700;color:var(--headline);text-align:right;overflow:hidden
 }
 .L-tl-cover .meta{
   position:absolute;left:{{ page.zones_px.meta.x }}px;top:{{ page.zones_px.meta.y }}px;
   width:{{ page.zones_px.meta.w }}px;height:{{ page.zones_px.meta.h }}px;
-  font-size:14pt;font-weight:400;color:var(--muted);white-space:nowrap;overflow:hidden
+  font-size:13pt;font-weight:500;color:var(--caption);white-space:nowrap;overflow:hidden;
+  padding-top:10px;border-top:1px solid var(--line)
 }
 </style>
 <section class="slide L-tl-cover" id="{{ page.id }}" data-template="{{ page.template_id }}" data-family="cover" data-theme="{{ page.theme_name }}">
+  <div class="band" data-shape="cover-band" aria-hidden="true"></div>
+  <div class="wash" data-shape="cover-wash" aria-hidden="true"></div>
   {% if page.kicker %}<div class="kicker" data-slot="kicker">{{ page.kicker }}</div>{% endif %}
   <div class="title" data-slot="title">{{ page.title }}</div>
   <div class="accent-line" data-shape="accent-line"></div>

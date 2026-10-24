@@ -10,12 +10,12 @@ Layout geometry and Patterns **C** (two-column), **H** (pillar cards), **J** (ti
 
 SNUBH / SNUH logos, presenter defaults, and institutional copy are **not** included.
 
-## What shipped (v1 → v1.1)
+## What shipped (v1 → v1.2)
 
 | Piece | Path | Status |
 |---|---|---|
 | Manifest (families, slots, capacity, font steps, overflow) | `factdeck/template_lib/manifest.json` | done (v1.1.0) |
-| Themes journal + steel | `factdeck/template_lib/themes.py` | done (from academic palette seeds) |
+| Themes journal + steel + **premium_clinical** | `factdeck/template_lib/themes.py` | done (v1.2 paid-quality showcase) |
 | Slot validate + inch→px zones | `factdeck/template_lib/slots.py` | done |
 | Fill → page model | `factdeck/template_lib/fill.py` | done |
 | HTML/Jinja: cover, section, key_points (3/4/6) | `factdeck/template_lib/html/` | done |
@@ -123,13 +123,29 @@ deck_html = render_deck_html([
 native_prepare("cover", fill, theme="journal")
 ```
 
-Themes: `"journal"` | `"steel"`. Tokens reuse the FactDeck CSS variable names expected by `deck.html.j2` (`ink`, `primary`, `accent`, …) plus `canvas` / `headline` for the light layouts.
+Themes: **`"premium_clinical"`** (showcase / paid quality) | `"journal"` | `"steel"`. Tokens reuse the FactDeck CSS variable names expected by `deck.html.j2` (`ink`, `primary`, `accent`, …) plus `canvas` / `headline` / `surface` / `rail` / `shadow` for craft.
+
+## Paid quality (v1.2)
+
+User feedback 2026-10-24: v1.1 previews looked like cheap bordered cards. Craft pass:
+
+| Choice | What changed |
+|---|---|
+| Showcase theme | `premium_clinical` — deep ink, one steel-teal accent, warm paper, soft tonal surfaces |
+| Cards | Accent left rail + soft elevation; lead card inverted gradient; oversized watermark indices — **not** identical gray outline boxes |
+| Comparison | Filled header bands + VS medallion + dual tonal panels |
+| Flow | Continuous pathway rail under filled nodes + SVG chevrons (not SmartArt outlines) |
+| Timeline | Gradient milestone rail + ringed dots inside a soft paper well |
+| Typography | Noto Sans CJK SC first; stronger weight/size hierarchy; tracking −0.01em |
+| Avoided | Thin `#D9D9D9` nest boxes, pill-badge-as-design, dark neon SaaS, hospital logos |
+
+Previews: `/workspace/sync/template-lib-v1/previews/premium-*.png`.
 
 ## Coordinates
 
 Upstream inches (13.333" × 7.5") × 96 → FactDeck 1280 × 720 px. Zone tables live in `manifest.json` (`zones_in`); `zone_map_px()` converts for templates. Content families share the medical-ppt four-zone skeleton (header / headline / body card / footer).
 
-## Not in v1.1
+## Not in v1.2
 
 - Full DECK contract change / auto-selection inside `/api/deck`
 - Browser density fit / playwright measure for these packs (reuse later)

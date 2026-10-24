@@ -1,27 +1,33 @@
-{# Section divider — light canvas; watermark number; no institutional logo. #}
+{# Section divider — oversized watermark + ink title + accent rule. #}
 <style>
 .L-tl-section{background:var(--canvas)}
+.L-tl-section .band{
+  position:absolute;left:0;top:0;width:14px;height:100%;
+  background:linear-gradient(180deg,var(--primary) 0%,var(--accent) 100%)
+}
 .L-tl-section .number{
-  position:absolute;left:{{ page.zones_px.number.x }}px;top:{{ page.zones_px.number.y }}px;
-  width:{{ page.zones_px.number.w }}px;height:{{ page.zones_px.number.h }}px;
-  font-size:48pt;font-weight:700;color:var(--line);line-height:1;text-align:right;opacity:0.85
+  position:absolute;right:48px;bottom:40px;
+  font-size:160pt;font-weight:700;color:var(--accent);opacity:0.08;line-height:0.85;
+  letter-spacing:-0.04em;text-align:right;pointer-events:none;user-select:none
 }
 .L-tl-section .title{
   position:absolute;left:{{ page.zones_px.title.x }}px;top:{{ page.zones_px.title.y }}px;
   width:{{ page.zones_px.title.w }}px;height:{{ page.zones_px.title.h }}px;
-  font-size:26pt;font-weight:700;color:var(--headline);display:flex;align-items:center;overflow:hidden
+  font-size:32pt;font-weight:700;color:var(--headline);display:flex;align-items:center;overflow:hidden;
+  letter-spacing:-0.02em
 }
 .L-tl-section .subtitle{
   position:absolute;left:{{ page.zones_px.subtitle.x }}px;top:{{ page.zones_px.subtitle.y }}px;
   width:{{ page.zones_px.subtitle.w }}px;height:{{ page.zones_px.subtitle.h }}px;
-  font-size:14pt;font-weight:400;color:var(--muted);overflow:hidden
+  font-size:15pt;font-weight:400;color:var(--muted);overflow:hidden
 }
 .L-tl-section .rule{
   position:absolute;left:{{ page.zones_px.title.x }}px;top:{{ (page.zones_px.title.y + page.zones_px.title.h - 8)|round(2) }}px;
-  width:72px;height:4px;background:var(--accent)
+  width:56px;height:5px;background:var(--accent);border-radius:2px
 }
 </style>
 <section class="slide L-tl-section" id="{{ page.id }}" data-template="{{ page.template_id }}" data-family="section" data-theme="{{ page.theme_name }}">
+  <div class="band" data-shape="cover-band" aria-hidden="true"></div>
   <div class="number" data-slot="number" data-chrome>{{ page.number }}</div>
   <div class="title" data-slot="title">{{ page.title }}</div>
   <div class="rule" data-shape="accent-line"></div>

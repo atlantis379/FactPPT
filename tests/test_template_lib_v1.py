@@ -70,6 +70,8 @@ KEY6_ZH = {
 def test_manifest_declares_cover_section_keypoints_and_cc_by():
     m = tl.load_manifest()
     assert m["library_id"] == "factdeck.template_lib.v1"
+    assert "premium_clinical" in m["themes"]
+    assert m["version"].startswith("1.2")
     assert set(m["families"]) >= {"cover", "section", "key_points"}
     assert m["families"]["key_points"]["capacity"]["cards_3"] == 3
     assert m["families"]["key_points"]["capacity"]["cards_6"] == 6
@@ -107,6 +109,31 @@ def test_journal_and_steel_themes_match_academic_seeds():
             assert key in t and t[key].startswith("#")
 
 
+def test_premium_clinical_theme_tokens_and_list_order():
+    t = tl.get_theme("premium_clinical")
+    assert t["ink"].startswith("#")
+    assert t["accent"] == "#1A6B7C"
+    assert t["canvas"] == "#F4F2EC"
+    assert t["headline"] == t["ink"]
+    for key in ("surface", "rail", "shadow", "takeaway-bg", "on-accent"):
+        assert key in t
+    themes = tl.list_themes()
+    assert themes[0]["id"] == "premium_clinical"
+    assert {x["id"] for x in themes} >= {"premium_clinical", "journal", "steel"}
+    html = tl.render_page_html("cover", COVER_ZH, theme="premium_clinical")
+    assert "data-theme=\"premium_clinical\"" in html
+    assert "cover-band" in html
+    assert "#1A6B7C" in html or "premium_clinical" in html
+
+
+def test_premium_keypoints_use_rail_not_outline_pills():
+    html = tl.render_page_html("key_points", KEY3_ZH, theme="premium_clinical")
+    assert "is-lead" in html
+    assert "border:1px solid #D9D9D9" not in html
+    assert html.count("data-slot=\"heading\"") == 3
+    assert "肺功能" in html
+
+
 def test_inch_zones_map_to_1280x720():
     zones = tl.zone_map_px("cover")
     assert zones["title"]["x"] == pytest.approx(0.6 * 96, rel=0, abs=0.02)
@@ -116,7 +143,7 @@ def test_inch_zones_map_to_1280x720():
     assert body["x"] + body["w"] < 1280 + 1
 
 
-@pytest.mark.parametrize("theme", ["journal", "steel"])
+@pytest.mark.parametrize("theme", ["premium_clinical", "journal", "steel"])
 def test_cover_and_section_validate_and_render_chinese(theme):
     assert tl.validate_fill("cover", COVER_ZH)["ok"]
     assert tl.validate_fill("section", SECTION_ZH)["ok"]
@@ -320,7 +347,7 @@ def test_manifest_declares_comparison_flow_timeline():
     assert "cards_3" in m["families"]["key_points"]["variants"]
 
 
-@pytest.mark.parametrize("theme", ["journal", "steel"])
+@pytest.mark.parametrize("theme", ["premium_clinical", "journal", "steel"])
 def test_comparison_dual_column_renders_not_cards(theme):
     r = tl.validate_fill("comparison", CMP_DUAL_ZH)
     assert r["ok"] and r["variant"] == "dual_column"
@@ -344,7 +371,7 @@ def test_comparison_table_2n_variant():
     assert "pillar" not in html.lower()
 
 
-@pytest.mark.parametrize("theme", ["journal", "steel"])
+@pytest.mark.parametrize("theme", ["premium_clinical", "journal", "steel"])
 def test_flow_horizontal_and_capacity(theme):
     r4 = tl.validate_fill("flow", FLOW4_ZH)
     assert r4["ok"] and r4["variant"] == "horizontal_4"
@@ -374,7 +401,7 @@ def test_flow_horizontal_and_capacity(theme):
         tl.normalize_fill("flow", too_many)
 
 
-@pytest.mark.parametrize("theme", ["journal", "steel"])
+@pytest.mark.parametrize("theme", ["premium_clinical", "journal", "steel"])
 def test_timeline_milestone_track_not_cards(theme):
     r4 = tl.validate_fill("timeline", TL4_ZH)
     assert r4["ok"] and r4["variant"] == "nodes_4"

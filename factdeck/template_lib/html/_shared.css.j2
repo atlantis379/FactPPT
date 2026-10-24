@@ -2,9 +2,10 @@
 {%- for k, v in theme.items() %}
   --{{ k }}:{{ v }};
 {%- endfor %}
-  --font:"Microsoft YaHei","微软雅黑","Noto Sans CJK SC","Noto Sans SC","PingFang SC",sans-serif;
+  --font:"Noto Sans CJK SC","Noto Sans SC","Source Han Sans SC","PingFang SC","Microsoft YaHei","微软雅黑",sans-serif;
+  --tracking:-0.01em;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{background:#E9EDF2;font-family:var(--font);color:var(--ink)}
-.slide{position:relative;width:1280px;height:720px;overflow:hidden;background:var(--canvas);margin:0 auto 24px;-webkit-font-smoothing:antialiased}
+html,body{background:#E4E8ED;font-family:var(--font);color:var(--ink);letter-spacing:var(--tracking);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+.slide{position:relative;width:1280px;height:720px;overflow:hidden;background:var(--canvas);margin:0 auto 24px}
 @media print{html,body{background:none}.slide{margin:0;page-break-after:always}}

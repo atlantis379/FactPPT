@@ -1,6 +1,6 @@
 {
   "library_id": "factdeck.template_lib.v1",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "canvas": {"width_px": 1280, "height_px": 720, "width_in": 13.333, "height_in": 7.5, "dpi": 96},
   "source_layout": {
     "name": "medical-ppt-design",
@@ -10,7 +10,7 @@
     "branding_stripped": ["SNUBH", "SNUH", "분당서울대학교병원", "박상민", "Starbucks Green system as product brand"]
   },
   "academic_reference_only": {"note": "The 10-set academic template library (output/academic_templates) remains style/QA reference only and is NOT a runtime fill source.", "doc": "docs/ACADEMIC_TEMPLATE_LIBRARY.md"},
-  "themes": ["journal", "steel"],
+  "themes": ["premium_clinical", "journal", "steel"],
   "families": {
     "cover": {
       "template_id": "tl_v1.cover",
@@ -155,5 +155,9 @@
       "note": "Case course milestone track 就诊→检查→治疗→随访. 4 or 6 nodes."
     }
   },
-  "native_hook": {"task": "T_TEMPLATE_NATIVE", "status": "stub", "note": "v1 validates slot contract + HTML render. Native PPTX fill reuses Route A / factdeck.render later; decorative paths may be empty."}
+  "native_hook": {"task": "T_TEMPLATE_NATIVE", "status": "stub", "note": "v1 validates slot contract + HTML render. Native PPTX fill reuses Route A / factdeck.render later; decorative paths may be empty."},
+  "craft_note": {
+    "paid_quality": "v1.2 premium_clinical — tonal panels, accent rails, soft elevation, pathway rails; not thin-border outline boxes",
+    "showcase_theme": "premium_clinical"
+  }
 }

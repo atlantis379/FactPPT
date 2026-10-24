@@ -1,4 +1,4 @@
-{# Key-points (要点卡) — Pattern H pillar cards; variants cards_3 / cards_4 / cards_6. #}
+{# Key-points — tonal cards with accent rail + watermark index; NOT identical outline boxes. #}
 {% set items = page["items"] %}
 {% set n = items|length %}
 {% set cols = n if n <= 6 else 6 %}
@@ -7,59 +7,82 @@
 .L-tl-kp .section{
   position:absolute;left:{{ page.zones_px.header.x }}px;top:{{ page.zones_px.header.y }}px;
   width:{{ page.zones_px.header.w }}px;height:{{ page.zones_px.header.h }}px;
-  font-size:13pt;font-weight:600;color:var(--caption);letter-spacing:0.04em;
-  white-space:nowrap;overflow:hidden
+  font-size:12pt;font-weight:600;color:var(--caption);letter-spacing:0.12em;
+  white-space:nowrap;overflow:hidden;text-transform:uppercase
 }
 .L-tl-kp .headline{
   position:absolute;left:{{ page.zones_px.headline.x }}px;top:{{ page.zones_px.headline.y }}px;
   width:{{ page.zones_px.headline.w }}px;height:{{ page.zones_px.headline.h }}px;
-  font-size:32pt;font-weight:700;color:var(--headline);white-space:nowrap;overflow:hidden;
-  display:flex;align-items:center
+  font-size:30pt;font-weight:700;color:var(--headline);white-space:nowrap;overflow:hidden;
+  display:flex;align-items:center;letter-spacing:-0.02em
 }
 .L-tl-kp .body-card{
   position:absolute;left:{{ page.zones_px.body_card.x }}px;top:{{ page.zones_px.body_card.y }}px;
   width:{{ page.zones_px.body_card.w }}px;height:{{ page.zones_px.body_card.h }}px;
-  background:var(--paper);border:1px solid #D9D9D9;border-radius:12px;
-  padding:28px 32px 24px;display:flex;flex-direction:column;gap:18px
+  background:transparent;border:none;border-radius:0;padding:8px 4px 4px;
+  display:flex;flex-direction:column;gap:20px
 }
 .L-tl-kp .pillars{
-  flex:1;display:grid;grid-template-columns:repeat({{ cols }},1fr);gap:18px;min-height:0
+  flex:1;display:grid;grid-template-columns:repeat({{ cols }},1fr);gap:20px;min-height:0
 }
 .L-tl-kp .pillar{
-  border:1px solid #D9D9D9;border-radius:12px;background:var(--paper);
-  padding:18px 16px;display:flex;flex-direction:column;align-items:center;text-align:center;
+  position:relative;border:none;border-radius:14px;background:var(--paper);
+  box-shadow:0 8px 28px var(--shadow-soft), 0 1px 0 rgba(255,255,255,0.7) inset;
+  padding:28px 22px 24px 26px;display:flex;flex-direction:column;align-items:flex-start;text-align:left;
   overflow:hidden
 }
+.L-tl-kp .pillar::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent);border-radius:14px 0 0 14px
+}
+.L-tl-kp .pillar.is-lead{
+  background:linear-gradient(165deg,var(--primary) 0%,var(--accent) 100%);
+  box-shadow:0 12px 32px var(--shadow);color:var(--on-accent)
+}
+.L-tl-kp .pillar.is-lead::before{background:rgba(255,255,255,0.35)}
+.L-tl-kp .pillar .wm{
+  position:absolute;right:10px;top:4px;font-size:64pt;font-weight:700;line-height:1;
+  color:var(--accent);opacity:0.10;letter-spacing:-0.04em;pointer-events:none;user-select:none
+}
+.L-tl-kp .pillar.is-lead .wm{color:#fff;opacity:0.18}
 .L-tl-kp .pillar .tag{
-  font-size:13pt;font-weight:700;color:var(--accent);border:1.5px solid var(--accent);
-  border-radius:999px;padding:2px 12px;margin-bottom:12px;letter-spacing:0.06em;
-  text-transform:uppercase;white-space:nowrap;overflow:hidden;max-width:100%
+  font-size:11pt;font-weight:700;color:var(--accent);border:none;border-radius:0;
+  padding:0;margin-bottom:14px;letter-spacing:0.14em;text-transform:uppercase;
+  white-space:nowrap;overflow:hidden;max-width:100%;background:transparent
 }
+.L-tl-kp .pillar.is-lead .tag{color:var(--accent-on-dark)}
 .L-tl-kp .pillar .heading{
-  font-size:{% if cols >= 6 %}20pt{% elif cols == 4 %}24pt{% else %}28pt{% endif %};
-  font-weight:700;color:var(--headline);line-height:1.15;margin-bottom:6px;
-  overflow:hidden;max-width:100%
+  font-size:{% if cols >= 6 %}18pt{% elif cols == 4 %}22pt{% else %}26pt{% endif %};
+  font-weight:700;color:var(--headline);line-height:1.15;margin-bottom:8px;
+  overflow:hidden;max-width:100%;letter-spacing:-0.015em;position:relative;z-index:1
 }
+.L-tl-kp .pillar.is-lead .heading{color:#fff}
 .L-tl-kp .pillar .sub{
-  font-size:16pt;font-weight:700;color:var(--ink);margin-bottom:10px;overflow:hidden;max-width:100%
+  font-size:14pt;font-weight:600;color:var(--accent);margin-bottom:10px;overflow:hidden;max-width:100%;
+  position:relative;z-index:1
 }
+.L-tl-kp .pillar.is-lead .sub{color:var(--accent-on-dark)}
 .L-tl-kp .pillar .body{
-  font-size:{% if cols >= 6 %}13pt{% else %}15pt{% endif %};font-weight:400;color:var(--ink);
-  line-height:1.35;overflow:hidden;max-width:100%
+  font-size:{% if cols >= 6 %}12.5pt{% else %}14.5pt{% endif %};font-weight:400;color:var(--muted);
+  line-height:1.45;overflow:hidden;max-width:100%;position:relative;z-index:1
 }
+.L-tl-kp .pillar.is-lead .body{color:rgba(255,255,255,0.88)}
 .L-tl-kp .takeaway{
-  border:1.5px solid var(--primary);border-radius:10px;padding:12px 18px;
-  font-size:15pt;font-weight:700;color:var(--primary);overflow:hidden;white-space:nowrap
+  border:none;border-radius:10px;padding:14px 20px 14px 22px;
+  font-size:15pt;font-weight:700;color:var(--primary);overflow:hidden;white-space:nowrap;
+  background:var(--takeaway-bg);position:relative;box-shadow:none
+}
+.L-tl-kp .takeaway::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent);border-radius:10px 0 0 10px
 }
 .L-tl-kp .foot-page{
   position:absolute;left:{{ page.zones_px.footer_page.x }}px;top:{{ page.zones_px.footer_page.y }}px;
   width:{{ page.zones_px.footer_page.w }}px;height:{{ page.zones_px.footer_page.h }}px;
-  font-size:11pt;font-weight:500;color:var(--caption)
+  font-size:11pt;font-weight:600;color:var(--caption)
 }
 .L-tl-kp .foot-src{
   position:absolute;left:{{ page.zones_px.footer_source.x }}px;top:{{ page.zones_px.footer_source.y }}px;
   width:{{ page.zones_px.footer_source.w }}px;height:{{ page.zones_px.footer_source.h }}px;
-  font-size:12pt;font-weight:400;color:var(--caption);text-align:right;overflow:hidden;white-space:nowrap
+  font-size:11pt;font-weight:400;color:var(--caption);text-align:right;overflow:hidden;white-space:nowrap
 }
 </style>
 <section class="slide L-tl-kp" id="{{ page.id }}" data-template="{{ page.template_id }}" data-family="key_points" data-variant="{{ page.variant }}" data-theme="{{ page.theme_name }}">
@@ -68,7 +91,8 @@
   <div class="body-card" data-shape="body-card">
     <div class="pillars" data-slot="items" data-count="{{ n }}">
       {% for it in items %}
-      <div class="pillar" data-item="{{ it.index }}">
+      <div class="pillar{% if loop.first and n <= 4 %} is-lead{% endif %}" data-item="{{ it.index }}">
+        <div class="wm" aria-hidden="true">{% if it.index < 10 %}0{% endif %}{{ it.index }}</div>
         {% if it.tag %}<div class="tag" data-slot="tag">{{ it.tag }}</div>{% endif %}
         <div class="heading" data-slot="heading">{{ it.heading }}</div>
         {% if it.sub %}<div class="sub" data-slot="sub">{{ it.sub }}</div>{% endif %}
