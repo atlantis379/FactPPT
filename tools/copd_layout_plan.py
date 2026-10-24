@@ -200,6 +200,10 @@ def stress_pages():
     return [s1, s2, s3]
 
 
+# Project terms for this sample (subject-specific, so they live with the project, not in selector code).
+PROJECT_SIGNALS = {"matrix": [{"name": "症状×加重史", "patterns": ["(mMRC|CAT).{0,40}(加重|exacerbation)"], "weight": 1.0}]}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(ROOT / "factdeck/examples/copd_layout_sample/plan.json"))
@@ -208,7 +212,7 @@ def main() -> int:
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({"title": "COPD 教学样例（模板库样例内容拆页）", "note": DEMO,
-                               "pages": deck, "stress_pages": stress}, ensure_ascii=False, indent=1), encoding="utf-8")
+                               "layout_signals": PROJECT_SIGNALS, "pages": deck, "stress_pages": stress}, ensure_ascii=False, indent=1), encoding="utf-8")
     print(out, len(deck), "pages +", len(stress), "stress pages")
     return 0
 

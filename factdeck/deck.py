@@ -114,7 +114,9 @@ HERO_MAX_CHARS = 16        # a hero value is a short number or phrase; longer te
 SKIP = {"id", "layout", "widths", "edges", "outline_ids", "section_ids", "point_ids", "key_point_ids", "focus", "col", "row", "emphasis", "kind", "orientation",
         # composed-page geometry and styling (no shown text)
         "role", "tone", "peer", "align", "valign", "size", "weight", "radius", "round", "points", "from", "to", "backed_by",
-        "value_of", "scale", "design", "sep", "recipe", "group", "icon", "for", "encodes", "axis", "headline", "html", "css"}
+        "value_of", "scale", "design", "sep", "recipe", "group", "icon", "for", "encodes", "axis", "headline", "html", "css",
+        # template-library opt-in: {"layout": proposed selector layout id or null}; the selector decides (see below)
+        "template"}
 
 
 def walk(node, path=""):
@@ -380,6 +382,27 @@ def _outline_order(pages: list[dict], points: dict, unsupported: dict, parts: li
         lo_hi, n = pt.get("pages"), counts.get(pt["title"], 0)
         if lo_hi and not lo_hi[0] - 1 <= n <= lo_hi[1] + 1:
             result["warnings"].append(f"“{pt['title']}”共 {n} 页，提纲建议 {lo_hi[0]}–{lo_hi[1]} 页")
+
+
+def _template_layouts(pages: list[dict], deck: dict, facts: dict, result: dict, err) -> None:
+    """Template-library pages: the layout selector decides (factdeck/template_lib/integrate.py). A page opts in with
+    `"template": {"layout": <proposal or null>}`; the proposal is kept only when it is one of the selector's qualified
+    candidates for the page's own facts, otherwise the selector's choice replaces it (warning + recorded reason).
+    The decision (relation, signals, candidates, downgrades, Chinese reason) is returned in `template_layouts`."""
+    flagged = [p for p in pages if isinstance(p, dict) and "template" in p]
+    if not flagged:
+        return
+    for p in flagged:
+        t = p["template"]
+        if not isinstance(t, dict) or not set(t) <= {"layout"} or not (t.get("layout") is None or isinstance(t.get("layout"), str)):
+            err(f"{p.get('id')}：template 须写成 {{\"layout\": 版式编号或 null}}（内容仍只能引用事实）")
+            return
+    from .template_lib.integrate import deck_template_decisions
+    res = deck_template_decisions({"pages": flagged}, facts, extra_signals=deck.get("layout_signals"))
+    result["template_layouts"] = res
+    for pid, rec in res["pages"].items():
+        if (rec.get("proposal") or {}).get("status") == "overridden":
+            result["warnings"].append(f"{pid}：{rec['proposal']['reason_zh']}")
 
 
 RELATION_LAYOUTS = {"sequence": {"flow", "timeline"}, "branch": {"flow"}, "any_of": {"cards", "grid"}, "all_of": {"cards", "grid"},
@@ -699,6 +722,7 @@ def check(deck: dict, facts: dict[str, dict], terms: list[str] | tuple[str, ...]
         if abs(n - target) > max(2, target * 0.3):
             result["warnings"].append(f"页数 {n} 与需求 {target} 相差较大")
     result["warnings"] += monotony_warnings(pages)
+    _template_layouts(pages, deck, facts, result, err)
     result["coverage"] = coverage
     return result
 

@@ -27,6 +27,8 @@ import json
 import math
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
+from pathlib import Path
 from typing import Any, Callable
 
 # --------------------------------------------------------------------------- catalogue
@@ -103,20 +105,21 @@ def _p(*alts: str) -> str:
     return "(?:" + "|".join(alts) + ")"
 
 
-TEXT_SIGNALS: dict[str, list[Sig]] = {
+# Generic relation / statistics signals only.  Subject vocabulary (clinical-trial, biomedical, care-pathway
+# words) lives in config/layout_signals.json and is merged in by load_signals(); a project may add its own
+# terms through the plan's "layout_signals" (same shape).  Nothing disease-specific belongs in this file.
+GENERIC_SIGNALS: dict[str, list[Sig]] = {
     "conditional": [
         Sig("如果/若…则", _p(r"如果", r"若[^，。]{0,20}则", r"则", r"否则", r"是否"), 1.5),
         Sig("是/否分支", _p(r"(?<![a-zA-Z])是\s*[·:：]", r"否\s*[·:：]", r"\byes\b", r"\bno\b"), 1.0),
         Sig("if/then", _p(r"\bif\b", r"\bthen\b", r"\botherwise\b"), 1.5),
         Sig("阈值/cut-off", _p(r"阈值", r"cut-?off", r"threshold", r"临界"), 1.0),
         Sig("比较符号 ≥ < 阈值", r"[≥≤<>]\s*\d", 0.5),
-        Sig("确诊/诊断判定", _p(r"确诊", r"确认", r"疑诊", r"diagnos"), 0.5),
     ],
     "matrix": [
         Sig("矩阵/象限", _p(r"矩阵", r"象限", r"matrix", r"quadrant", r"grid"), 2.0),
         Sig("分组 A/B/E", _p(r"组别\s*[A-E]", r"[A-E]\s*组", r"group\s*[A-E]\b"), 1.5),
         Sig("× 交叉", _p(r"×", r"交叉", r"横轴", r"纵轴"), 1.0),
-        Sig("症状×加重史", r"(mMRC|CAT).{0,40}(加重|exacerbation)", 1.0),
     ],
     "dual_path": [
         Sig("双/两条路径", _p(r"双路径", r"两条路径", r"两种路径", r"dual[- ]path", r"two (?:routes|paths)"), 2.5),
@@ -125,13 +128,7 @@ TEXT_SIGNALS: dict[str, list[Sig]] = {
         Sig("升级/降阶梯", _p(r"升级", r"降阶梯", r"escalat", r"de-?escalat"), 0.5),
     ],
     "trial_setup": [
-        Sig("入组/纳入/排除", _p(r"入组", r"纳入", r"入选", r"排除标准", r"enrol", r"inclusion", r"eligib"), 1.5),
-        Sig("随机/双盲/安慰剂", _p(r"随机", r"双盲", r"安慰剂", r"randomi[sz]", r"double-blind", r"placebo"), 1.5),
-        Sig("n = / N 例", _p(r"\b[nN]\s*[=＝]\s*\d", r"\d+\s*例"), 1.0),
         Sig("第 N 周 / weeks", _p(r"第\s*[−-]?\d+\s*周", r"\d+\s*周", r"\bweeks?\s*\d+", r"\d+\s*weeks?"), 0.5),
-        Sig("终点", _p(r"终点", r"endpoint"), 0.5),
-        Sig("III 期/phase", _p(r"III\s*期", r"Ⅲ期", r"phase\s*(?:3|III)"), 1.0),
-        Sig("筛选/随访", _p(r"筛选", r"随访", r"screening", r"follow-?up"), 0.5),
     ],
     "effect_sizes": [
         Sig("HR/RR/OR", _p(r"\bHR\b", r"\bRR\b", r"\bOR\b", r"\bIRR\b", r"率比", r"风险比", r"比值比", r"hazard ratio", r"rate ratio"), 1.5),
@@ -143,19 +140,15 @@ TEXT_SIGNALS: dict[str, list[Sig]] = {
         Sig("vs/两组", _p(r"\bvs\.?\b", r"versus", r"两组", r"组间", r"对比", r"相比"), 1.0),
         Sig("差值/降低 N%", _p(r"差值", r"降低\s*\d", r"[−-]\s*\d+\s*%", r"改善", r"reduc", r"difference"), 1.0),
         Sig("P 值", r"\bP\s*[<=＜]\s*0?\.\d", 1.5),
-        Sig("主要/次要终点", _p(r"主要终点", r"次要终点", r"primary endpoint", r"secondary endpoint"), 1.0),
-        Sig("LS 均值/年化率", _p(r"LS\s*均值", r"年化", r"annuali[sz]ed", r"LS mean"), 0.5),
     ],
     "mechanism": [
         Sig("导致/引起/诱导", _p(r"导致", r"引起", r"诱导", r"促进", r"\bcaus", r"leads? to", r"induc"), 1.5),
-        Sig("激活/释放/介导", _p(r"激活", r"活化", r"释放", r"介导", r"activat", r"releas", r"mediat"), 1.5),
         Sig("通过…", r"通过[^，。]{1,20}(引起|导致|作用|激活|抑制)", 1.0),
         Sig("通路/机制/级联", _p(r"通路", r"机制", r"级联", r"pathway", r"mechanism", r"cascade"), 1.5),
-        Sig("阻断/抑制/靶点", _p(r"阻断", r"抑制", r"靶点", r"作用点", r"inhibit", r"block", r"target"), 1.0),
         Sig("箭头链 →", r"→[^→]+→", 0.5),
     ],
     "tabular": [
-        Sig("表/基线特征/不良事件", _p(r"^表", r"表\s*\d", r"基线特征", r"不良事件", r"baseline", r"\btable\b", r"adverse event"), 1.5),
+        Sig("表/table", _p(r"^表", r"表\s*\d", r"\btable\b"), 1.5),
         Sig("均值(SD)/n(%)", _p(r"均值", r"中位数", r"\bSD\b", r"IQR", r"n\s*[（(]\s*%"), 1.0),
     ],
     "landscape": [
@@ -182,11 +175,47 @@ TEXT_SIGNALS: dict[str, list[Sig]] = {
     ],
     "chronology": [
         Sig("日期/D0/W4", _p(r"\bD\d+\b", r"\bW\d+\b", r"第\s*\d+\s*天", r"\d{4}[./-]\d{1,2}", r"\d+\s*月\s*\d+\s*日"), 1.5),
-        Sig("病程/时间轴", _p(r"病程", r"时间轴", r"时间线", r"timeline", r"chronolog"), 1.5),
-        Sig("就诊/出院/随访", _p(r"就诊", r"入院", r"出院", r"复查", r"随访"), 0.5),
+        Sig("时间轴/时间线", _p(r"时间轴", r"时间线", r"timeline", r"chronolog"), 1.5),
     ],
     "points": [],
 }
+
+SIGNALS_CONFIG = Path(__file__).resolve().parents[2] / "config" / "layout_signals.json"
+
+
+def _sigs_from(spec: dict | None) -> dict[str, list[Sig]]:
+    """{relation: [{name, patterns|pattern, weight}]} → Sig lists (unknown relations are ignored)."""
+    out: dict[str, list[Sig]] = {}
+    for rel, items in (spec or {}).items():
+        if rel.startswith("_") or rel not in RELATIONS or not isinstance(items, list):
+            continue
+        for it in items:
+            pats = it.get("patterns") or ([it["pattern"]] if it.get("pattern") else [])
+            if pats:
+                out.setdefault(rel, []).append(Sig(str(it.get("name") or pats[0]), _p(*pats), float(it.get("weight", 1.0))))
+    return out
+
+
+@lru_cache(maxsize=4)
+def _config_signals(path: str) -> dict[str, list[Sig]]:
+    p = Path(path)
+    if not p.exists():
+        return {}
+    return _sigs_from(json.loads(p.read_text(encoding="utf-8")).get("signals"))
+
+
+def load_signals(extra: dict | None = None, *, config: Path | str | None = None) -> dict[str, list[Sig]]:
+    """Generic signals + subject pack (config/layout_signals.json, or FACTDECK_LAYOUT_SIGNALS) + project terms."""
+    import os
+    path = str(config or os.environ.get("FACTDECK_LAYOUT_SIGNALS") or SIGNALS_CONFIG)
+    merged = {k: list(v) for k, v in GENERIC_SIGNALS.items()}
+    for src in (_config_signals(path), _sigs_from(extra)):
+        for rel, sigs in src.items():
+            merged.setdefault(rel, []).extend(sigs)
+    return merged
+
+
+TEXT_SIGNALS = load_signals()   # default set (generic + subject pack); select_deck(signals=...) overrides
 
 _DIGIT = re.compile(r"\d")
 _CI_ROW = re.compile(r"(\d+(?:\.\d+)?)\s*[（(]\s*(?:95\s*%\s*CI\s*)?(\d+(?:\.\d+)?)\s*[–~-]\s*(\d+(?:\.\d+)?)\s*[)）]")
@@ -287,14 +316,15 @@ class RelationScore:
         return layout
 
 
-def classify(page: dict) -> list[RelationScore]:
+def classify(page: dict, signals: dict[str, list[Sig]] | None = None) -> list[RelationScore]:
     """Score every relation for one page; returns relations sorted by score (desc)."""
+    signals = TEXT_SIGNALS if signals is None else signals
     text = _text(page)
     struct = _structural(page)
     scores: list[RelationScore] = []
     for rel in RELATIONS:
         rs = RelationScore(rel, 0.0)
-        for sig in TEXT_SIGNALS.get(rel, []):
+        for sig in signals.get(rel, []):
             hits = re.findall(sig.pattern, text, flags=re.IGNORECASE | re.MULTILINE)
             if hits:
                 k = min(len(hits), 3)                 # repeated hits count, but saturate
@@ -578,12 +608,12 @@ def _summary(page: dict, n: int = 30) -> str:
     return t if len(t) <= n else t[: n - 1] + "…"
 
 
-def candidates_for(page: dict) -> tuple[list[RelationScore], list[dict], list[dict], list[dict]]:
+def candidates_for(page: dict, signals: dict[str, list[Sig]] | None = None) -> tuple[list[RelationScore], list[dict], list[dict], list[dict]]:
     """Classify, then qualify each relation's layout (walking the downgrade chain).
 
     Returns (relations, qualified candidates sorted by score, rejected candidates, downgrades).
     Downgrades are recorded for relations that carry real weight (≥ 2 and ≥ half the top score)."""
-    rels = classify(page)
+    rels = classify(page, signals)
     top = rels[0].score if rels else 0.0
     best: dict[str, dict] = {}
     rejected: dict[str, dict] = {}
@@ -630,8 +660,13 @@ def _deterministic(cands: list[dict], prev: str | None, chart_short: bool) -> di
 
 
 def select_deck(pages: list[dict], *, tiebreaker: TieBreaker | None = None,
-                chart_ratio: float = 1 / 3) -> dict:
-    """Select a layout for every page.  Returns {"decisions": [...], "stats": {...}}."""
+                chart_ratio: float = 1 / 3, signals: dict[str, list[Sig]] | None = None,
+                extra_signals: dict | None = None) -> dict:
+    """Select a layout for every page.  Returns {"decisions": [...], "stats": {...}}.
+
+    `extra_signals` = project terms ({relation: [{name, patterns, weight}]}) merged onto the default set."""
+    if signals is None and extra_signals:
+        signals = load_signals(extra_signals)
     decisions: list[Decision] = []
     pools: list[list[dict]] = []
     prev_layout: str | None = None
@@ -651,7 +686,7 @@ def select_deck(pages: list[dict], *, tiebreaker: TieBreaker | None = None,
             pools.append([])
             continue
         content_seen += 1
-        rels, cands, rejected, downs = candidates_for(page)
+        rels, cands, rejected, downs = candidates_for(page, signals)
         top_rel = rels[0]
         dec.relation, dec.relation_zh = top_rel.relation, RELATIONS[top_rel.relation][0]
         dec.signals = top_rel.signals

@@ -1,0 +1,31 @@
+{
+  "_comment": "Subject pack for the layout selector (factdeck/template_lib/selector.py): clinical-research / biomedical vocabulary that hints at a page's logical relation. The selector code itself only holds generic relation and statistics words. Replace or extend this file per subject (or point FACTDECK_LAYOUT_SIGNALS at another file); a project adds its own terms through the plan's \"layout_signals\" with the same shape. Signals only score candidate layouts; they never add content.",
+  "signals": {
+    "conditional": [
+      {"name": "确诊/诊断判定", "patterns": ["确诊", "确认", "疑诊", "diagnos"], "weight": 0.5}
+    ],
+    "trial_setup": [
+      {"name": "入组/纳入/排除", "patterns": ["入组", "纳入", "入选", "排除标准", "enrol", "inclusion", "eligib"], "weight": 1.5},
+      {"name": "随机/双盲/安慰剂", "patterns": ["随机", "双盲", "安慰剂", "randomi[sz]", "double-blind", "placebo"], "weight": 1.5},
+      {"name": "n = / N 例", "patterns": ["\\b[nN]\\s*[=＝]\\s*\\d", "\\d+\\s*例"], "weight": 1.0},
+      {"name": "终点", "patterns": ["终点", "endpoint"], "weight": 0.5},
+      {"name": "III 期/phase", "patterns": ["III\\s*期", "Ⅲ期", "phase\\s*(?:3|III)"], "weight": 1.0},
+      {"name": "筛选/随访", "patterns": ["筛选", "随访", "screening", "follow-?up"], "weight": 0.5}
+    ],
+    "arm_readout": [
+      {"name": "主要/次要终点", "patterns": ["主要终点", "次要终点", "primary endpoint", "secondary endpoint"], "weight": 1.0},
+      {"name": "LS 均值/年化率", "patterns": ["LS\\s*均值", "年化", "annuali[sz]ed", "LS mean"], "weight": 0.5}
+    ],
+    "mechanism": [
+      {"name": "激活/释放/介导", "patterns": ["激活", "活化", "释放", "介导", "activat", "releas", "mediat"], "weight": 1.5},
+      {"name": "阻断/抑制/靶点", "patterns": ["阻断", "抑制", "靶点", "作用点", "inhibit", "block", "target"], "weight": 1.0}
+    ],
+    "tabular": [
+      {"name": "基线特征/不良事件", "patterns": ["基线特征", "不良事件", "baseline", "adverse event"], "weight": 1.5}
+    ],
+    "chronology": [
+      {"name": "病程", "patterns": ["病程"], "weight": 1.5},
+      {"name": "就诊/出院/随访", "patterns": ["就诊", "入院", "出院", "复查", "随访"], "weight": 0.5}
+    ]
+  }
+}

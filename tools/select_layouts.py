@@ -160,8 +160,9 @@ def main() -> int:
         tb = S.env_llm_tiebreaker()
         mode = "llm" if tb else "deterministic（--llm 已请求，但未配置模型端点）"
 
-    deck = S.select_deck(plan["pages"], tiebreaker=tb)
-    stress = S.select_deck(plan.get("stress_pages") or [], tiebreaker=tb)
+    extra = plan.get("layout_signals")
+    deck = S.select_deck(plan["pages"], tiebreaker=tb, extra_signals=extra)
+    stress = S.select_deck(plan.get("stress_pages") or [], tiebreaker=tb, extra_signals=extra)
     abl = ablation(plan["pages"])
     agr = agreement(plan["pages"], deck)
     shots = render(plan["pages"], deck, out) if args.render else []

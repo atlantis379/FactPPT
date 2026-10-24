@@ -1,6 +1,17 @@
 {
  "title": "COPD 教学样例（模板库样例内容拆页）",
  "note": "示例数据，教学示意，非诊疗建议",
+ "layout_signals": {
+  "matrix": [
+   {
+    "name": "症状×加重史",
+    "patterns": [
+     "(mMRC|CAT).{0,40}(加重|exacerbation)"
+    ],
+    "weight": 1.0
+   }
+  ]
+ },
  "pages": [
   {
    "id": "cover",

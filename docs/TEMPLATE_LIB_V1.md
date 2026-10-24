@@ -226,3 +226,23 @@ consecutive content pages; chart pages ≥ 1/3 when qualified candidates allow; 
 .venv/bin/python tools/select_layouts.py --llm             # optional LLM tie-break (EASYPPT_SEMANTIC_MODEL_*)
 .venv/bin/python -m pytest tests/test_layout_selector.py -q
 ```
+
+## Selector in the generation flow (integration)
+
+`factdeck/template_lib/integrate.py` makes the selector the decider for template-library pages:
+
+- `decide(pages, tiebreaker=None, extra_signals=None)` runs `select_deck` and returns one decision per page
+  (layout, relation, matched signals, candidates with scores/qualification, downgrades, rhythm changes,
+  Chinese reason) plus `proposal` = `{proposed, status: none|exempt|kept|overridden, selector_choice,
+  qualified_candidates, reason_zh}`. A layout proposed by a worker/page plan (`proposed_layout`, or `layout`)
+  is **kept only when it is a qualified candidate** for the page's own content; otherwise the selector's
+  choice replaces it and the reason (missing minimum data / relation not present / unknown layout) is recorded.
+  Cover/section follow page kind. Stats are recomputed on the final layouts (`selector_only` keeps the raw ones).
+- FactDeck deck specs: a page opts in with `"template": {"layout": "<proposal>" | null}`. `factdeck.deck.check()`
+  then returns `template_layouts` (`pages` → full decision record, `stats`) and a warning per overridden proposal.
+  The selector input is built only from the page's own fact references and authored labels (fact-only rule unchanged).
+- Subject vocabulary is configuration, not code: `selector.GENERIC_SIGNALS` holds generic relation / statistics
+  words; `config/layout_signals.json` (or `FACTDECK_LAYOUT_SIGNALS`) adds a subject pack (current: clinical /
+  biomedical); a plan or deck may add project terms under `layout_signals` (same JSON shape:
+  `{relation: [{name, patterns, weight}]}`). The COPD sample adds its own `mMRC/CAT × 加重` matrix term this way.
+- The LLM tie-break stays off unless a tie-breaker is passed (`--llm`).
