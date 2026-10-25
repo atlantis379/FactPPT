@@ -44,6 +44,7 @@ LAYOUTS = {
     "chart": ({"title", "chart"}, {"side": (0, 3)}),
     "composed": ({"title", "blocks"}, {"blocks": (1, 160)}),
     "free": ({"title", "html"}, {}),
+    "template": ({"title", "template"}, {}),     # template library page: bound fill(s), see template_lib/bind.py
 }
 MAX_FIGURES_PER_PAGE = 2
 F = lambda i: {"fact": i}          # noqa: E731  (placeholder ids in the examples below)
@@ -107,6 +108,16 @@ LAYOUT_GUIDE = {
              {"design": {"first": "核心句", "then": "两条通路", "reference": "出处", "strong": "核心句"},
               "html": '<div data-shape data-t style="position:absolute;left:0;top:0;width:560px;padding:20px;background:var(--sky)">'
                       '<span data-fact="s1"></span></div>'}),
+    "template": ("模板库页（主线）：从固定版式库选一个版式（template.layout，可用编号见 factdeck/template_lib/selector.py），"
+                 "按该版式的槽位写 template.fill；可另给 template.fills {版式编号: 填充} 供选择器降级时使用。"
+                 "选择器决定最终版式，填充写的版式不被接受时本页被拒。填充里每个显示文字是 {\"fact\": 编号} 或 {\"text\": 作者标签}；"
+                 "图上画的数值（柱高、点估计、CI、周数）须出现在本填充显示的事实中；页码、图号、数据说明、来源、证据号、摘录由代码写入，不要写。"
+                 "页面标题即 title，填充中不再写",
+                 {"template": {"layout": "key_points", "fill": {
+                     "section": T("诊断"),
+                     "items": [{"heading": F("k1.h"), "body": F("k1.b")}, {"heading": F("k2.h"), "body": F("k2.b")},
+                               {"heading": F("k3.h"), "body": F("k3.b")}],
+                     "takeaway": F("k.core")}}}),
 }
 del F, T
 EDGE_LABEL_MAX = 5           # an arrow label sits in the gap between two boxes
@@ -295,6 +306,17 @@ def _structure(page: dict) -> list[str]:
         errors += compose.structure_errors(page)
     if layout == "free":
         errors += free.structure_errors(page)
+    if layout == "template":
+        from .template_lib.integrate import template_fills
+        from .template_lib.selector import LAYOUTS as TEMPLATE_LAYOUTS
+        t = page.get("template")
+        if not isinstance(t, dict) or not set(t) <= {"layout", "fill", "fills", "kind"}:
+            errors.append("template 须写成 {\"layout\": 版式编号, \"fill\": 填充}（或 \"fills\": {版式编号: 填充}）")
+        elif not template_fills(page):
+            errors.append("模板页须给出填充：template.fill（配合 template.layout）或 template.fills")
+        else:
+            errors += [f"template：未知模板版式 {k}（可用：{'、'.join(TEMPLATE_LAYOUTS)}）"
+                       for k in template_fills(page) if k not in TEMPLATE_LAYOUTS]
     if layout == "compare":
         for i, pn in enumerate(page.get("panels") or []):
             if not isinstance(pn, dict):
@@ -336,6 +358,14 @@ def _structure(page: dict) -> list[str]:
 
 
 NON_CONTENT = {"cover", "divider", "agenda"}
+TEMPLATE_KINDS = {"cover": "cover", "section": "divider"}
+
+
+def page_layout(p: dict) -> str | None:
+    """The page's role for deck rules: a template cover / section page counts as `cover` / `divider`."""
+    if p.get("layout") == "template" and isinstance(p.get("template"), dict):
+        return TEMPLATE_KINDS.get(p["template"].get("kind"), "template")
+    return p.get("layout")
 
 
 def _outline_order(pages: list[dict], points: dict, unsupported: dict, parts: list[dict], result: dict, err) -> None:
@@ -346,10 +376,10 @@ def _outline_order(pages: list[dict], points: dict, unsupported: dict, parts: li
     counts: dict[str, int] = {}
     pending_dividers = 0
     for p in pages:
-        if p.get("layout") == "divider":
+        if page_layout(p) == "divider":
             pending_dividers += 1
             continue
-        if p.get("layout") in NON_CONTENT:
+        if page_layout(p) in NON_CONTENT:
             continue
         ids = p.get("point_ids") or []
         if not ids:
@@ -384,6 +414,33 @@ def _outline_order(pages: list[dict], points: dict, unsupported: dict, parts: li
             result["warnings"].append(f"“{pt['title']}”共 {n} 页，提纲建议 {lo_hi[0]}–{lo_hi[1]} 页")
 
 
+def context_errors(used, facts: dict) -> list[str]:
+    """What the facts shown on one page leave out and the page must state once elsewhere."""
+    errors = []
+    # a label cut off an excerpt ("中国：2017" shown as "2017") must be stated once elsewhere on the page
+    page_text = {x: canon(facts[x].get("display") or facts[x].get("quote") or "") for x in set(used) if x in facts}
+    for x in sorted(set(used)):
+        for label in (facts.get(x) or {}).get("scope") or []:
+            if not any(canon(label) in t for y, t in page_text.items() if y != x):
+                errors.append(f"{x} 的显示文字删去了范围标签“{label}”，本页须另有事实写明它（整组只写一次）")
+    # so must a clause of the source sentence that sets what the shown text holds for (a study, population, time,
+    # place, comparator, condition or a number) when the page leaves it out
+    sentences: dict[str, dict] = {}
+    for x in sorted(set(used)):
+        c = (facts.get(x) or {}).get("context") or {}
+        if c.get("key"):
+            g = sentences.setdefault(c["key"], {"sentence": c["sentence"], "covered": [], "facts": []})
+            g["covered"] += c["covered"]
+            g["facts"].append(x)
+    texts = list(page_text.values())
+    for g in sentences.values():
+        missing = [cl for cl in missing_context(g["sentence"], g["covered"]) if not context_stated(cl, texts)]
+        if missing:
+            errors.append(f"{'、'.join(g['facts'])} 所在原句中限定它的“{'”“'.join(missing)}”没有上页（研究、人群、时间、地点、比较对象、条件或数字）："
+                          "本页须另有事实写明（整组只写一次），或把它纳入引文")
+    return errors
+
+
 def _template_layouts(pages: list[dict], deck: dict, facts: dict, result: dict, err) -> None:
     """Template-library pages: the layout selector decides (factdeck/template_lib/integrate.py). A page opts in with
     `"template": {"layout": <proposal or null>}`; the proposal is kept only when it is one of the selector's qualified
@@ -392,8 +449,17 @@ def _template_layouts(pages: list[dict], deck: dict, facts: dict, result: dict, 
     flagged = [p for p in pages if isinstance(p, dict) and "template" in p]
     if not flagged:
         return
+    tpl = [p.get("id") for p in pages if isinstance(p, dict) and p.get("layout") == "template"]
+    if tpl and len(tpl) != len(pages):           # one renderer per deck: the template library, or the earlier one
+        err(f"模板页与其他版式不能混排：除 {len(tpl)} 个模板页外还有 "
+            f"{'、'.join(str(p.get('id')) for p in pages if isinstance(p, dict) and p.get('layout') != 'template')}"
+            "（封面、章节页请写成 template.kind 为 cover / section 的模板页）")
     for p in flagged:
         t = p["template"]
+        if p.get("layout") == "template":
+            if any(e for e in _structure(p)):
+                return                                            # reported on the page
+            continue
         if not isinstance(t, dict) or not set(t) <= {"layout"} or not (t.get("layout") is None or isinstance(t.get("layout"), str)):
             err(f"{p.get('id')}：template 须写成 {{\"layout\": 版式编号或 null}}（内容仍只能引用事实）")
             return
@@ -401,6 +467,15 @@ def _template_layouts(pages: list[dict], deck: dict, facts: dict, result: dict, 
     res = deck_template_decisions({"pages": flagged}, facts, extra_signals=deck.get("layout_signals"))
     result["template_layouts"] = res
     for pid, rec in res["pages"].items():
+        if "rendered_layout" in rec and rec["rendered_layout"] is None:
+            err(f"{pid}：选择器为本页选了{rec['name_zh']}（{rec['reason_zh']}），"
+                f"但没有可用的填充：{rec['fill_fallback']}。请按{rec['name_zh']}补写 template.fills，内容仍只引用事实")
+        elif rec.get("fill_fallback"):
+            result["warnings"].append(f"{pid}：{rec['fill_fallback']}")
+        page = next(p for p in flagged if p.get("id") == pid)
+        items = ((page.get("template") or {}).get("fill") or {}).get("items") if page.get("layout") == "template" else None
+        if rec.get("rendered_layout") == "key_points" and isinstance(items, list) and len(items) == 1:
+            result["warnings"].append(f"{pid}：要点卡片只有 1 条，整页会显得空：并入相邻页，或把这一条拆成 2–4 个要点")
         if (rec.get("proposal") or {}).get("status") == "overridden":
             result["warnings"].append(f"{pid}：{rec['proposal']['reason_zh']}")
 
@@ -432,7 +507,7 @@ def _message_checks(pages: list[dict], checked: list[dict], sections: list[dict]
     for p, c in zip(pages, checked):
         shown_units.append({facts[x].get("unit") for x in c["facts"] + c["edge_facts"] if x in facts})
     for p, c, units in zip(pages, checked, shown_units):
-        if p.get("layout") in NON_CONTENT or p.get("layout") == "closing":
+        if page_layout(p) in NON_CONTENT or p.get("layout") == "closing":
             continue
         own = [msgs[x] for x in sorted(chapters(p))]
         if not own:
@@ -519,6 +594,20 @@ def check(deck: dict, facts: dict[str, dict], terms: list[str] | tuple[str, ...]
                     shown = [value] + (list(f.get("caption") or []) if slot else [])
                     used += shown
                     pending += [x for x in shown if facts[x]["needs_confirmation"]]
+        if page.get("layout") == "template" and not errors:
+            from .template_lib import integrate as tpl, slots as template_slots
+            from .template_lib.selector import LAYOUTS as TEMPLATE_LAYOUTS
+            for lay in tpl.template_fills(page):                  # every fill the page may render, bound and checked
+                r = tpl.bind_template_page({**page, "title": None}, facts, lay, glossary=glossary, terms=terms,
+                                           page_checks=False)
+                errors += [f"template[{lay}]：{e}" for e in r["errors"]]
+                if not r["errors"]:                               # the slot contract of the layout it is written for
+                    fam, var = TEMPLATE_LAYOUTS[lay][0], TEMPLATE_LAYOUTS[lay][1]
+                    rep = template_slots.validate_fill(fam, {"title": "标题", **r["fill"], "page": "01"}, variant=var)
+                    errors += [f"template[{lay}]：填充不符合版式：{e}" for e in rep["errors"]]
+                result["warnings"] += [f"{page.get('id')}：template[{lay}]：{w}" for w in r["warnings"]]
+                used += r["facts"]
+                pending += r["pending"]
         shown_figs = sorted({x for x in used if facts[x].get("figure")})
         if len(shown_figs) > MAX_FIGURES_PER_PAGE:
             errors.append(f"一页至多放 {MAX_FIGURES_PER_PAGE} 张原件图，当前 {len(shown_figs)} 张（请拆页）")
@@ -652,28 +741,8 @@ def check(deck: dict, facts: dict[str, dict], terms: list[str] | tuple[str, ...]
             text = (facts.get(ref.get("fact")) or {}).get("display") or (facts.get(ref.get("fact")) or {}).get("quote") or ""
             if re.match(r"\s*[A-Za-z][\w₀-₉\-/]*\s*[：:]", text) and re.search(r"[；;]", text):
                 result["warnings"].append(f"{page.get('id')}：强调条里是缩写注释，应放 footnote（页脚注释）")
-        # a label cut off an excerpt ("中国：2017" shown as "2017") must be stated once elsewhere on the page
-        page_text = {x: canon(facts[x].get("display") or facts[x].get("quote") or "") for x in set(used) if x in facts}
-        for x in sorted(set(used)):
-            for label in (facts.get(x) or {}).get("scope") or []:
-                if not any(canon(label) in t for y, t in page_text.items() if y != x):
-                    errors.append(f"{x} 的显示文字删去了范围标签“{label}”，本页须另有事实写明它（整组只写一次）")
-        # so must a clause of the source sentence that sets what the shown text holds for (a study, population, time,
-        # place, comparator, condition or a number) when the page leaves it out
-        sentences: dict[str, dict] = {}
-        for x in sorted(set(used)):
-            c = (facts.get(x) or {}).get("context") or {}
-            if c.get("key"):
-                g = sentences.setdefault(c["key"], {"sentence": c["sentence"], "covered": [], "facts": []})
-                g["covered"] += c["covered"]
-                g["facts"].append(x)
-        texts = list(page_text.values())
-        for g in sentences.values():
-            missing = [cl for cl in missing_context(g["sentence"], g["covered"]) if not context_stated(cl, texts)]
-            if missing:
-                errors.append(f"{'、'.join(g['facts'])} 所在原句中限定它的“{'”“'.join(missing)}”没有上页（研究、人群、时间、地点、比较对象、条件或数字）："
-                              "本页须另有事实写明（整组只写一次），或把它纳入引文")
-        if page.get("layout") not in {"cover", "divider", "closing", "agenda"} and not used:
+        errors += context_errors(used, facts)
+        if page_layout(page) not in {"cover", "divider", "closing", "agenda"} and not used:
             errors.append("内容页至少要引用一条事实")
         result["pages"].append({"id": page.get("id"), "facts": sorted(set(used)), "edge_facts": sorted(set(edge_facts)),
                                 "pending": sorted(set(pending)), "errors": errors, "review": review, "signals": signals,
@@ -745,7 +814,7 @@ def _key_point_coverage(pages: list[dict], key_points: dict[str, str], coverage:
     (a dense point may span several); support points not shown are carried by the speaker notes."""
     where = {k: [] for k in key_points}
     for p in pages:
-        if p.get("layout") in NON_CONTENT or p.get("layout") == "closing":
+        if page_layout(p) in NON_CONTENT or p.get("layout") == "closing":
             continue
         ids = p.get("key_point_ids")
         if not isinstance(ids, list) or not ids:
@@ -802,7 +871,7 @@ SAME_RUN = 2                 # more than this many consecutive pages with one co
 def monotony_warnings(pages: list[dict]) -> list[str]:
     """Advisory only: long runs of lists, statements and tables usually mean structure was left unused,
     and a deck that is mostly text pages has no page that leads the eye."""
-    content = [p for p in pages if p.get("layout") not in {"cover", "divider", "closing", "agenda"}]
+    content = [p for p in pages if page_layout(p) not in {"cover", "divider", "closing", "agenda"}]
     out, run = [], []
     for p in content + [{}]:
         if p.get("layout") in PLAIN_LAYOUTS:

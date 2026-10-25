@@ -25,7 +25,8 @@
 - [ ] 原生可编辑：文字、表格、图表、连接线在 PowerPoint 中可直接编辑，不是整页图片或嵌入 SVG。
 - [ ] 选版式：COPD 样例中每页选择与人工判断一致（当前 18/19，唯一不同为节奏规则所致）；数据不足时正确降级且不改动输入数据；相邻内容页不重复；图表页 ≥ 1/3（可用合格候选时）；每页有中文理由。
 - [ ] 版式质量：每个版式在 Playwright 测量中无溢出、无重叠；示例数据页标注“示例数据，教学示意，非诊疗建议”，真实试验名不与虚构数字同页出现。
-- [ ] 回归：`tests/test_layout_selector.py`、`test_template_lib_v1`、`test_template_lib_pharma` 全部通过；全量测试失败数不高于基线（`miso/pharma-layouts` 为 62 个已知失败）。
+- [ ] 回归：`tests/test_layout_selector.py`、`test_template_lib_v1`、`test_template_lib_pharma` 全部通过；全量测试失败数不高于基线（`miso/pharma-layouts` 为 62 个已知失败；2026-10-25 在本机装好 Playwright Chromium
+  后为 22 个，均为缺少的旧夹具/资产文件；测试不得写真实的 `data/job_stats.sqlite`，见 `tests/conftest.py`）。
 - [ ] 可观测性：每次生成输出总耗时、各阶段耗时和 token 用量。
 
 性能与成本（目标值待用户确认，先以可观测性数据建立基线）：
@@ -36,16 +37,32 @@
 - [ ] 医生试用后的反馈中，视觉被评价为“可以直接拿去讲”。
 
 ### 尚未完成（2026-10-25 更新，分支 `miso/integration`）
-- 选版式已接入两处：模板库整份生成（`template_lib/pipeline.py`、`tools/template_deck.py`）和 `factdeck/deck.py`
-  （页面写 `"template": {"layout": …}` 时由选择器决定并记录理由）。但 `/api/deck` 主线的 DECK 任务 brief 还没要求
-  执行端写 `template` 字段，RENDER 仍走 `factdeck.render`；模板库页面还不是主线默认产出。
+- 优先级 ② 已完成（2026-10-25，记录见 `docs/TEMPLATE_MAINLINE_RUN_2026-10-25.md`）：新项目默认
+  `generation_route: TEMPLATE_LIB`；DECK brief 下发 `template_library`，要求每页写模板页；RENDER 与 `generate` 走
+  `template_lib/render_deck.py`（原生 PPTX + trace.md，交付包含溯源报告）。已有项目保持原路线。全流程测试为
+  `tests/test_template_mainline.py`。**尚未用真实资料和真实执行端跑过模板路线**。
 - 原生 PPTX：模板库页面已输出原生对象（文本框、原生表格、形状/连接线、图表为形状，0 图片、0 嵌入 SVG）。
-  只用 LibreOffice 渲染核对过，**尚未在 PowerPoint / WPS 中人工打开核对**；渐变（预混合）、局部圆角、
-  小阴影、上标为近似处理。
-- 溯源：模板页的填充内容（plan 的 `fills`）是示例数据，尚未与事实库逐字绑定，模板页也还没有溯源报告。
+  渲染时自动用 PowerPoint（本机 Office 365，COM 导出）比对画面：测试 deck 9 页差异均 ≤ 0.016。WPS 尚未核对；
+  渐变（预混合）、局部圆角、小阴影、上标为近似处理。
+- 溯源（2026-10-25 已做第一步）：模板页填充可绑定事实库（`template_lib/bind.py`；deck 页 `layout: "template"`），
+  显示文字只引用事实或受检标签，图上数值须由本页事实支撑，页脚来源/证据号由代码写入；`pipeline.run(facts=…)`
+  输出覆盖每页的 `trace.md` / `trace.json` 和备注里的【溯源】行。未做：还没有用真实项目的事实库跑过；
+  模板页暂不支持强调片段；COPD 样例 plan 仍是未绑定的示例数据。
 - 可观测性：模板库生成、语义模型调用、选版式 tie-break 已记录耗时与 token（只取接口返回值）；执行端
   （Codex worker）任务只能记次数和墙钟时间，token 未知。尚未用真实模型跑出 20 页汇报的耗时/token 基线。
 - 大模型 tie-break 未在真实接口上验证；规则权重只在 COPD 样例上手工调过。
+
+### 决策记录（2026-10-25，用户已确认）
+- **停用路线 A**（整页设计图 → 去字 → 矢量化 → 原生化，VISUAL_DESIGN / VISUAL_LAYOUT / VISUAL_CLEAN / VISUAL_VECTOR /
+  VISUAL_BLIND_READ）。原因：逐页设计的耗时与成本随页数线性增长且常返工（batch01 实测约 820 秒/页），无法商业化定价。
+  代码保留，不再投入，不再为新项目排这些任务。
+- **主线不留逐页自由设计的后门**：模板页不回退到 `composed` / `free`。版式不合格就沿降级链降到要点卡或数据表；
+  确有内容装不进现有版式时，新增一个版式（一次投入，全体复用），而不是给那一页单独设计。
+- **视觉问题改模板解决**：医生反馈视觉不够时，改模板库，不回到逐页设计。
+- **溯源是换路线的前提**：模板页的每个显示文字都来自事实引用或受检的作者标签，图上每个数值都能在本页事实中找到；
+  代码出溯源报告。做不到这一点，模板页不能进入主线。
+- 剩余 4 周优先级：① 模板 fills 绑定事实库并出溯源报告 → ② `/api/deck` 默认走模板库 → ③ 用真实中文材料跑 20 页
+  建立耗时/token 基线 → ④ PowerPoint / WPS 人工核对 → ⑤ 最晚第 4 周开始医生试用。医生反馈前不新增版式。
 
 Read `docs/FACTPPTV2.md` before processing a project. This repository is independent
 of the migration source. All runtime paths resolve from this repository root.
@@ -54,11 +71,10 @@ The mainline is **FactDeck** (`factdeck.v1`, `/api/deck`): sources → summary �
 store → deck spec → code-rendered native PPTX. The earlier full-slide image workflow
 (`57098-full-slide.v1`, `/api/fact`) is kept for existing projects only.
 
-The user selected visual route **A with native vectors** on 2026-10-01:
-locked content/design → full design image with text → remove text → vectorize
-artwork → native PPT shapes → locked native text/tables/data/connectors.
-Read `docs/PPT_GENERATION_ROUTE.md` and its decision record. This is the selected
-visual direction; the production API has not yet integrated these tool stages.
+**Superseded 2026-10-25** (see 决策记录 above): visual route A with native vectors, selected
+on 2026-10-01 (design image → remove text → vectorize → native shapes, `docs/PPT_GENERATION_ROUTE.md`),
+is stopped. The visual mainline is the fixed template library (`factdeck/template_lib/`). Route A
+code and existing projects remain readable; do not queue its tasks for new work.
 
 ## Worker collaboration (mainline)
 
@@ -89,6 +105,13 @@ visual direction; the production API has not yet integrated these tool stages.
   derivations, each one used on a page. Authored text (titles, leads, labels)
   organises and names; it carries no numbers, comparisons, drug/entity names or
   evaluative wording. Mark each content page's `focus` from the item's core or relations.
+  Template pages (mainline): write `"template": {"layout": <proposal or null>, "fill": {…}}`. The
+  layout selector decides the layout; a fill written for a layout the selector does not accept is
+  refused. Every shown string in the fill is `{"fact": id}` or `{"text": authored label}` (same
+  gate as other pages); every drawn number (bar values, estimates, CIs, weeks) must appear in a fact
+  shown in the same fill; page number, figure number, data note and the source footer are written by
+  code (`factdeck/template_lib/bind.py`). Do not write `composed` / `free` pages for new work.
+  The rest of this item applies to non-template pages of existing projects:
   Choose layouts by content shape (flow/cards/compare/timeline/
   grid before bullets). Follow the project requirements; split dense pages.
   One page, one design solution: write each content page's `design` note first (what is seen
@@ -122,14 +145,15 @@ visual direction; the production API has not yet integrated these tool stages.
   Carried verdicts stay their original reviewer's, so whoever holds one checklist's verdicts is not
   given the other; items with unresolved issues are never carried.
   SUMMARY_REVIEW judges every point ENTAILED / PARTIAL / NOT_ENTAILED / CONTRADICTED. Report problems honestly; never approve medical text.
-- Route A may generate full-slide design references with text to establish the
+- Route A (stopped 2026-10-25; existing projects only — the next two items):
+  Route A may generate full-slide design references with text to establish the
   visual design. Generated text, numbers and medical relationships are not content
   authority. Remove design text, trace the actual artwork into native editable paths,
   group components, and fill native text/tables/data/connectors from locked facts.
   Do not substitute an embedded SVG or a whole-slide bitmap for native geometry.
   Partial texture loss is accepted. Use the current muted blue-gray palette as a
   starting point. Original source figures still follow `docs/FIGURE_REFERENCE.md`.
-- Route A is the default production mainline. Start/resume with `generate`;
+- Route A was the default production mainline until 2026-10-25. Start/resume with `generate`;
   the application queues VISUAL_DESIGN → VISUAL_LAYOUT → VISUAL_CLEAN → VISUAL_VECTOR.
   Use the existing Codex + Adobe execution endpoint, submit actual PNG/SVG with
   `asset` and the exact receipt contract, and layout JSON with `complete`.

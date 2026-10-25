@@ -23,6 +23,7 @@ import json
 
 from app import review_ledger as ledger
 from app.fact57098 import digest, now, require
+from factdeck.deck import page_layout
 
 CHECKS = ("COVERAGE", "RELATIONS")
 CHECK_NAMES = {"COVERAGE": "覆盖/逐字检查", "RELATIONS": "语义/关系检查"}
@@ -244,10 +245,15 @@ def relations(w: dict, ctx: dict) -> list[dict]:
             if b.get("kind") == "arrow":
                 out.append({"relation_id": f"{page['id']}.arrow.{b.get('from')}->{b.get('to')}", "kind": "arrow",
                             "presented_on": [page["id"]], "from": b.get("from"), "to": b.get("to"), "backed_by": b.get("backed_by")})
-        if page.get("layout") not in NO_STRUCTURE and len(view["facts"]) >= 2:
+        if page_layout(page) not in NO_STRUCTURE and len(view["facts"]) >= 2:
             peers = sorted({b.get("peer") for b in page.get("blocks") or [] if b.get("peer")})
+            decided = ((ctx["chk"].get("template_layouts") or {}).get("pages") or {}).get(page["id"]) or {}
             out.append({"relation_id": f"{page['id']}.structure", "kind": "grouping", "presented_on": [page["id"]],
                         "layout": page.get("layout"), **({"peers": peers} if peers else {}),
+                        # template page: the layout the selector decided and why (a chart puts values on one scale)
+                        **({"template_layout": decided.get("rendered_layout") or decided.get("layout"),
+                            "template_layout_zh": decided.get("name_zh"), "is_chart": decided.get("is_chart"),
+                            "layout_reason": decided.get("reason_zh")} if decided else {}),
                         "question": "页面的分组、并列、顺序与视觉层级是否制造了原文没有的合取、择一、比较、因果或先后"})
     return out
 

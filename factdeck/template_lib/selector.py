@@ -54,6 +54,27 @@ LAYOUTS: dict[str, tuple[str, str | None, str, bool]] = {
     "key_points": ("key_points", None, "要点卡片", False),
 }
 CHART_LAYOUTS = {k for k, v in LAYOUTS.items() if v[3]}
+
+_RAIL = "；右栏 3–4 条数字开头的要点（takeaways）"
+# What requirement_gap checks, said once for the DECK worker's brief (keep the two in step).
+REQUIRES_ZH: dict[str, str] = {
+    "algorithm_tree": "至少 1 个判定条件，同时有条件、“是”去向和“否”去向",
+    "assessment_matrix": "2 个轴、每轴 ≥2 个分层，≥3 格结论",
+    "dual_path_tree": "恰好 2 条路径，每条 ≥2 步",
+    "trial_design": "2–3 个治疗臂、各臂 n 或治疗时长、≥3 个时间点" + _RAIL,
+    "forest_plot": "≥3 行带 95% CI 的效应量（0 < 下限 ≤ 估计值 ≤ 上限）" + _RAIL,
+    "endpoint_readout/bar": "两组（臂）各自的数值、个数与类别一致、统计框（差值/95% CI/P 值）" + _RAIL,
+    "endpoint_readout/line": "同柱图，另需 ≥3 个数值型时间点" + _RAIL,
+    "moa_cascade": "3–6 级机制链" + _RAIL,
+    "data_table_highlight": "1–4 个数据列（不要用空列凑数）、3–18 行（rows[].cells 每列一格，按列序）、至多 1 行高亮；右栏可不写"
+                            "（写则 3–4 条数字开头的要点），不写时表格占满正文、文字单元格自动换行",
+    "landscape_swimlane": "≥3 项带起止年份和状态（达到/未达到/进行中）的研究/药物，2–6 个分组" + _RAIL,
+    "key_points/evidence_takeaways": "3–4 条数字开头的结论，每条带逐字摘录",
+    "comparison": "A/B 两侧各 1–8 条（或 rows 写成两列对照表）",
+    "flow": "3–6 个步骤",
+    "timeline": "4–6 个带时间标签的节点",
+    "key_points": "1–6 条要点（1 条会提示并入相邻页）；每张卡片的 heading 是这张卡片自己的名称，同页卡片不得同名",
+}
 EXEMPT_KINDS = {"cover", "section"}
 
 # relation id → (中文名, preferred layout)
@@ -389,15 +410,15 @@ def requirement_gap(layout: str, page: dict) -> str | None:
     if layout == "data_table_highlight":
         t = d.get("table") or {}
         rows, cols = t.get("rows") or [], t.get("columns") or []
-        if not 2 <= len(cols) <= 4:
-            return f"数据表需要 2–4 个数据列（现有 {len(cols)} 列）"
-        if len(rows) < 12:
-            return f"数据表需要 ≥12 行（模板契约 12–18 行，现有 {len(rows)} 行）"
+        if not 1 <= len(cols) <= 4:
+            return f"数据表需要 1–4 个数据列（现有 {len(cols)} 列）"
+        if len(rows) < 3:
+            return f"数据表需要 ≥3 行（模板契约 3–18 行，现有 {len(rows)} 行）"
         if len(rows) > 18:
             return f"数据表超过 18 行（{len(rows)} 行），需拆页"
-        if sum(bool(r.get("highlight")) for r in rows) != 1:
-            return "数据表须恰好标出 1 行重点（源文档未指明时不替用户挑选）"
-        return _takeaway_rail(d)
+        if sum(bool(r.get("highlight")) for r in rows) > 1:
+            return "数据表至多标出 1 行重点（源文档未指明时不标）"
+        return _takeaway_rail(d) if d.get("takeaways") else None
     if layout.startswith("endpoint_readout"):
         series = [s for s in d.get("series") or [] if _n(s.get("values"))]
         if len(series) < 2:

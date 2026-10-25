@@ -489,8 +489,10 @@ def _table(fill: dict) -> dict[str, Any]:
                      "cells": [_s(c) for c in r.get("cells") or []],
                      "highlight": bool(r.get("highlight")), "zebra": kind == "row" and z % 2 == 0,
                      "mark": _s(r.get("mark"))})
+    # wording cells (a teaching table: target, dosing, indication) wrap and align left; numbers stay right-aligned
+    text_cells = any(re.search(r"[一-鿿]", c) or len(c) > 14 for r in rows for c in r["cells"])
     return {"columns": cols, "rows": rows, "stub_head": _s(fill.get("stub_head")) or "特征",
-            "footnotes": [_s(x) for x in fill.get("footnotes") or []]}
+            "footnotes": [_s(x) for x in fill.get("footnotes") or []], "text_cells": text_cells}
 
 
 # --------------------------------------------------------------------------- 6 swimlane
@@ -612,7 +614,9 @@ def validate(family: str, fill: dict, errors: list[str], warnings: list[str],
         return
 
     tks = _takeaways(fill.get("takeaways"))
-    if not 3 <= len(tks) <= 4:
+    if family == "data_table_highlight" and not tks:
+        pass                                      # no rail: the table takes the full body width
+    elif not 3 <= len(tks) <= 4:
         errors.append(f"takeaways：需要 3–4 条数字化要点，收到 {len(tks)} 条")
     for i, t in enumerate(tks):
         if not _has_digit(t["value"]):
@@ -692,15 +696,15 @@ def validate(family: str, fill: dict, errors: list[str], warnings: list[str],
             cols = fill.get("columns") or []
             rows = fill.get("rows") or []
             body = [r for r in rows if _s(r.get("kind")) != "group"]
-            if not 12 <= len(rows) <= 18:
-                errors.append(f"rows：需要 12–18 行，收到 {len(rows)} 行")
-            if not 2 <= len(cols) <= 4:
-                errors.append("columns：2–4 个数据列")
+            if not 3 <= len(rows) <= 18:
+                errors.append(f"rows：需要 3–18 行，收到 {len(rows)} 行")
+            if not 1 <= len(cols) <= 4:
+                errors.append("columns：1–4 个数据列")
             for i, r in enumerate(body):
                 if len(r.get("cells") or []) != len(cols):
                     errors.append(f"rows[{r.get('label')}]：单元格数 ≠ 列数 {len(cols)}")
-            if sum(bool(r.get("highlight")) for r in rows) != 1:
-                errors.append("rows：须且仅须高亮 1 行")
+            if sum(bool(r.get("highlight")) for r in rows) > 1:
+                errors.append("rows：至多高亮 1 行")
         elif family == "landscape_swimlane":
             y0, y1 = _f(fill.get("year_start")), _f(fill.get("year_end"))
             if y1 <= y0:

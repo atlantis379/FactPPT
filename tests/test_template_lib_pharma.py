@@ -215,8 +215,9 @@ def test_data_table_dense_one_highlight():
 
 
 @pytest.mark.parametrize("mutate,needle", [
-    (lambda f: f.update(rows=f["rows"][:8]), "12–18"),
-    (lambda f: f["rows"][2].update(highlight=True), "仅须高亮 1 行"),
+    (lambda f: f.update(rows=f["rows"][:2]), "3–18"),
+    (lambda f: f["rows"][2].update(highlight=True), "至多高亮 1 行"),
+    (lambda f: f.update(takeaways=f["takeaways"][:1]), "3–4 条"),     # a rail, when written, is 3–4 number-led
     (lambda f: f["rows"][1].update(cells=["1", "2"]), "单元格数"),
 ])
 def test_data_table_rejects(mutate, needle):

@@ -962,6 +962,7 @@
       "variants": ["arms_total"],
       "html": "data_table_highlight.html.j2",
       "capacity": {"arms_total": 18},
+      "min_rows": 3,
       "slots": {
         "section": {"required": false, "max_chars": 32, "font_steps_pt": [11], "overflow": "ellipsis"},
         "title": {"required": true, "max_chars": 40, "font_steps_pt": [19, 18, 17], "overflow": "shrink_then_ellipsis", "max_lines": 1},
@@ -973,10 +974,10 @@
         "source": {"required": false, "max_chars": 80, "font_steps_pt": [8.5], "overflow": "ellipsis"},
         "page": {"required": false, "max_chars": 4, "font_steps_pt": [10], "overflow": "clip"},
         "refs": {"required": false, "type": "list", "item": {"id": {"required": true, "max_chars": 4, "font_steps_pt": [8.5], "overflow": "ellipsis"}, "text": {"required": true, "max_chars": 120, "font_steps_pt": [8.5], "overflow": "ellipsis"}}, "capacity": 4},
-        "takeaways": {"required": true, "type": "list", "item": {"value": {"required": true, "max_chars": 10, "font_steps_pt": [20, 18], "overflow": "ellipsis"}, "unit": {"required": false, "max_chars": 10, "font_steps_pt": [10], "overflow": "ellipsis"}, "text": {"required": true, "max_chars": 56, "font_steps_pt": [10.5, 10], "overflow": "shrink_then_ellipsis", "max_lines": 3}, "refs": {"required": false}}, "capacity": 4},
+        "takeaways": {"required": false, "type": "list", "item": {"value": {"required": true, "max_chars": 10, "font_steps_pt": [20, 18], "overflow": "ellipsis"}, "unit": {"required": false, "max_chars": 10, "font_steps_pt": [10], "overflow": "ellipsis"}, "text": {"required": true, "max_chars": 56, "font_steps_pt": [10.5, 10], "overflow": "shrink_then_ellipsis", "max_lines": 3}, "refs": {"required": false}}, "capacity": 4},
         "stub_head": {"required": false, "max_chars": 10, "font_steps_pt": [10], "overflow": "ellipsis"},
         "columns": {"required": true, "type": "list", "item": {"label": {"required": true, "max_chars": 10, "font_steps_pt": [10], "overflow": "ellipsis"}, "sub": {"required": false, "max_chars": 12, "font_steps_pt": [9], "overflow": "ellipsis"}}, "capacity": 4},
-        "rows": {"required": true, "type": "list", "item": {"label": {"required": true, "max_chars": 28, "font_steps_pt": [10], "overflow": "ellipsis"}}, "capacity": 18},
+        "rows": {"required": true, "type": "list", "item": {"label": {"required": true, "max_chars": 28, "font_steps_pt": [10], "overflow": "ellipsis"}, "cells": {"required": true, "type": "list", "item": {}, "max_chars": 40, "note": "one per column, in column order"}, "highlight": {"required": false, "type": "bool"}}, "capacity": 18},
         "footnotes": {"required": false, "type": "list", "item": {}, "capacity": 3}
       },
       "zones_in": {
@@ -988,7 +989,7 @@
         "footer": {"x": 0.292, "y": 6.625, "w": 12.75, "h": 0.75}
       },
       "pattern": "PHARMA-data-table",
-      "note": "Dense baseline/AE table, 12–18 rows, 2–4 data columns (arms + total), zebra greys, exactly one highlighted row, footnotes.",
+      "note": "Data table, 3–18 rows, 1–4 data columns, zebra greys, at most one highlighted row, footnotes. Optional takeaway rail (3–4 number-led); without it the table spans the body and wording cells wrap left-aligned (teaching tables).",
       "overflow": "refuse_over_capacity_or_split_page",
       "theme_default": "gold_clinical",
       "chart_geometry": "factdeck.template_lib.pharma"

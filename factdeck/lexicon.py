@@ -143,13 +143,19 @@ def scope_labels(display: str, quote: str) -> list[str]:
     return labels
 
 
-_SENT_END = re.compile(r"[。！？；!?;•]|(?<=[a-z0-9)])\.(?=\s*[A-Z(])")
+_SENT_END = re.compile(r"[。！？；!?;•➢►▶❖]|(?<=[a-z0-9)])\.(?=\s*[A-Z(])")
 _CLAUSE = re.compile(r"[、:：()（）\[\]【】]|(?<!\d)[,，]|[,，](?!\d)")     # a comma inside a number is not a clause break
 _CITE = re.compile(r"[(\[]\d{1,4}(?:[-–,，]\d{1,4})*[)\]]")                 # reference markers "(13)", "[14,15]", "(118-126)"
+# bibliography glued into a sentence by the text layer: a numbered GB/T 7714 entry "2.作者.题名[J].刊名,2025,48(3):208-248.",
+# the volume:pages tail of one "16:611-624.", a journal issue header "2026年3月,第7卷,第1期" — citations, not context
+_BIBLIO = re.compile(r"(?:(?<![^\s.。:;➢•])\d{1,3}\.[^。\[\]]{2,160}?\[[A-Z](?:/OL)?\]\.?[^。]{0,80}?\d{4}\s*,\s*\d+\s*(?:\(\s*\d+\s*\))?"
+                     r"\s*:\s*\d+(?:\s*[-–]\s*\d+)?\.?"
+                     r"|^\s*\d{1,4}\s*(?:\(\s*\d+\s*\))?\s*:\s*\d+\s*[-–]\s*\d+\s*\."
+                     r"|\d{4}年\d{1,2}月\s*,?\s*第\d+卷\s*,?\s*第\d+期)")
 _PAGE_NO = re.compile(r"\s\d{1,4}\s*$")                                       # a running header or footer ends with its page number
 _ENUM = re.compile(r"(?<![(\d.])\d{1,2}\)")                                   # list numbering "1)" "2)"
 _FIG_REF = re.compile(r"(?:如|见|参见)?(?:图|表|Figure|Table)[\dA-Z]+(?:\.\d+)*(?:所示|中)?")   # "如图2.5所示": a pointer, not context
-_LIST_START = re.compile(r"\s*(?:[•·▪●○◆\-–]|\d{1,2}[.、)）])")
+_LIST_START = re.compile(r"\s*(?:[•·▪●○◆➢►▶❖\-–]|\d{1,2}[.、)）])")
 SHORT_LINE = 15              # a line this short without end punctuation is a heading or a label, not a wrapped sentence
 
 
@@ -212,7 +218,7 @@ def missing_context(sentence: str, covered: list[list[int]]) -> list[str]:
     gaps = [(0, merged[0][0], False)] + [(merged[i][1], merged[i + 1][0], False) for i in range(len(merged) - 1)] \
         + [(merged[-1][1], len(sentence), True)]
     plain = sentence
-    for pattern in (_CITE, _ENUM):
+    for pattern in (_BIBLIO, _CITE, _ENUM):
         plain = pattern.sub(lambda m: "," * len(m.group(0)), plain)       # same length: covered offsets stay valid
     out = []
     for a, b, trailing in gaps:

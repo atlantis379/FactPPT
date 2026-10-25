@@ -85,6 +85,21 @@ def test_reference_markers_figure_pointers_and_numbering_are_not_context():
     assert missing_context(s, [[s.index("机会性"), len(s)]]) == []
 
 
+def test_bibliography_glued_into_a_sentence_is_not_context():
+    # real slides/PDFs: the text layer runs a reference entry, a volume:pages tail or a journal issue header into the
+    # next sentence; the citation is not context, the qualifiers after it still are
+    def gap(text, shown):
+        s, q = canon(text), canon(shown)
+        return missing_context(s, [[s.index(q), s.index(q) + len(q)]])
+    assert gap("1.中华医学会呼吸病学分会.支气管哮喘防治指南(2024年版)[J].中华结核和呼吸杂志,2025,48(3):208-248."
+               "中国哮喘指南2024:在重度哮喘患者中,每3个月需监测血嗜酸性粒细胞计数", "需监测血嗜酸性粒细胞计数") \
+        == [canon("中国哮喘指南2024"), canon("在重度哮喘患者中"), canon("每3个月")]
+    assert gap("16:611-624.重度未控制哮喘患者面临更高的夜间憋醒风险", "重度未控制哮喘患者面临更高的夜间憋醒风险") == []
+    assert gap("(BiomedicalTransformation),2026年3月,第7卷,第1期更稳妥的做法往往是谨慎降阶", "更稳妥的做法往往是谨慎降阶") == []
+    s, _, q0, _ = sentence_of("GINA2025 1 指南 2 ➢LAMA具有一定的支气管舒张作用", "LAMA具有一定的支气管舒张作用")
+    assert s == canon("LAMA具有一定的支气管舒张作用") and q0 == 0         # “➢” starts a bullet, like “•”
+
+
 def table(rows, levels=None):
     return {"id": "t", "layout": "table", "title": T("分型"), "columns": ["分型", "描述"], "rows": rows,
             **({"levels": levels} if levels is not None else {})}

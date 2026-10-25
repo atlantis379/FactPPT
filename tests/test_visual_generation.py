@@ -77,7 +77,8 @@ def complete_one(store,wid,kind):
 
 def test_default_route_and_original_gates(tmp_path):
     store=Store(tmp_path/"data"); w=store.create("New")
-    assert w["generation_route"]=="A_NATIVE_VECTOR"
+    assert w["generation_route"]=="TEMPLATE_LIB"      # route A stopped 2026-10-25 (AGENTS.md 决策记录)
+    assert store.create("A",generation_route="A_NATIVE_VECTOR")["generation_route"]=="A_NATIVE_VECTOR"
     with pytest.raises(WorkflowError,match="页面规格"): store.start_generation(w["id"])
     assert not store.get(w["id"])["generation"]
 

@@ -146,14 +146,20 @@ def test_swimlane_needs_three_dated_items():
     assert S.requirement_gap("landscape_swimlane", page) is None
 
 
-def test_data_table_needs_twelve_rows_and_one_highlight():
+def test_data_table_needs_three_rows_and_at_most_one_highlight():
     rows = [{"label": f"r{i}", "cells": ["1", "2"]} for i in range(12)]
     page = {"title": "基线特征表", "data": {"table": {"columns": ["A", "B"], "rows": rows}, "takeaways": TK3}}
-    assert "1 行" in S.requirement_gap("data_table_highlight", page)
-    rows[3]["highlight"] = True
+    assert S.requirement_gap("data_table_highlight", page) is None          # no highlight: the source names none
+    rows[3]["highlight"] = rows[4]["highlight"] = True
+    assert "至多" in S.requirement_gap("data_table_highlight", page)
+    rows[4]["highlight"] = False
+    page["data"]["table"]["rows"] = rows[:2]
+    assert "≥3" in S.requirement_gap("data_table_highlight", page)
+    # a teaching table (drug × target × approval) qualifies without the number-led rail
+    page["data"]["table"]["rows"], page["data"]["takeaways"] = rows[:6], []
     assert S.requirement_gap("data_table_highlight", page) is None
-    page["data"]["table"]["rows"] = rows[:8]
-    assert "≥12" in S.requirement_gap("data_table_highlight", page)
+    page["data"]["takeaways"] = TK3[:1]
+    assert "右栏" in S.requirement_gap("data_table_highlight", page)
 
 
 def test_nothing_qualifies_falls_back_with_note():

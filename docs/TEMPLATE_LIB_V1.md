@@ -170,7 +170,7 @@ are defaulted when omitted).
 | `forest_plot` | table + log-axis CI plot in one aligned SVG, ref line at 1, one highlighted row, favours labels | eos / 年龄 / 吸烟亚组 RR |
 | `endpoint_readout` (`bar` / `line`; KM planned) | main chart with 95% CI error bars or weekly line + n-at-risk, stats box, rail | 年化加重率 −30%；FEV1 +82 mL |
 | `moa_cascade` | 5 stage columns, item boxes, gold drug callouts with T-bar connectors routed in gutters | 2 型炎症级联 4 个作用点 |
-| `data_table_highlight` | 12–18 rows, arms + total, zebra greys, exactly one highlighted row, footnotes | 基线特征表 |
+| `data_table_highlight` | 3–18 rows, 1–4 data columns, zebra greys, at most one highlighted row, footnotes; rail optional (full-width wrapping teaching table without it) | 基线特征表；药物一览等教学表 |
 | `landscape_swimlane` | lanes per class, Phase III bars on year axis, met / not met / ongoing markers (shape + text), today line | 5 类靶点 10 项研究（虚构） |
 | `key_points` / `evidence_takeaways` | 3–4 number-led conclusions; superscript evidence ids → footer refs; verbatim quote + doc/page column | 本节小结 |
 
@@ -278,3 +278,44 @@ How the native writer works (`native_extract.js` → `native.py`, domain-neutral
 Known approximations: translucent gradients are pre-blended onto the slide background; partial-corner radii
 are mapped to the nearest preset; small shadows (blur < 4 px) are dropped; LibreOffice (QA renderer) adds
 CJK/Latin auto-spacing that PowerPoint does not, so a few lines wrap earlier in the LibreOffice PNGs.
+
+## Bound fills and trace report (`template_lib/bind.py`, 2026-10-25)
+
+A fill bound to the fact store has the shape of an ordinary fill, except:
+
+- Every shown string is `{"fact": id}` (shown as the fact's `display` or `quote`) or `{"text": label}`. Authored
+  labels pass `lexicon.lint_text`: no numbers, drug or entity names, comparisons, or evaluative wording. A raw string
+  is an error. `emph` is not supported on template pages yet.
+- Every drawn number (bar values, estimates, CI bounds, weeks, swimlane start/end) must occur as a number in a fact
+  shown in the same fill. Scale frames (`axis`, `year_start`, `year_end`, `today`) are exempt. A number that is
+  stated only by a fact in another row or series is accepted with a warning.
+- Short codes (`kind`, `role`, `status`, `key`, `mark`, `target`, `id`) are ASCII codes.
+- Chrome is written by code from the facts used, and a fill that writes it is refused. This covers `page`,
+  `figure` (`图 n`), `data_note` (`逐字引自原文，溯源见备注`), `source` or numbered `refs` with item
+  superscripts (at most 4 sources per page), and the evidence-takeaway `quote`/`loc`.
+- Scope labels and context clauses follow the same rule as other deck pages (`deck.context_errors`).
+
+Deck specs: `{"layout": "template", "title": ref, "template": {"layout": id, "fill": {…}, "fills": {id: fill}}}`.
+`deck.check` binds and validates each fill against its slot contract. The selector reads the resolved fill. A page
+whose selected layout has no fill (and no qualified fill to fall back to) is refused.
+
+Rendering: `pipeline.run(plan, out, facts=…, sources=…)` (or `integrate.deck_plan(deck)` →
+`tools/template_deck.py --deck … --facts … --sources …`). The run writes `trace.json` and `trace.md`, which cover
+every page: each slot → fact → source → location, each number → the facts that state it, and pages refused with
+their reasons. It also adds 【溯源】 lines to the speaker notes. Without `facts` the plan's fills render unchanged,
+and the report marks each page "未绑定事实库：示例数据，未溯源".
+
+Tests: `tests/test_template_bind.py` (including bound plan → native PPTX → trace, with Playwright).
+
+## Workflow route `TEMPLATE_LIB` (default for new `/api/deck` projects, 2026-10-25)
+
+New workflows default to `generation_route: "TEMPLATE_LIB"`. On this route:
+
+- The DECK brief carries `template_library`, which gives each layout its compact slot contract, relation, and
+  downgrade target. Accepted decks are template pages only, and `deck.check` refuses mixed decks.
+- `render` and `generate` run `template_lib/render_deck.py`. The output contract is the same as `factdeck.render`,
+  plus `template/trace.md|json`. Each slide is compared in PowerPoint (COM) when it is installed, otherwise in
+  LibreOffice.
+- Delivery bundles the hash-bound trace report.
+
+Run record and issues: `docs/TEMPLATE_MAINLINE_RUN_2026-10-25.md`. Flow tests: `tests/test_template_mainline.py`.

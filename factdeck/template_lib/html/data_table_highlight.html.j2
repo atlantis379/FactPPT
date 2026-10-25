@@ -1,4 +1,4 @@
-{# Dense data table — arms + total, zebra greys, exactly one highlighted row, footnotes. Native-table ready. #}
+{# Data table — 2–4 data columns, zebra greys, at most one highlighted row, footnotes; optional takeaway rail (without it the table spans the body and wording cells wrap). Native-table ready. #}
 {% import "_pharma_macros.html.j2" as ph %}
 <style>
 {% include "_pharma.css.j2" %}
@@ -19,13 +19,19 @@
 .L-ph-table tbody tr.hl td:first-child{border-left:2px solid var(--accent)}
 .L-ph-table tbody tr.hl td:last-child{border-right:2px solid var(--accent)}
 .L-ph-table tbody tr:last-child td{border-bottom:1.5px solid var(--primary)}
+.L-ph-table .main.full table{width:1224px}
+.L-ph-table table.text-cells tbody td{white-space:normal;text-align:left;height:auto;min-height:26.5px;padding:5px 12px;line-height:1.35}
+.L-ph-table table.text-cells thead th{text-align:left}
+.L-ph-table .main.full table.text-cells col.stub{width:300px}
+.L-ph-table table.few thead th{font-size:13pt;padding:9px 14px 8px}
+.L-ph-table table.few tbody td{font-size:13pt;height:46px;padding:8px 14px}
 .L-ph-table .tfn{margin-top:7px;font-size:9pt;line-height:1.45;color:var(--muted)}
 .L-ph-table .tfn sup{font-size:7pt;font-weight:700;color:var(--primary);margin-right:3px}
 </style>
 {{ ph.open_slide(page, "L-ph-table", "PHARMA-data-table") }}
   {{ ph.header(page) }}
-  <div class="main" data-slot="body" data-check="fit">
-    <table data-shape="data-table" data-rows="{{ page.rows|length }}">
+  <div class="main{{ '' if page.takeaways else ' full' }}" data-slot="body" data-check="fit">
+    <table data-shape="data-table" data-rows="{{ page.rows|length }}"{% if page.text_cells or page.rows|length <= 8 %} class="{{ 'text-cells' if page.text_cells else '' }}{{ ' few' if page.rows|length <= 8 else '' }}"{% endif %}>
       <colgroup><col class="stub">{% for c in page.columns %}<col>{% endfor %}</colgroup>
       <thead><tr>
         <th class="stub">{{ page.stub_head }}</th>
@@ -46,6 +52,6 @@
     </table>
     {% if page.footnotes %}<div class="tfn" data-slot="footnotes">{% for f in page.footnotes %}<div><sup>{{ 'abcdef'[loop.index0] }}</sup>{{ f }}</div>{% endfor %}</div>{% endif %}
   </div>
-  {{ ph.rail(page) }}
+  {% if page.takeaways %}{{ ph.rail(page) }}{% endif %}
   {{ ph.footer(page) }}
 </div>

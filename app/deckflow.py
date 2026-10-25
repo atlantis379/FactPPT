@@ -51,6 +51,7 @@ from app import structure_stage
 
 TEMPLATE = "factdeck.v1"
 ENGINE_VERSION = "factdeck-render.1"
+TEMPLATE_ROUTE = "TEMPLATE_LIB"      # mainline since 2026-10-25: fixed template library, code-rendered native PPTX
 MAX_UPLOAD = 40 * 1024 * 1024
 SAMPLE_PAGES = 5
 DEIDENTIFIED = ("NO_PATIENT_CONTENT", "DEIDENTIFIED", "IDENTIFIABLE")
@@ -791,7 +792,9 @@ def render_input(w: dict, v: dict | None = None, include_visual: bool = True) ->
     v = v or verified(w)
     shown = {f["figure"] for f in v["facts"].values() if f.get("figure")}
     states = figure_states(w) if shown else {}
-    payload = {"engine": ENGINE_VERSION, "deck": w["deck"]["result"], "theme": w["theme"],
+    from factdeck.template_lib.render_deck import VERSION as TEMPLATE_ENGINE, is_template_deck
+    engine = TEMPLATE_ENGINE if is_template_deck(w["deck"]["result"]) else ENGINE_VERSION
+    payload = {"engine": engine, "deck": w["deck"]["result"], "theme": w["theme"],
                    "facts": {k: {x: f[x] for x in ("quote", "display", "status", "needs_confirmation", "location", "source_id", "figure", "caption")}
                              for k, f in v["facts"].items()},
                    "figures": {k: {"sha256": g["sha256"], "review": states[k]["review"], "licence": states[k]["licence"]}
@@ -805,6 +808,40 @@ def render_input(w: dict, v: dict | None = None, include_visual: bool = True) ->
         from app.deck_generation import render_fingerprint
         payload["visual_generation"] = render_fingerprint(w)
     return digest(payload)
+
+
+LEGACY_LAYOUT_RULES = ("先按内容的结构选版式", "每页要有一个结构化主体", "一页一个设计方案", "flow：", "原件图用 figure", "hero：",
+                       "chart：", "强调：", "表格每格是引用列表")
+TEMPLATE_DECK_RULES = [
+    "本项目走模板库主线：每页写成 {\"id\", \"layout\": \"template\", \"title\": 引用, \"template\": {\"layout\": 版式编号, \"fill\": 填充}} "
+    "（封面、章节页另写 template.kind 为 \"cover\" / \"section\"，版式编号同为 cover / section）。不写 composed / free / bullets 等旧版式；"
+    "旧版式的构图规则不适用。版式编号与槽位见 template_library。",
+    "选版式按内容的逻辑关系与数据形状（template_library 中每个版式的 relation_zh）：条件/阈值判断用 algorithm_tree，多行效应量用 forest_plot，"
+    "两组终点用 endpoint_readout，步骤用 flow，时间先后用 timeline，A vs B 对照用 comparison，多行多列用 data_table_highlight，并列要点才用 key_points。"
+    "程序的选版式器最终决定：写的版式数据不够时会降级（downgrades_to）；没有可用填充的页面被拒。拿不准时可在 template.fills 里为降级目标再写一份填充。"
+    "相邻内容页尽量不同版式；内容支持时图表页（is_chart）不少于三分之一。",
+    "slots 的写法：\"*≤16\" 表示必填、至多 16 字，\"≤16\" 为选填；\"name[≤4]\" 是至多 4 项的列表，值为每项的槽位；\"object\" 为对象（如 axis 刻度）；空串表示没有字数限制，多为图上画的数值（直接写数字）。"
+    "填充按版式的 slots 写：每个显示文字是 {\"fact\": id} 或 {\"text\": 作者标签}（作者标签只组织和命名，不带数字、药名、比较）；"
+    "不得写原样字符串。title 由页面 title 填入，填充中不写。图上画的数值（柱高、点估计、CI 上下限、周数、年份）直接写数字，"
+    "但每个数字都必须出现在本填充显示的某条事实中（同一行/系列的事实最好），否则本页被拒——不得为了凑版式编数据，数据不够就换版式或拆页。",
+    "page、figure、data_note、source、refs、quote、loc 由程序根据所用事实写入（页脚来源、证据号、逐字摘录），填充中不要写；一页的事实至多来自 4 份资料。"
+    "槽位有字数上限（max_chars），事实显示文字超过上限时用 display 节选或切出更短的事实，或换容量更大的版式；程序不会截断事实。",
+]
+
+
+def template_deck_brief(b: dict) -> None:
+    """DECK brief for the template-library route: the template library, template rules, template example pages."""
+    from factdeck.template_lib.integrate import template_library_brief
+    b["template_library"] = template_library_brief()
+    b["layouts"] = {k: x for k, x in b["layouts"].items() if k == "template"}
+    b.pop("recipes", None)
+    b.pop("relation_layouts", None)
+    b["rules"] = TEMPLATE_DECK_RULES + [r for r in b["rules"] if not r.startswith(LEGACY_LAYOUT_RULES)]
+    rc = b["result_contract"]
+    rc["pages"] = [{"id": "cover", "layout": "template", "title": {"text": ""}, "outline_ids": [], "section_ids": [],
+                    "template": {"kind": "cover", "layout": "cover", "fill": {"subtitle": {"text": ""}}}},
+                   {"id": "p1", "layout": "template", "title": {"fact": ""}, "outline_ids": [], "point_ids": [], "section_ids": [],
+                    "focus": {"fact": ""}, "template": {"layout": "key_points", "fill": {"items": [{"heading": {"fact": ""}, "body": {"fact": ""}}]}}}]
 
 
 def critique_input(w: dict) -> str:
@@ -1164,9 +1201,9 @@ class Store(GenerationMixin, _BaseStore):
         return {"workflow_id": workflow_id, "archived": moved}
 
     # ---- project
-    def create(self, title: str, outline: str = "", requirements: dict | None = None, context: dict | None = None, theme: str = "navy-teal", generation_route: str = VISUAL_ROUTE) -> dict:
+    def create(self, title: str, outline: str = "", requirements: dict | None = None, context: dict | None = None, theme: str = "navy-teal", generation_route: str = TEMPLATE_ROUTE) -> dict:
         require(bool(title.strip()), "请填写项目名称", 422)
-        require(generation_route in {VISUAL_ROUTE, "CODE_NATIVE"}, "生成路线无效", 422)
+        require(generation_route in {TEMPLATE_ROUTE, VISUAL_ROUTE, "CODE_NATIVE"}, "生成路线无效", 422)
         w = {"id": uid("deck"), "title": title.strip(), "revision": 1, "created_at": now(), "updated_at": now(), "template": TEMPLATE,
              "context": context or {"language": "zh-CN", "external_research_allowed": False},
              "requirements": self._requirements(requirements or {}), "outline": parse_structured_outline(outline)[0],
@@ -1930,6 +1967,10 @@ class Store(GenerationMixin, _BaseStore):
         self._transcription_proposals(w, result.get("transcription_proposals", []), author)
         deck = {k: v for k, v in result.items() if k not in {"facts_sha256", "issue_responses"}}
         responses = self._issue_responses(w, result.get("issue_responses"), [p.get("id") for p in deck.get("pages") or []])
+        if w.get("generation_route") == TEMPLATE_ROUTE:
+            other = [p.get("id") for p in deck.get("pages") or [] if not isinstance(p, dict) or p.get("layout") != "template"]
+            require(not other, "本项目走模板库主线：每页须写成 layout: template（封面、章节页用 template.kind 为 cover / section），"
+                    f"以下页面不是：{'、'.join(map(str, other[:8]))}", 422)
         cut = deck.get("facts") or []
         require(isinstance(cut, list), "facts 需为列表", 422)
         store_ids = {f.get("id") for f in w["facts"]["result"]["facts"]}
@@ -2128,6 +2169,8 @@ class Store(GenerationMixin, _BaseStore):
             if c and c['summary_sha256'] == digest(w['summary']):
                 b['fact_candidates'] = json.loads(self.path(c['path']).read_text(encoding='utf-8'))['value']
                 b['rules'].insert(0, '复用SUMMARY已同步建立并逐字核验的fact_candidates及bindings。只补必要的细粒度切分、实体/属性/冲突信息；不得把候选重新机械合并成新的教学要点。PENDING绑定仍须人工裁定，不得静默用于教学。')
+        elif kind == 'DECK' and w.get('generation_route') == TEMPLATE_ROUTE:
+            template_deck_brief(b)
         return b
 
     def _brief(self, w: dict, kind: str, binding: str | None) -> dict:
@@ -2961,8 +3004,18 @@ class Store(GenerationMixin, _BaseStore):
                 for k, g in figures(w).items() if k in shown}
         try:
             spec = selected_spec(w["deck"]["result"])
-            report = do_render(spec, v["facts"], sources, folder, self.render_theme(w), v["terms"], figures=figs,
-                               teaching_notes=deck_teaching_notes(w, spec))
+            from factdeck.template_lib import render_deck
+            if render_deck.is_template_deck(spec):
+                report = render_deck.render(spec, v["facts"], sources, folder, v["terms"],
+                                            teaching_notes=deck_teaching_notes(w, spec))
+            else:
+                require(w.get("generation_route") != TEMPLATE_ROUTE, "本项目走模板库主线，页面规格须为模板页，请重新安排 DECK")
+                report = do_render(spec, v["facts"], sources, folder, self.render_theme(w), v["terms"], figures=figs,
+                                   teaching_notes=deck_teaching_notes(w, spec))
+        except WorkflowError:
+            raise
+        except ValueError as e:
+            raise WorkflowError(f"渲染未通过：{e}", 422)
         except ImportError as e:
             raise WorkflowError(f"渲染环境缺失：{e}；请安装 factdeck/requirements.txt 并执行 playwright install chromium", 503)
         # per page for the reviewer: the page's own design note, its visual signals (open or justified) and what the
@@ -2972,8 +3025,11 @@ class Store(GenerationMixin, _BaseStore):
                    "occupancy": sl.get("occupancy"), "hole": (sl.get("hole") or {}).get("share"), "metrics": sl.get("metrics") or {}}
                   for i, (p, sl) in enumerate(zip(selected_spec(w["deck"]["result"])["pages"], report["slides"]), 1)]
         record = {"input_sha256": key, "draft": draft, "path": relative, "at": now(), "hard_errors": report["hard_errors"],
+                  **({"route": TEMPLATE_ROUTE, "trace_report": report["trace_report"], "stats": report["stats"]}
+                     if report.get("route") == TEMPLATE_ROUTE else {}),
                   "summary": report["summary"], "pages": rpages,
-                  "files": {n: sha((folder / n).read_bytes()) for n in ("deck.pptx", "deck.pdf", "deck.html", "render_report.json")},
+                  "files": {n: sha((folder / n).read_bytes()) for n in ("deck.pptx", "deck.pdf", "deck.html", "render_report.json")
+                            + (("template/trace.md", "template/trace.json") if report.get("route") == TEMPLATE_ROUTE else ())},
                   "figure_files": sorted(x.name for x in folder.glob("figure_*.png")),
                   "logo_file": next((x.name for x in folder.glob("logo.*")), None), "font": report.get("font"),
                   "warnings": {"figure_low_dpi": [x for sl in report["slides"] for x in sl.get("figure_low_dpi", [])],
@@ -3061,8 +3117,11 @@ class Store(GenerationMixin, _BaseStore):
             (folder / "verification_report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
             shutil.copyfile(src / "deck.pptx", folder / "deck.pptx")
             shutil.copyfile(src / "deck.pdf", folder / "deck.pdf")
+            traced = ("trace.md", "trace.json") if r.get("trace_report") else ()   # template route: per-page trace report
+            for n in traced:
+                shutil.copyfile(src / "template" / n, folder / n)
             with zipfile.ZipFile(folder / "delivery.zip", "w", zipfile.ZIP_DEFLATED) as z:
-                for n in ("deck.pptx", "deck.pdf", "facts_report.md", "verification_report.json"):
+                for n in ("deck.pptx", "deck.pdf", "facts_report.md", "verification_report.json") + traced:
                     z.write(folder / n, n)
                 for i, p in enumerate(r["pages"], 1):
                     z.write(src / p["file"], f"pages/slide-{i:03d}.png")
@@ -3072,7 +3131,7 @@ class Store(GenerationMixin, _BaseStore):
                         for kind, asset in p["assets"].items():
                             z.write(self.path(asset["path"]), f"visual/page-{i:03d}/{kind}{Path(asset['path']).suffix}")
                             z.write(self.path(asset["receipt_path"]), f"visual/page-{i:03d}/{kind}-receipt.json")
-            files = ("deck.pptx", "deck.pdf", "facts_report.md", "verification_report.json", "delivery.zip")
+            files = ("deck.pptx", "deck.pdf", "facts_report.md", "verification_report.json") + traced + ("delivery.zip",)
             w["deliveries"].append({"version": version, "at": now(), "subject_sha256": delivery_subject(w), "path": relative,
                                     "files": [{"name": n, "sha256": sha((folder / n).read_bytes())} for n in files]})
         return self.get(workflow_id)

@@ -179,7 +179,8 @@ def call(method, *args, **kwargs):
 @router.get("/health")
 def health():
     return {"product": "FactPPTv2", "workflow": "factdeck.v1", "mainline": True, "execution": "WORKER_COLLABORATION",
-            "visual_generation": {"default_route": "A_NATIVE_VECTOR", "executor": "CODEX_ADOBE_WORKER", "server_vendor_calls": False},
+            "visual_generation": {"default_route": "TEMPLATE_LIB", "renderer": "factdeck.template_lib (code, native PPTX)",
+                                  "stopped_routes": ["A_NATIVE_VECTOR"], "server_vendor_calls": False},
             "task_kinds": list(KINDS), "themes": list(THEMES), "theme_palettes": THEMES,
             "projects": len(store.list())}
 
@@ -601,6 +602,9 @@ def render_file(workflow_id: str, kind: Literal["final", "draft"], filename: str
     r = w.get("render") if kind == "final" else w.get("draft_render")
     allowed = {p["file"] for p in (r or {}).get("pages", [])} | set((r or {}).get("figure_files", [])) \
         | {(r or {}).get("logo_file"), "deck.pptx", "deck.pdf", "deck.html", "render_report.json"}
+    if r and filename == "trace.md" and r.get("trace_report"):      # template-library route: the trace report
+        return FileResponse(store.path(r["path"] + "/" + r["trace_report"]), media_type="text/markdown; charset=utf-8",
+                            headers={"Cache-Control": "no-cache"})
     if not r or filename not in allowed:
         raise HTTPException(404, "文件不存在")
     return FileResponse(store.path(r["path"] + "/" + filename), headers={"Cache-Control": "no-cache"})

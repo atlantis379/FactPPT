@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from .. import jobstats
+from . import bind
 from . import integrate
 from . import native as N
 from . import selector as S
@@ -81,16 +82,40 @@ def _office_png(pptx: Path, out_dir: Path, dpi: int = 60) -> dict:
             "pngs": sorted(str(p) for p in out_dir.glob("slide-*.png"))}
 
 
+def _bound_input(page: dict, facts: dict) -> dict:
+    """Selector input of a bound plan page: read from the resolved fill the page would show, not from plan text."""
+    fills = {k: v for k, v in (page.get("fills") or {}).items() if k in S.LAYOUTS}
+    first = page.get("proposed_layout") if page.get("proposed_layout") in fills else next(iter(fills), None)
+    if not first:
+        return {**page, "text": [], "data": {}}
+    fam, var = S.LAYOUTS[first][0], S.LAYOUTS[first][1]
+    res = bind.resolve(fam, var, fills[first], facts, title=page.get("title"), page_checks=False)
+    sel = integrate.page_from_fill(page.get("id"), first, res["fill"], kind=page.get("kind") or "content",
+                                   proposed=page.get("proposed_layout"))
+    return {**sel, "fills": page.get("fills")}
+
+
 def run(plan: dict, out: Path | str, *, tiebreaker: S.TieBreaker | None = None, font: str = N.DEFAULT_FONT,
-        previews: bool = True, office_render: bool = False, job_id: str | None = None) -> dict:
-    """Run the whole flow for one plan; returns the job record (also written to out/job.json)."""
+        previews: bool = True, office_render: bool = False, job_id: str | None = None,
+        facts: dict[str, dict] | None = None, sources: dict[str, str] | None = None,
+        glossary=(), terms=(), page_notes: dict[str, str] | None = None) -> dict:
+    """Run the whole flow for one plan; returns the job record (also written to out/job.json).
+
+    With `facts` (id → verified fact dict) every fill is a bound fill (template_lib/bind.py): shown strings are
+    fact references or checked authored labels, drawn numbers are backed by page facts, footers come from the facts
+    used, and a trace report (trace.json / trace.md) covers every page.  Without it the plan's fills are shown as
+    they are (sample data) and the report says so.  `page_notes` (page id → text) go first in each slide's
+    speaker notes."""
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
-    pages = plan["pages"]
-    note = plan.get("note")
-    record: dict[str, Any] = {"title": plan.get("title"), "note": note, "pages": [], "native": None}
+    bound = facts is not None
+    if plan.get("bound") and not bound:
+        raise ValueError("该计划的填充引用事实库（bound），须传入 facts")
+    pages = [_bound_input(p, facts) for p in plan["pages"]] if bound else plan["pages"]
+    note = None if bound else plan.get("note")
+    record: dict[str, Any] = {"title": plan.get("title"), "note": note, "bound": bound, "pages": [], "native": None}
     with jobstats.job("template_deck", job_id=job_id, out_dir=out,
-                      meta={"title": plan.get("title"), "pages": len(pages),
+                      meta={"title": plan.get("title"), "pages": len(pages), "bound": bound,
                             "llm_tie_break": "on" if tiebreaker else "off"}) as js:
         record["job_id"] = js.job_id
         with jobstats.stage("select"):
@@ -98,8 +123,8 @@ def run(plan: dict, out: Path | str, *, tiebreaker: S.TieBreaker | None = None, 
         record["selection_stats"] = res["stats"]
 
         with jobstats.stage("fill"):
-            jobs = []
-            for page, d in zip(pages, res["decisions"]):
+            jobs, sections = [], 0
+            for src, page, d in zip(plan["pages"], pages, res["decisions"]):
                 lay, fill, fallback = integrate.resolve_fill(page, d)
                 entry = {"page_no": d["page_no"], "page_id": d["page_id"], "layout_decision": integrate.page_record(d),
                          "rendered_layout": lay, "fill_fallback": fallback, "status": "PENDING"}
@@ -108,7 +133,18 @@ def run(plan: dict, out: Path | str, *, tiebreaker: S.TieBreaker | None = None, 
                     entry["status"] = "NO_FILL"
                     continue
                 fam, var = S.LAYOUTS[lay][0], S.LAYOUTS[lay][1]
-                f = stamp_note(lay, fill, note)
+                if bound:
+                    sections += fam == "section"
+                    b = bind.resolve(fam, var, fill, facts, title=src.get("title"), section_no=sections,
+                                     sources=sources, glossary=glossary, terms=terms, page_no=d["page_no"])
+                    entry.update(trace=b["trace"], facts=b["facts"], pending=b["pending"], bind_warnings=b["warnings"])
+                    if b["errors"]:
+                        entry["status"] = "FILL_UNBOUND"
+                        entry["errors"] = b["errors"]
+                        continue
+                    f = b["fill"]
+                else:
+                    f = stamp_note(lay, fill, note)
                 if fam not in ("cover", "section"):
                     f["page"] = f"{d['page_no']:02d}"
                 rep = validate_fill(fam, f, variant=var)
@@ -116,7 +152,9 @@ def run(plan: dict, out: Path | str, *, tiebreaker: S.TieBreaker | None = None, 
                     entry["status"] = "FILL_INVALID"
                     entry["errors"] = rep["errors"]
                     continue
-                jobs.append((entry, fam, var, f, theme_for(lay, plan)))
+                theme = theme_for(lay, plan)
+                entry.update(family=fam, variant=var, fill=f)
+                jobs.append((entry, fam, var, f, theme))
 
         with jobstats.stage("render_html", pages=len(jobs)):
             (out / "pages").mkdir(exist_ok=True)
@@ -134,7 +172,8 @@ def run(plan: dict, out: Path | str, *, tiebreaker: S.TieBreaker | None = None, 
                 browser = pw.chromium.launch()
                 pg = browser.new_page(viewport={"width": 1280, "height": 720}, device_scale_factor=1)
                 for entry, *_ in jobs:
-                    pg.goto((out / entry["html"]).as_uri())
+                    # self-contained HTML: loaded as content, so a long Windows path (>260) cannot break the load
+                    pg.set_content((out / entry["html"]).read_text(encoding="utf-8"), wait_until="load")
                     pg.evaluate("document.fonts.ready.then(() => true)")
                     pg.wait_for_timeout(60)
                     entry["qa_issues"] = pg.evaluate(MEASURE_JS)
@@ -147,9 +186,11 @@ def run(plan: dict, out: Path | str, *, tiebreaker: S.TieBreaker | None = None, 
                     entry["unsupported"] = m["unsupported"]
                     models.append(m)
                     ld = entry["layout_decision"]
-                    notes.append(f"【版式】{ld['name_zh']}（{ld['layout']}）— {ld['reason_zh']}"
+                    script = (page_notes or {}).get(entry["page_id"])
+                    notes.append((f"{script}\n\n" if script else "") + f"【版式】{ld['name_zh']}（{ld['layout']}）— {ld['reason_zh']}"
                                  + (f"\n【版式提议】{ld['proposal']['reason_zh']}" if ld.get("proposal") else "")
-                                 + (f"\n【数据说明】{note}" if note else ""))
+                                 + (f"\n【数据说明】{note}" if note else "")
+                                 + "".join("\n" + x for x in bind.notes_lines(entry.get("trace") or [], sources)))
                 browser.close()
 
         with jobstats.stage("native", pages=len(models)):
@@ -177,6 +218,13 @@ def run(plan: dict, out: Path | str, *, tiebreaker: S.TieBreaker | None = None, 
         record["stats"] = js.summary()
     record["stats"] = jobstats.get_job(record["job_id"]) or record["stats"]
     (out / "job.json").write_text(json.dumps(record, ensure_ascii=False, indent=1), encoding="utf-8")
+    trace = [{"page_no": e["page_no"], "page_id": e["page_id"], "layout": e["rendered_layout"], "bound": bound,
+              "status": e["status"], "errors": e.get("errors") or [], "trace": e.get("trace") or []}
+             for e in record["pages"]]
+    (out / "trace.json").write_text(json.dumps({"bound": bound, "sources": sources or {}, "pages": trace},
+                                               ensure_ascii=False, indent=1), encoding="utf-8")
+    (out / "trace.md").write_text(bind.trace_markdown(trace, title=f"溯源报告 · {plan.get('title') or ''}".strip(" ·"),
+                                                      sources=sources), encoding="utf-8")
     (out / "decisions.json").write_text(json.dumps(
         {"stats": res["stats"], "pages": [{"page_id": e["page_id"], **e["layout_decision"]} for e in record["pages"]]},
         ensure_ascii=False, indent=1), encoding="utf-8")

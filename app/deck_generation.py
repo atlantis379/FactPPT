@@ -369,6 +369,8 @@ class GenerationMixin:
         from app.deckflow import deck_current, verified, checked, status, figures, render_input
         from factdeck.render import render as prepare
         w=self.get(workflow_id)
+        if w.get("generation_route")=="TEMPLATE_LIB":     # template-library mainline: code render, no visual tasks
+            return self.render(workflow_id)
         scope=scope_of((w.get('deck') or {}).get('result',{}))
         require(first_pages is None if not scope else first_pages==scope['page_count'], '本次须明确指定已核对的前N页范围',422)
         require(deck_current(w),"请先完成当前版本的页面规格")

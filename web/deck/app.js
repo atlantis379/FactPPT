@@ -231,7 +231,7 @@ async function tabOverview() {
   const themes = health.themes.map((t) => `<option ${t === w.theme ? "selected" : ""}>${esc(t)}</option>`).join("")
     + (w.brand ? `<option value="brand" ${w.theme === "brand" ? "selected" : ""}>客户模板（${esc(w.brand.filename)}）</option>` : "");
   $("#tab").innerHTML = card("PPT模板", `<div class="card-body"><div class="fw-bold mb-2">${esc(w.visual_template?.name || '尚未选择学术模板')}</div><p>在独立页面预览并选择学术模板；已保存的内容确认继续保留。</p><a class="btn btn-primary" href="#/w/${esc(w.id)}/templates">进入选择模板页面</a></div>`)+card("项目与需求", `<form id="settings" class="card-body">
-      <div class="form-hint mb-2">PPT 正式生成采用 A 原生矢量方案：完整设计稿 → 去字 → 矢量化 → 原生文字与图形。</div>
+      <div class="form-hint mb-2">${w.generation_route === "TEMPLATE_LIB" ? "PPT 正式生成采用固定模板库：选版式器按内容选版式，程序生成原生可编辑 PPTX，并附逐页溯源报告。" : "本项目采用 A 原生矢量方案（已于 2026-10-25 停用，仅供已有项目）：完整设计稿 → 去字 → 矢量化 → 原生文字与图形。"}</div>
       <div class="alert alert-warning">修改提纲或需求会使总结、事实库或页面规格失效，需要重新生成和确认。</div>
       <div class="mb-3"><label class="form-label">名称</label><input name="title" class="form-control" value="${esc(w.title)}"></div>
       <div class="mb-3"><label class="form-label">教学提纲（每行一条）</label>
@@ -361,7 +361,7 @@ function tabTasks() {
       <td class="text-secondary">${time(t.created_at)}</td><td class="small text-danger">${esc(t.error ?? "")}</td></tr>`).join("");
   $("#tab").innerHTML = card("执行端任务", `<div class="card-body border-bottom">
       <div class="d-flex flex-wrap gap-2">${buttons}</div>
-      <div class="form-hint mt-2">设计稿、版面拆解、去字和矢量化由“渲染与审核”页的生成入口自动排队。</div>
+      ${current && current.generation_route === "TEMPLATE_LIB" ? "" : '<div class="form-hint mt-2">设计稿、版面拆解、去字和矢量化由“渲染与审核”页的生成入口自动排队。</div>'}
       <div class="form-hint mt-2">任务由执行端领取完成：<code>python tools/codex_worker.py</code>。服务器会拒绝前置条件未满足的任务；
         语义审查和第二次转录须由不同的执行端身份完成。</div></div>
     ${w.tasks.length ? `<div class="table-responsive"><table class="table card-table table-vcenter">
@@ -781,7 +781,7 @@ function tabRender() {
       `<div class="small text-warning">${esc(m)}</div>`).join("") : "";
   const summary = (x) => x ? lowDpi(x) + other(x) + `<div class="small text-secondary">${time(x.at)} · 硬错误 ${x.hard_errors} ·
       ${Object.entries(x.summary).map(([k, v]) => `${esc(k)} ${v}`).join(" · ")}</div>` : "";
-  const files = (x, kind) => x ? ["deck.pptx", "deck.pdf", "deck.html", "render_report.json"].map((n) =>
+  const files = (x, kind) => x ? ["deck.pptx", "deck.pdf", "deck.html", "render_report.json", ...(x.trace_report ? ["trace.md"] : [])].map((n) =>
       `<a class="btn btn-sm" href="${url(`/render/${kind}/${n}`)}" target="_blank">${n}</a>`).join(" ") : "";
   // what the page reviewer checks on every page (app/deckflow.py RUBRIC); ticking one means "needs revision"
   const RUBRIC = [["first_glance", "第一眼"], ["peers", "并列同等"], ["qualifiers", "限定未变"], ["whitespace", "留白"],
@@ -826,11 +826,12 @@ function tabRender() {
   const styleDone = a && a.subject_sha256 === subject;
   const samplesOk = r && r.pages.slice(0, 5).every((p) => reviewState(w, p)[0] === "通过");
   $("#tab").innerHTML =
-    card('PPT 生成 · A 原生矢量 <span class="badge bg-secondary-lt ms-2">你启动 · 执行端制作 · 系统导出</span>', `<div class="card-body">
+    card(w.generation_route === "TEMPLATE_LIB" ? 'PPT 生成 · 模板库 <span class="badge bg-secondary-lt ms-2">你启动 · 程序生成 · 逐页溯源</span>'
+         : 'PPT 生成 · A 原生矢量 <span class="badge bg-secondary-lt ms-2">你启动 · 执行端制作 · 系统导出</span>', `<div class="card-body">
       <div class="d-flex gap-2 flex-wrap mb-2">
         <button class="btn btn-primary" id="render-final" ${canGenerate?"":"disabled"}><i class="ti ti-player-play me-1"></i>开始／续跑生成</button>
         <button class="btn" id="render-draft" ${canDraft?"":"disabled"}>生成内容校对稿（无完整视觉设计）</button></div>${gateNotice}${!canDraft?'<div class="text-secondary mb-2">草稿尚不可用：需先完成当前版本的页面规格。</div>':""}
-      <div class="form-hint mb-2">完整设计稿 → 版面拆解 → 去字 → 矢量化 → 原生文字、表格与图形 → PowerPoint 渲染核对。素材齐备后自动导出；完成后逐页审核。草稿用于内容检查。</div>
+      <div class="form-hint mb-2">${w.generation_route === "TEMPLATE_LIB" ? "选版式 → 绑定事实 → 原生文字、表格与图形 → PowerPoint 画面核对 → 溯源报告（trace.md）。生成后逐页审核。草稿用于内容检查。" : "完整设计稿 → 版面拆解 → 去字 → 矢量化 → 原生文字、表格与图形 → PowerPoint 渲染核对。素材齐备后自动导出；完成后逐页审核。草稿用于内容检查。"}</div>
       <div id="generation-progress">${generationProgress(w.generation_status)}</div>
       ${r ? `<div class="mb-2"><b>正式版</b> <span class="mono small">${short(r.input_sha256)}</span> ${r.hard_errors ? badge("有硬错误", "red") : ""} ${files(r, "final")}${summary(r)}</div>` : ""}
       ${d ? `<div class="alert alert-warning"><div><b>内容校对稿 · 尚未完成视觉设计</b><div class="mb-2">此文件用于核对文字和来源，主要显示文字与基础排版。所选模板的插画、矢量图形和完整版面需等待 A 路线制作完成；请在“正式版”下载设计后的PPT。</div><span class="mono small">${short(d.input_sha256)}</span> ${files(d, "draft")}${summary(d)}</div></div>` : ""}</div>`)
