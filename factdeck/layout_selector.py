@@ -5,8 +5,12 @@ per item, including 5- and 6-column rows) is retired. A body slide gets one
 anchor — a hero number, a takeaway, or a relation diagram — and the rest is
 set in ruled columns, a checklist, a matrix, or evidence lines.
 
-An anchor fill that is not the source field is kept only by ``screen_fill``.
-That calls the fact gate. A clip the gate does not admit is not the anchor.
+An equal multi-column grid of four or more peer cards is refused unless an
+admitted fact differentiates them: a metric value, an evidence field, or an
+action the fact gate accepted. A relation label alone does not. An anchor
+fill that is not the source field is kept only by ``screen_fill``. That
+calls the fact gate. A clip the gate does not admit, and a dangling
+half-sentence, are not the anchor.
 """
 
 from __future__ import annotations
@@ -254,20 +258,115 @@ def _claim_anchor(slide: dict, items: list[dict]) -> dict:
     }
 
 
-def _guard(selection: Selection, item_count: int) -> Selection:
+def _peer_items(slide: dict) -> list[dict]:
+    peers = []
+    for item in _items(slide):
+        if any(str(item.get(field) or "").strip() for field in ("title", "body", "value", "evidence", "text")):
+            peers.append(item)
+    return peers
+
+
+def _admitted_field(item: dict, field: str) -> bool:
+    from factdeck.summary import field_admission
+
+    if not str(item.get(field) or "").strip():
+        return False
+    return field_admission(item, field) == "ADMITTED"
+
+
+def _admitted_metric(item: dict) -> bool:
+    if not is_metric_item(item):
+        return False
+    value = str(item.get("value") or "").strip()
+    body = str(item.get("body") or "").strip()
+    if value and (item.get("kind") == "metric" or METRIC_VALUE.match(value)):
+        if _admitted_field(item, "value"):
+            return True
+    if body and is_metric_item({"kind": item.get("kind"), "body": body}):
+        return _admitted_field(item, "body")
+    return False
+
+
+def _admitted_evidence(item: dict) -> bool:
+    if not str(item.get("evidence") or "").strip():
+        return False
+    return _admitted_field(item, "evidence")
+
+
+def _admitted_action(item: dict) -> bool:
+    if not is_action_item(item):
+        return False
+    for field in ("title", "body"):
+        text = str(item.get(field) or "")
+        if text and ACTION_PREFIX.search(text) and _admitted_field(item, field):
+            return True
+    return False
+
+
+def _fact_structure(slide: dict, items: list[dict]) -> bool:
+    """True when admitted facts, not the column count, differentiate peers."""
+
+    if slide.get("nodes") or slide.get("table"):
+        return True
+    axes = slide.get("axes") or {}
+    if axes.get("rows") and axes.get("cols") and len(_items(slide)) == 4:
+        return True
+    if normalize_relation(slide) == "sequence":
+        return True
+    if any(_admitted_metric(item) for item in items):
+        return True
+    if any(_admitted_evidence(item) for item in items):
+        return True
+    if any(_admitted_action(item) for item in items):
+        return True
+    return False
+
+
+def _peer_columns(slide: dict, items: list[dict], count: int) -> int:
+    if count <= 3 or not _fact_structure(slide, items):
+        return 1
+    return 2
+
+
+def is_equal_card_wall(slide: dict, selection: Selection) -> bool:
+    """True when this selection would dump equal peer cards.
+
+    Retired card layouts are a wall. Four or more peers in as many columns,
+    or in more than three columns, are a wall. A checklist or metric row
+    that puts those peers in two or more columns is also a wall when no
+    admitted metric, evidence, or action differentiates them.
+    """
+
+    if selection.layout_id in RETIRED_LAYOUTS:
+        return True
+    peers = _peer_items(slide)
+    count = len(peers)
+    columns = selection.columns
+    guarded = {"metric_row", "checklist", "claim_evidence", "matrix_2x2"}
+    if selection.layout_id in guarded and count >= 4 and (columns >= count or columns > 3):
+        return True
+    if selection.layout_id == "metric_row" and columns > 3:
+        return True
+    if selection.layout_id in {"metric_row", "checklist"} and count >= 4 and columns >= 2:
+        if not _fact_structure(slide, peers):
+            return True
+    return False
+
+
+def refuse_equal_card_wall(slide: dict, selection: Selection) -> None:
+    """Raise when the selection must not be rendered."""
+
     if selection.layout_id in RETIRED_LAYOUTS or selection.layout_id not in LAYOUTS:
         raise RuntimeError(f"retired or unknown layout: {selection.layout_id}")
-    if item_count >= 4 and selection.layout_id in {"metric_row", "checklist", "claim_evidence", "matrix_2x2"}:
-        if selection.columns >= item_count or selection.columns > 3:
-            raise RuntimeError(
-                f"equal column wall: {item_count} items would use {selection.columns} columns"
-            )
-    if selection.layout_id == "metric_row" and selection.columns > 3:
-        raise RuntimeError("metric row is capped at 3 figures")
-    return selection
+    if is_equal_card_wall(slide, selection):
+        count = len(_peer_items(slide))
+        raise RuntimeError(
+            f"equal card wall: {count} peer cards in {selection.layout_id} "
+            f"use {selection.columns} columns without admitted-fact structure"
+        )
 
 
-def _finish(ranked: list[_Candidate], previous: str | None, item_count: int) -> Selection:
+def _finish(ranked: list[_Candidate], previous: str | None, slide: dict) -> Selection:
     if not ranked:
         raise RuntimeError("no layout candidate")
     best = ranked[0]
@@ -280,7 +379,8 @@ def _finish(ranked: list[_Candidate], previous: str | None, item_count: int) -> 
         else:
             reason = f"{reason}；与上一页相同，无合格替代，保留"
     selection = Selection(best.layout_id, best.variant, reason, best.columns, best.anchor)
-    return _guard(selection, item_count)
+    refuse_equal_card_wall(slide, selection)
+    return selection
 
 
 def _note_columns(count: int) -> int:
@@ -306,16 +406,16 @@ def select_layout(slide: dict, previous: str | None = None) -> Selection:
     count = len(items)
 
     if role == "cover":
-        return _finish([_Candidate("cover", "cover", 100, "封面不参与要点分栏", 1, {"kind": "cover"})], previous, 0)
+        return _finish([_Candidate("cover", "cover", 100, "封面不参与要点分栏", 1, {"kind": "cover"})], previous, slide)
     if role == "section":
-        return _finish([_Candidate("section", "section", 100, "章节页不参与要点分栏", 1, {"kind": "section"})], previous, 0)
+        return _finish([_Candidate("section", "section", 100, "章节页不参与要点分栏", 1, {"kind": "section"})], previous, slide)
 
     if nodes or (relation == "threshold" and nodes):
         anchor = {"kind": "diagram", "label": slide.get("title") or "", "value": "", "source_item_id": None}
         reason = "条件/阈值判断用固定节点的决策图，不降级为要点卡片"
         if slide.get("proposed") == "key_points":
             reason += "（拒绝由算法树降级为 key_points）"
-        return _finish([_Candidate("algorithm_tree", "guideline", 100, reason, 0, anchor)], previous, 0)
+        return _finish([_Candidate("algorithm_tree", "guideline", 100, reason, 0, anchor)], previous, slide)
 
     if table or relation == "table":
         columns = table.get("columns") if isinstance(table, dict) else []
@@ -328,7 +428,7 @@ def select_layout(slide: dict, previous: str | None = None) -> Selection:
         return _finish(
             [_Candidate("data_table_highlight", "clinical", 100, "多行对照用临床比较表，按列意宽并高亮关键列", 1, anchor)],
             previous,
-            0,
+            slide,
         )
 
     if relation == "comparison":
@@ -336,7 +436,7 @@ def select_layout(slide: dict, previous: str | None = None) -> Selection:
         return _finish(
             [_Candidate("comparison", "two_column", 100, "A/B 对照保持对照页", 2, anchor)],
             previous,
-            count,
+            slide,
         )
 
     if relation == "matrix" or (axes.get("rows") and axes.get("cols") and count == 4):
@@ -349,14 +449,14 @@ def select_layout(slide: dict, previous: str | None = None) -> Selection:
         return _finish(
             [_Candidate("matrix_2x2", "axes", 100, "四项并且给出行列轴，用 2×2 矩阵而不是四张卡片", 2, anchor)],
             previous,
-            count,
+            slide,
         )
 
     if relation == "claim_evidence":
         return _finish(
             [_Candidate("claim_evidence", "lead", 100, "主张与依据分栏，依据降到次级", 2, _claim_anchor(slide, items))],
             previous,
-            count,
+            slide,
         )
 
     if relation == "metric":
@@ -365,22 +465,23 @@ def select_layout(slide: dict, previous: str | None = None) -> Selection:
         return _finish(
             [_Candidate("metric_row", variant, 100, "数值关系用一行指标，最多三列，共享基线", columns, _metric_anchor(slide, items, variant))],
             previous,
-            count,
+            slide,
         )
 
     if relation in {"checklist", "sequence"}:
-        columns = 1 if count <= 3 else 2
+        columns = _peer_columns(slide, items, count)
         variant = "sequence" if relation == "sequence" else "review"
         return _finish(
             [_Candidate("checklist", variant, 100, "步骤或复核清单用编号通栏，最多两列", columns, _checklist_anchor(slide, items))],
             previous,
-            count,
+            slide,
         )
 
     # Parallel fallback: infer a relation. Never emit one card per bullet.
-    metrics = [item for item in items if is_metric_item(item)]
-    evidenced = [item for item in items if item.get("evidence")]
-    actions = [item for item in items if is_action_item(item)]
+    # Only an admitted fact counts as a metric, an evidence line, or an action.
+    metrics = [item for item in items if _admitted_metric(item)]
+    evidenced = [item for item in items if _admitted_evidence(item)]
+    actions = [item for item in items if _admitted_action(item)]
     ranked: list[_Candidate] = []
 
     if evidenced and count and len(evidenced) / count >= 0.5:
@@ -431,7 +532,7 @@ def select_layout(slide: dict, previous: str | None = None) -> Selection:
             )
         )
     if actions or count >= 4 or count == 0:
-        columns = 1 if count <= 3 else 2
+        columns = _peer_columns(slide, items, count)
         score = 70 if actions else 60
         reason = "并列动作改为清单" if actions else "并列要点改为清单，禁止按条数生成等分卡片"
         ranked.append(_Candidate("checklist", "review", score, reason, columns, _checklist_anchor(slide, items)))
@@ -448,4 +549,4 @@ def select_layout(slide: dict, previous: str | None = None) -> Selection:
         )
 
     ranked.sort(key=lambda item: -item.score)
-    return _finish(ranked, previous, count)
+    return _finish(ranked, previous, slide)

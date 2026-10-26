@@ -4,7 +4,8 @@
 original span. ``trace_slide`` binds each measured slot to a source slice
 and admits it only through that gate. ``factdeck.deck.build_deck`` is the
 default deck entry: template pages only, with no HTTP ``/api/deck``.
-It slims a SUMMARY before layout selection.
+It slims a SUMMARY before layout selection, omits a dangling half-sentence,
+and refuses an equal card wall that admitted facts do not differentiate.
 """
 
 __all__ = [

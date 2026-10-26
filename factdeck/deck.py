@@ -6,7 +6,10 @@ every slot and admits on-screen fact text through the display fact gate.
 There is no second renderer that skips the gate.
 
 Cover, section, and comparison have no teaching-layout body. This entry
-does not invent one for them. A deck-wide card wall is not part of it.
+does not invent one for them. After the slim pass it refuses an equal
+card wall: four or more peer cards in multiple columns with no admitted
+metric, evidence, or action to differentiate them. A dangling
+half-sentence is omitted with its bullet or slot.
 
 ``prepare_deck`` slims a SUMMARY before ``select_layout``. Bullets that
 cannot bind to a source slice are omitted. Chapter limits are
@@ -20,7 +23,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from factdeck.html_templates import render_html
-from factdeck.layout_selector import select_layout
+from factdeck.layout_selector import refuse_equal_card_wall, select_layout
 from factdeck.slots import trace_slide
 from factdeck.summary import ChapterLimits, DeckSummary, prepare_deck
 
@@ -86,6 +89,7 @@ def build_deck(
     for slide in prepared.slides:
         payload = dict(slide)
         selection = select_layout(payload, previous=previous)
+        refuse_equal_card_wall(payload, selection)
         html = render_html(payload, selection)
         trace = trace_slide(payload, selection)
         marker = f'data-layout="{selection.layout_id}"'
