@@ -14,6 +14,8 @@ jobs:
           python-version: '3.12'
       - name: Governance unit tests
         run: python -m unittest discover -s tests/governance -v
+      - name: Layout selector tests
+        run: python -m unittest discover -s tests/factdeck -v
       - name: Frozen contract and milestone gate
         shell: bash
         env:
