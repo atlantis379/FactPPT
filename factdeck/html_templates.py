@@ -1,4 +1,9 @@
-"""HTML bodies for the teaching layouts. Slots are measured, then drawn as native shapes."""
+"""HTML bodies for the teaching layouts.
+
+``render_html`` traces every slot and draws fact text only through
+``emit_on_screen``. A fill the fact gate rejected or held for review is
+not in the HTML. Slots that remain are measured, then drawn as native shapes.
+"""
 
 from __future__ import annotations
 
@@ -7,7 +12,7 @@ import json
 import re
 
 from factdeck.layout_selector import Selection
-from factdeck.slots import SlideTrace, SlotVerdict, emit_fact_value, trace_slide
+from factdeck.slots import SlideTrace, SlotVerdict, emit_on_screen, trace_slide
 from factdeck.theme import CSS, MEASURE_JS
 
 PERCENT = re.compile(r"(约?\d+(?:\.\d+)?(?:\s*[-–—]\s*\d+(?:\.\d+)?)?\s*[%％])")
@@ -63,7 +68,7 @@ def _attr(verdict: SlotVerdict) -> str:
 
 def _el(trace: SlideTrace, slot_id: str, *, tag: str = "div", class_name: str = "", inner: str | None = None, extra: str = "") -> str:
     verdict = trace.by_id()[slot_id]
-    if not emit_fact_value(verdict):
+    if not emit_on_screen(verdict):
         return ""
     content = _esc(verdict.display_text) if inner is None else inner
     class_attr = f' class="{class_name}"' if class_name else ""

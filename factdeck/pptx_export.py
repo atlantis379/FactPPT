@@ -12,6 +12,8 @@ from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.oxml.ns import qn
 from pptx.util import Emu, Pt
 
+from factdeck.slots import measured_text
+
 SLIDE_W = 12_192_000
 SLIDE_H = 6_858_000
 PX_TO_EMU = SLIDE_W / 1920
@@ -94,6 +96,7 @@ def _draw(slide, slot: dict) -> None:
     top = _emu(float(slot.get("y") or 0))
     box_w = _emu(max(width, 1))
     box_h = _emu(max(height, 1))
+    text = measured_text(slot)
     if kind == "line":
         shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, box_w, box_h)
         shape.shadow.inherit = False
@@ -112,13 +115,11 @@ def _draw(slide, slot: dict) -> None:
             shape.fill.solid()
             shape.fill.fore_color.rgb = fill
         _apply_border(shape, slot.get("border") or {})
-        text = (slot.get("text") or "").strip()
         if text:
             _write_text(shape, slot, text)
         else:
             shape.text_frame.clear()
         return
-    text = (slot.get("text") or "").strip()
     if not text:
         return
     fill = _color(slot.get("fill"))

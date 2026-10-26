@@ -7,3 +7,9 @@ Start here:
 4. Follow the active M0 contract in `docs/milestones/CURRENT.md`.
 5. Run `python -m unittest discover -s tests/governance -v` and `python tools/governance/check.py --changed-file <path>` for local checks.
 6. Complete independent audit and CI before marking M0 frozen. Future v0.2 schemas require an explicit frozen-manifest entry and a later milestone.
+
+## Teaching-layout deck
+
+This package has no HTTP `/api/deck`. The default generation entry is `factdeck.deck.build_deck`. `python -m factdeck.render` measures those pages; it does not fill slides on a second path.
+
+`build_deck` selects a teaching layout and renders it with `factdeck.html_templates.render_html`. Fact text on the page is whatever the display fact gate admits. A rejected or unreviewed fill is left out of the HTML. Summary slimming and a deck-wide card-wall check are not part of this entry. Cover, section, and comparison have no body template here.

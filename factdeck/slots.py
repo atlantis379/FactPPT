@@ -2,7 +2,9 @@
 
 Each fact-bearing slot names the source field it was drawn from and is
 admitted only by ``gate_display``. ``ACCEPTED`` requires at least one slice
-that gate admitted. A slide-level note is not provenance.
+that gate admitted. A slide-level note is not provenance. ``screen_fill``
+drops a shortening the gate does not admit. ``emit_on_screen`` is what the
+template uses so a rejected fill is not on-screen text.
 
 Title and body (or a flow-node title and another node's line) that share a
 pair id must cite the same source object. Cross-wiring is ``REJECTED``.
@@ -141,6 +143,24 @@ def gate_keeps_display(source_text: str, display_text: str) -> bool:
         fact_bearing=True,
     )
     return judge_binding(binding).status == "ACCEPTED"
+
+
+def screen_fill(source_text: str, display_text: str) -> str:
+    """Keep a fill only when it is the source text or the fact gate admits it.
+
+    A shortening or an invented string is dropped. The same characters with
+    a folded space between a digit and a unit are still the source text.
+    """
+
+    display = "" if display_text is None else str(display_text)
+    source = "" if source_text is None else str(source_text)
+    if not display.strip():
+        return ""
+    if canon(display) == canon(source):
+        return display
+    if gate_keeps_display(source, display):
+        return display
+    return ""
 
 
 def measure_record(verdict: SlotVerdict) -> dict:
@@ -612,17 +632,12 @@ def _metric_bindings(slide: Mapping, selection) -> list[SlotBinding]:
     bindings = [_chrome(layout_id, "hero", "shape", "", None, None)]
     if hero is not None:
         source_id = f"item:{hero['id']}"
-        raw_value = str(hero.get("value") or "").strip()
-        body = str(hero.get("body") or "")
-        if raw_value:
-            value_source, value_field = raw_value, "value"
-        else:
-            value_source, value_field = body, "body"
+        shown, value_source, value_field = _resolve_metric_fill(hero, str(anchor.get("value") or ""))
         bindings.append(
             _fact(layout_id, "hero-label", "title", str(anchor.get("label") or hero.get("title") or ""), str(hero.get("title") or ""), source_id, "title", source_id)
         )
         bindings.append(
-            _fact(layout_id, "hero-value", "value", str(anchor.get("value") or ""), value_source, source_id, value_field, source_id)
+            _fact(layout_id, "hero-value", "value", shown, value_source, source_id, value_field, source_id)
         )
     if statement is not None:
         label = str(anchor.get("statement_label") or "")
@@ -643,7 +658,9 @@ def _metric_bindings(slide: Mapping, selection) -> list[SlotBinding]:
             )
         )
     else:
-        bindings.append(_chrome(layout_id, "take-text", "text", str(anchor.get("statement") or ""), None, None))
+        statement_text = str(anchor.get("statement") or "")
+        if not _has_facts(statement_text):
+            bindings.append(_chrome(layout_id, "take-text", "text", statement_text, None, None))
     hidden = {hero_id, statement_id}
     notes = [item for item in items if item.get("id") not in hidden]
     for index, item in enumerate(notes, start=1):
@@ -652,17 +669,34 @@ def _metric_bindings(slide: Mapping, selection) -> list[SlotBinding]:
     return bindings
 
 
+def _resolve_metric_fill(item: Mapping, display: str | None = None) -> tuple[str, str, str]:
+    """Return display, source text, and source field for a metric value.
+
+    A value field that is not the body is judged against the body. It is
+    not allowed to be its own source, so a shortened or stitched number
+    cannot skip the fact gate.
+    """
+
+    raw_value = str(item.get("value") or "").strip()
+    body = str(item.get("body") or "")
+    differs = bool(raw_value and body.strip() and canon(raw_value) != canon(body))
+    if display is None or (display == "" and differs):
+        shown = raw_value or body
+    else:
+        shown = display
+    if differs:
+        return shown, body, "body"
+    if raw_value:
+        return shown, raw_value, "value"
+    return shown, body, "body"
+
+
 def _item_title_value(layout_id: str, item: Mapping, prefix: str, *, label_key: str | None = None, value_key: str | None = None) -> list[SlotBinding]:
     label_id = label_key or f"{prefix}-label"
     value_id = value_key or f"{prefix}-value"
     source_id = f"item:{item['id']}"
     title = str(item.get("title") or "")
-    raw_value = str(item.get("value") or "").strip()
-    body = str(item.get("body") or "")
-    if raw_value:
-        shown, field, source = raw_value, "value", raw_value
-    else:
-        shown, field, source = body, "body", body
+    shown, source, field = _resolve_metric_fill(item)
     return [
         _fact(layout_id, label_id, "title", title, title, source_id, "title", source_id),
         _fact(layout_id, value_id, "value", shown, source, source_id, field, source_id),
@@ -694,6 +728,8 @@ def _checklist_bindings(slide: Mapping, selection) -> list[SlotBinding]:
         statement = str(anchor.get("statement") or "")
         if label and _contained(label, title):
             bindings.append(_fact(layout_id, "anchor-label", "title", label, title, source_id, "title", source_id))
+        elif label and _has_facts(label):
+            bindings.append(_fact(layout_id, "anchor-label", "title", label, title, source_id, "title", source_id))
         else:
             bindings.append(_chrome(layout_id, "anchor-label", "text", label or title, source_id, "title"))
         value = str(anchor.get("value") or "")
@@ -702,8 +738,12 @@ def _checklist_bindings(slide: Mapping, selection) -> list[SlotBinding]:
                 bindings.append(_fact(layout_id, "anchor-value", "value", value, body, source_id, "body", source_id))
             elif _contained(value, title) and _has_facts(title):
                 bindings.append(_fact(layout_id, "anchor-value", "value", value, title, source_id, "title", source_id))
-            else:
-                bindings.append(_chrome(layout_id, "anchor-value", "text", value, "slide", "title"))
+            elif _has_facts(value) and (body or title):
+                source_text = body or title
+                field = "body" if body else "title"
+                bindings.append(_fact(layout_id, "anchor-value", "value", value, source_text, source_id, field, source_id))
+            elif not _has_facts(value):
+                bindings.append(_chrome(layout_id, "anchor-value", "text", value, source_id, "title"))
         bindings.append(_fact(layout_id, "anchor-text", "body", statement or body, body, source_id, "body", source_id))
     for index, entry in enumerate(items, start=1):
         bindings.append(_chrome(layout_id, f"c{index}-idx", "text", f"{index:02d}", f"item:{entry['id']}", "index"))
@@ -937,3 +977,28 @@ def emit_fact_value(verdict: SlotVerdict) -> bool:
     if verdict.role != "value" or not verdict.fact_bearing:
         return True
     return verdict.status == "ACCEPTED"
+
+
+def emit_on_screen(verdict: SlotVerdict) -> bool:
+    """Fact text is drawn only when the gate did not reject or hold it.
+
+    ``REJECTED`` and ``NEEDS_REVIEW`` stay off the slide for every role.
+    A value slot still needs an admitted slice. Chrome, and verbatim prose
+    with no fact slice, still render.
+    """
+
+    if verdict.status in {"REJECTED", "NEEDS_REVIEW"}:
+        return False
+    return emit_fact_value(verdict)
+
+
+def measured_text(slot: Mapping) -> str:
+    """Text a measured slot may draw. The template gate is not optional here."""
+
+    text = str(slot.get("text") or "").strip()
+    status = str(slot.get("status") or "")
+    if status in {"REJECTED", "NEEDS_REVIEW"}:
+        return ""
+    if str(slot.get("fact") or "") == "1" and str(slot.get("role") or "") == "value" and status != "ACCEPTED":
+        return ""
+    return text

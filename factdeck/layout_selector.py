@@ -4,6 +4,9 @@ Parallel bullets are not a card wall. ``key_points`` (one equal floating card
 per item, including 5- and 6-column rows) is retired. A body slide gets one
 anchor — a hero number, a takeaway, or a relation diagram — and the rest is
 set in ruled columns, a checklist, a matrix, or evidence lines.
+
+An anchor fill that is not the source field is kept only by ``screen_fill``.
+That calls the fact gate. A clip the gate does not admit is not the anchor.
 """
 
 from __future__ import annotations
@@ -170,6 +173,18 @@ def _statement_item(slide: dict, items: list[dict], hero: dict | None) -> dict |
     return max(others, key=lambda item: len(str(item.get("body") or "")))
 
 
+def _screened_metric_value(item: dict) -> str:
+    """A value that is not the body must be a gate-admitted slice of that body."""
+
+    value = str(item.get("value") or "").strip()
+    body = str(item.get("body") or "").strip()
+    if value and body:
+        from factdeck.slots import screen_fill
+
+        return screen_fill(body, value)
+    return metric_display(item)
+
+
 def _metric_anchor(slide: dict, items: list[dict], variant: str) -> dict:
     metrics = [item for item in items if is_metric_item(item)]
     hero = metrics[0] if metrics else (items[0] if items else {})
@@ -177,7 +192,7 @@ def _metric_anchor(slide: dict, items: list[dict], variant: str) -> dict:
     return {
         "kind": "metric",
         "label": hero.get("title") or slide.get("title") or "",
-        "value": metric_display(hero) if hero else "",
+        "value": _screened_metric_value(hero) if hero else "",
         "statement": (statement or {}).get("body") or "",
         "statement_label": (statement or {}).get("title") or "",
         "source_item_id": hero.get("id"),
@@ -195,11 +210,11 @@ def _checklist_anchor(slide: dict, items: list[dict]) -> dict:
             title = str(item.get("title") or "")
             clip = f"{match.group(1)}{match.group(2)}"
             source = body if DURATION.search(body) else title
-            from factdeck.slots import gate_keeps_display
+            from factdeck.slots import screen_fill
 
-            # A digit-unit clip such as 「3个月」 drops 连续 / 及以上. Do not
-            # put that string on the anchor unless the fact gate admits it.
-            value = clip if gate_keeps_display(source, clip) else ""
+            # A digit-unit clip such as 「3个月」 drops 连续 / 及以上. The
+            # fact gate is the only way that clip becomes anchor text.
+            value = screen_fill(source, clip)
             return {
                 "kind": "metric",
                 "label": item.get("title") or slide.get("title") or "",

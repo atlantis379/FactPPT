@@ -2,7 +2,8 @@
 
 ``select_layout`` chooses a teaching layout. ``gate_display`` checks one
 original span. ``trace_slide`` binds each measured slot to a source slice
-and admits it only through that gate.
+and admits it only through that gate. ``factdeck.deck.build_deck`` is the
+default deck entry: template pages only, with no HTTP ``/api/deck``.
 """
 
 __all__ = [
