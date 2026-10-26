@@ -9,8 +9,8 @@ Dropping a comparison, population, time window, or quantifier is not
 ACCEPTED unless the caller names every dropped class and supplies a human
 gate that covers those same classes. Display ACCEPTED is not graph APPROVED.
 
-Out of scope here: slot pairing, template wiring, summary slimming, and
-card-wall geometry.
+Slot pairing calls this gate from ``factdeck.slots``. Out of scope here:
+summary slimming and card-wall geometry.
 """
 
 from __future__ import annotations

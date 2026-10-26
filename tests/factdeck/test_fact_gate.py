@@ -251,10 +251,13 @@ class DisplayOmissionTests(unittest.TestCase):
         slide = review_slide()
         source = next(item["body"] for item in slide["items"] if "3个月" in item["body"])
         selection = select_layout(slide)
-        self.assertEqual(selection.anchor["value"], "3个月")
-        result = gate_display(source, selection.anchor["value"])
-        self.assertNotEqual(result.status, "ACCEPTED")
-        self.assertIn("DROP_TIME_WINDOW", result.omissions)
+        self.assertNotEqual(selection.anchor["value"], "3个月")
+        self.assertEqual(selection.anchor["value"], "")
+        bare = gate_display(source, "3个月")
+        self.assertNotEqual(bare.status, "ACCEPTED")
+        self.assertIn("DROP_TIME_WINDOW", bare.omissions)
+        admitted = gate_display(source, selection.anchor["statement"])
+        self.assertEqual(admitted.status, "ACCEPTED")
 
     def test_schedule_drop_is_not_accepted(self):
         source = "美泊利珠单抗 100 mg，每 4 周 1 次"
