@@ -11,7 +11,8 @@ gate that covers those same classes. Display ACCEPTED is not graph APPROVED.
 
 Slot pairing calls this gate from ``factdeck.slots``. Summary slimming
 calls it from ``factdeck.summary`` and does not rewrite a string the gate
-rejects. Card-wall geometry is out of scope here.
+rejects. ``dangling_half_sentence`` is the display check for a clip that
+is not a full admitted slice. Card-wall geometry lives on the deck mainline.
 """
 
 from __future__ import annotations
@@ -244,6 +245,81 @@ def gate_display(
     if omissions:
         return _make("ACCEPTED", "HUMAN_GATE_OMISSION", omissions, omitted_texts, added_texts, evidence, shown)
     return _make("ACCEPTED", "EXTRACTIVE_FAITHFUL", set(), (), (), evidence, shown)
+
+
+_SENTENCE_END = re.compile(r"[。！？；\n]")
+_SLICE_GAP = re.compile(r"[\s，。、；：:,.．·（）()【】\[\]《》\-—–~～/]*")
+
+
+def dangling_half_sentence(
+    source_text: str | None,
+    display_text: str | None,
+    gate: FactGateResult | None = None,
+) -> bool:
+    """True when display is a clipped phrase, not a full admitted slice.
+
+    The whole source span is not a clip. A complete sentence of that span
+    is not a clip. A shortening the gate accepts is not a clip when the
+    display is exactly the admitted slices and the characters between
+    those slices are punctuation. Any other shortening is a half-sentence:
+    the caller omits the bullet or the slot instead of showing the fragment.
+    """
+
+    display = "" if display_text is None else str(display_text)
+    source = "" if source_text is None else str(source_text)
+    if not display.strip():
+        return False
+    folded_display = canon(display)
+    folded_source = canon(source)
+    if not folded_display or folded_display == folded_source:
+        return False
+    if folded_display not in folded_source:
+        return False
+    if _covers_whole_sentences(source, display):
+        return False
+    decided = gate if gate is not None else gate_display(source, display)
+    if decided.status == "ACCEPTED" and _display_is_admitted_slices(display, decided.display_slices):
+        return False
+    return True
+
+
+def _covers_whole_sentences(source: str, display: str) -> bool:
+    sentences = _sentences(source)
+    folded = canon(display)
+    if any(folded == canon(sentence) for sentence in sentences):
+        return True
+    for start in range(len(sentences)):
+        joined = ""
+        for sentence in sentences[start:]:
+            joined += sentence
+            if canon(joined) == folded:
+                return True
+    return False
+
+
+def _sentences(source: str) -> list[str]:
+    sentences = []
+    start = 0
+    for match in _SENTENCE_END.finditer(source):
+        piece = source[start : match.end()].strip()
+        if piece:
+            sentences.append(piece)
+        start = match.end()
+    tail = source[start:].strip()
+    if tail:
+        sentences.append(tail)
+    return sentences
+
+
+def _display_is_admitted_slices(display: str, slices: tuple[UnitSlice, ...]) -> bool:
+    if not slices:
+        return False
+    covered = [False] * len(display)
+    for item in slices:
+        for index in range(max(0, item.start), min(len(display), item.end)):
+            covered[index] = True
+    gap = "".join(char for char, done in zip(display, covered) if not done)
+    return bool(_SLICE_GAP.fullmatch(gap))
 
 
 def _make(

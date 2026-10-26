@@ -11,7 +11,7 @@ import html
 import json
 import re
 
-from factdeck.layout_selector import Selection
+from factdeck.layout_selector import Selection, refuse_equal_card_wall
 from factdeck.slots import SlideTrace, SlotVerdict, emit_on_screen, trace_slide
 from factdeck.theme import CSS, MEASURE_JS
 
@@ -21,6 +21,7 @@ BADGE_NO = frozenset({"否", "无", "N", "No", "NO"})
 
 
 def render_html(slide: dict, selection: Selection) -> str:
+    refuse_equal_card_wall(slide, selection)
     renderer = {
         "metric_row": _metric_row,
         "checklist": _checklist,

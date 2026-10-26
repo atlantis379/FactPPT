@@ -19,7 +19,14 @@ from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 
-from factdeck.facts import FactGateResult, UnitSlice, canon, extract_unit_slices, gate_display
+from factdeck.facts import (
+    FactGateResult,
+    UnitSlice,
+    canon,
+    dangling_half_sentence,
+    extract_unit_slices,
+    gate_display,
+)
 from factdeck.layout_selector import clean_source
 from factdeck.lexicon import DERIVATION_BY_KIND
 
@@ -146,10 +153,11 @@ def gate_keeps_display(source_text: str, display_text: str) -> bool:
 
 
 def screen_fill(source_text: str, display_text: str) -> str:
-    """Keep a fill only when it is the source text or the fact gate admits it.
+    """Keep a fill only when it is the source text or a full admitted slice.
 
-    A shortening or an invented string is dropped. The same characters with
-    a folded space between a digit and a unit are still the source text.
+    A dangling half-sentence is dropped, including a shortening the fact
+    gate would otherwise accept. The same characters with a folded space
+    between a digit and a unit are still the source text.
     """
 
     display = "" if display_text is None else str(display_text)
@@ -158,6 +166,8 @@ def screen_fill(source_text: str, display_text: str) -> str:
         return ""
     if canon(display) == canon(source):
         return display
+    if dangling_half_sentence(source, display):
+        return ""
     if gate_keeps_display(source, display):
         return display
     return ""
@@ -203,6 +213,16 @@ def judge_binding(binding: SlotBinding) -> SlotVerdict:
         return _verdict(binding, "REJECTED", gate.reason_code, gate.reason, (), gate.status, gate.reason_code)
     if gate.status == "NEEDS_REVIEW":
         return _verdict(binding, "NEEDS_REVIEW", gate.reason_code, gate.reason, (), gate.status, gate.reason_code)
+    if dangling_half_sentence(binding.source_text, binding.display_text, gate):
+        return _verdict(
+            binding,
+            "REJECTED",
+            "HALF_SENTENCE",
+            "屏上文字是截断的半句，不是闸门承认的完整切片。",
+            (),
+            gate.status,
+            gate.reason_code,
+        )
     matched, orphan = _match_slices(gate)
     if orphan:
         return _verdict(
@@ -590,6 +610,23 @@ def _source_line(slide: Mapping) -> str:
     return source
 
 
+def _source_for_display(item: Mapping, display: str, own_source: str) -> str:
+    """Use a longer ``source_text`` when the field itself is a half-sentence.
+
+    An empty ``source_text`` stays unbound at the summary layer. The field
+    text remains the slot source so a filler the slim pass has not seen yet
+    is unchanged on the raw template path.
+    """
+
+    raw = item.get("source_text") if isinstance(item, Mapping) else None
+    if raw is None or not str(raw).strip():
+        return own_source
+    source = str(raw)
+    if dangling_half_sentence(source, display):
+        return source
+    return own_source
+
+
 def _fact(
     layout_id: str,
     slot_id: str,
@@ -645,13 +682,14 @@ def _metric_bindings(slide: Mapping, selection) -> list[SlotBinding]:
             bindings.append(
                 _fact(layout_id, "take-label", "title", label, str(statement.get("title") or ""), f"item:{statement['id']}", "title", f"item:{statement['id']}")
             )
+        statement_shown = str(anchor.get("statement") or statement.get("body") or "")
         bindings.append(
             _fact(
                 layout_id,
                 "take-text",
                 "body",
-                str(anchor.get("statement") or statement.get("body") or ""),
-                str(statement.get("body") or ""),
+                statement_shown,
+                _source_for_display(statement, statement_shown, str(statement.get("body") or "")),
                 f"item:{statement['id']}",
                 "body",
                 f"item:{statement['id']}",
@@ -685,10 +723,12 @@ def _resolve_metric_fill(item: Mapping, display: str | None = None) -> tuple[str
     else:
         shown = display
     if differs:
-        return shown, body, "body"
-    if raw_value:
-        return shown, raw_value, "value"
-    return shown, body, "body"
+        shown, source, field = shown, body, "body"
+    elif raw_value:
+        shown, source, field = shown, raw_value, "value"
+    else:
+        shown, source, field = shown, body, "body"
+    return shown, _source_for_display(item, shown, source), field
 
 
 def _item_title_value(layout_id: str, item: Mapping, prefix: str, *, label_key: str | None = None, value_key: str | None = None) -> list[SlotBinding]:
@@ -708,8 +748,8 @@ def _item_title_body(layout_id: str, item: Mapping, prefix: str) -> list[SlotBin
     title = str(item.get("title") or "")
     body = str(item.get("body") or "")
     return [
-        _fact(layout_id, f"{prefix}-title", "title", title, title, source_id, "title", source_id),
-        _fact(layout_id, f"{prefix}-body", "body", body, body, source_id, "body", source_id),
+        _fact(layout_id, f"{prefix}-title", "title", title, _source_for_display(item, title, title), source_id, "title", source_id),
+        _fact(layout_id, f"{prefix}-body", "body", body, _source_for_display(item, body, body), source_id, "body", source_id),
     ]
 
 
@@ -744,7 +784,10 @@ def _checklist_bindings(slide: Mapping, selection) -> list[SlotBinding]:
                 bindings.append(_fact(layout_id, "anchor-value", "value", value, source_text, source_id, field, source_id))
             elif not _has_facts(value):
                 bindings.append(_chrome(layout_id, "anchor-value", "text", value, source_id, "title"))
-        bindings.append(_fact(layout_id, "anchor-text", "body", statement or body, body, source_id, "body", source_id))
+        shown = statement or body
+        bindings.append(
+            _fact(layout_id, "anchor-text", "body", shown, _source_for_display(item, shown, body), source_id, "body", source_id)
+        )
     for index, entry in enumerate(items, start=1):
         bindings.append(_chrome(layout_id, f"c{index}-idx", "text", f"{index:02d}", f"item:{entry['id']}", "index"))
         bindings.extend(_item_title_body(layout_id, entry, f"c{index}"))
@@ -761,7 +804,8 @@ def _claim_bindings(slide: Mapping, selection) -> list[SlotBinding]:
     if claim is not None:
         source_id = f"item:{claim['id']}"
         label = str(anchor.get("label") or claim.get("title") or "")
-        bindings.append(_fact(layout_id, "claim-label", "title", label, str(claim.get("title") or ""), source_id, "title", source_id))
+        title = str(claim.get("title") or "")
+        bindings.append(_fact(layout_id, "claim-label", "title", label, _source_for_display(claim, label, title), source_id, "title", source_id))
         claim_text = str(anchor.get("value") or "")
         if claim.get("evidence") and claim.get("body"):
             field, source = "body", str(claim.get("body") or "")
@@ -769,16 +813,41 @@ def _claim_bindings(slide: Mapping, selection) -> list[SlotBinding]:
             field, source = "title", str(claim.get("title") or "")
         else:
             field, source = "body", str(claim.get("body") or claim_text)
-        bindings.append(_fact(layout_id, "claim-text", "body", claim_text, source, source_id, field, source_id))
+        bindings.append(
+            _fact(layout_id, "claim-text", "body", claim_text, _source_for_display(claim, claim_text, source), source_id, field, source_id)
+        )
     bindings.append(_chrome(layout_id, "ev-label", "text", "依据", None, None))
     rows, primary_done = _claim_rows(items, claim_id)
     for index, row in enumerate(rows, start=1):
         source_id = f"item:{row['id']}"
+        item = next(entry for entry in items if entry["id"] == row["id"])
         if row["title_source"] and _contained(row["title"], row["title_source"]):
-            bindings.append(_fact(layout_id, f"e{index}-title", "title", row["title"], row["title_source"], source_id, "title", source_id))
+            bindings.append(
+                _fact(
+                    layout_id,
+                    f"e{index}-title",
+                    "title",
+                    row["title"],
+                    _source_for_display(item, row["title"], row["title_source"]),
+                    source_id,
+                    "title",
+                    source_id,
+                )
+            )
         else:
             bindings.append(_chrome(layout_id, f"e{index}-title", "text", row["title"], source_id, "title"))
-        bindings.append(_fact(layout_id, f"e{index}-body", "body", row["text"], row["source"], source_id, row["field"], source_id))
+        bindings.append(
+            _fact(
+                layout_id,
+                f"e{index}-body",
+                "body",
+                row["text"],
+                _source_for_display(item, row["text"], row["source"]),
+                source_id,
+                row["field"],
+                source_id,
+            )
+        )
     if not primary_done and anchor.get("statement"):
         source_id = f"item:{claim['id']}" if claim is not None else "slide"
         bindings.append(
@@ -939,14 +1008,25 @@ def _node_bindings(layout_id: str, node: Mapping) -> list[SlotBinding]:
             pair_id=None,
             fact_bearing=False,
         ),
-        _fact(layout_id, f"{node['id']}-title", "title", str(node.get("title") or ""), str(node.get("title") or ""), source_id, "title", pair_id),
+        _fact(
+            layout_id,
+            f"{node['id']}-title",
+            "title",
+            str(node.get("title") or ""),
+            _source_for_display(node, str(node.get("title") or ""), str(node.get("title") or "")),
+            source_id,
+            "title",
+            pair_id,
+        ),
     ]
     body = str(node.get("body") or "")
     if body:
-        bindings.append(_fact(layout_id, f"{node['id']}-body", "body", body, body, source_id, "body", pair_id))
+        bindings.append(_fact(layout_id, f"{node['id']}-body", "body", body, _source_for_display(node, body, body), source_id, "body", pair_id))
     for index, line in enumerate(node.get("lines") or [], start=1):
         text = str(line)
-        bindings.append(_fact(layout_id, f"{node['id']}-line{index}", "line", text, text, source_id, f"line{index}", pair_id))
+        bindings.append(
+            _fact(layout_id, f"{node['id']}-line{index}", "line", text, _source_for_display(node, text, text), source_id, f"line{index}", pair_id)
+        )
     return bindings
 
 
@@ -983,6 +1063,7 @@ def emit_on_screen(verdict: SlotVerdict) -> bool:
     """Fact text is drawn only when the gate did not reject or hold it.
 
     ``REJECTED`` and ``NEEDS_REVIEW`` stay off the slide for every role.
+    A half-sentence clip is ``REJECTED`` and is omitted with its slot.
     A value slot still needs an admitted slice. Chrome, and verbatim prose
     with no fact slice, still render.
     """

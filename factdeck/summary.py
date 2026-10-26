@@ -28,8 +28,9 @@ value raises ``ValueError``. A bool raises ``TypeError``.
 
 ``build_deck`` runs this pass before layout selection. Cover, section,
 and comparison still have no body template; this pass does not invent
-one. A deck-wide card-wall or half-sentence ban is not part of this
-module.
+one. A bullet whose text is a dangling half-sentence of its source is
+``HALF_SENTENCE`` and is omitted whole. The deck entry refuses an equal
+card wall when the admitted facts do not differentiate those peers.
 """
 
 from __future__ import annotations
@@ -37,7 +38,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from factdeck.facts import canon, extract_unit_slices, gate_display
+from factdeck.facts import canon, dangling_half_sentence, extract_unit_slices, gate_display
 from factdeck.lexicon import DERIVATION_BY_KIND
 
 # Default chaptering. None leaves an already-bound teaching deck unchanged.
@@ -49,6 +50,7 @@ BULLET_REASONS = (
     "ADMITTED",
     "UNBOUND",
     "UNGATED",
+    "HALF_SENTENCE",
     "OVERFLOW",
     "SECTION_CUT",
     "PAGE_CUT",
@@ -348,7 +350,8 @@ def bullet_binds(text: str, source_text: str | None) -> str:
 
     The string is not rewritten. Anything the fact gate does not accept is
     ``UNGATED``. A missing span or a string that is not in that span is
-    ``UNBOUND``.
+    ``UNBOUND``. A clip the gate accepts only as a dangling half-sentence
+    is ``HALF_SENTENCE`` and is omitted whole.
     """
 
     if source_text is None or not str(source_text).strip():
@@ -364,7 +367,18 @@ def bullet_binds(text: str, source_text: str | None) -> str:
     gate = gate_display(source, display)
     if gate.status != "ACCEPTED":
         return "UNGATED"
+    if dangling_half_sentence(source, display, gate):
+        return "HALF_SENTENCE"
     return "ADMITTED"
+
+
+def field_admission(item: Mapping, field: str) -> str:
+    """Admission of one item field. Empty text cannot bind."""
+
+    text = "" if item.get(field) is None else str(item.get(field))
+    if not text.strip():
+        return "UNBOUND"
+    return bullet_binds(text, _field_source(item, field, text))
 
 
 def _inputs(
