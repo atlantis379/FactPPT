@@ -13,9 +13,11 @@ rules:
   statement: 关键 Claim/NumericFact/Relation 必须可追溯到至少一个 SourceSpan。
   status: ACTIVE
   enforcement:
-    code: factdeck/facts.py::extract_unit_slices
+    code: factdeck/slots.py::judge_binding
     tests:
       - tests/factdeck/test_fact_gate.py::SliceTests.test_slice_offsets_point_at_original_text
+      - tests/factdeck/test_slots.py::LayoutTraceTests.test_teaching_layouts_bind_every_html_slot
+      - tests/factdeck/test_slots.py::AdmissionTests.test_accepted_slot_needs_an_admitted_slice
     ci_gate: governance
 - id: TRACE-001
   level: MUST
@@ -69,6 +71,7 @@ rules:
     code: factdeck/facts.py::FactGateResult.admits_to_approved_graph
     tests:
       - tests/factdeck/test_fact_gate.py::HumanGateTests.test_display_acceptance_is_not_graph_approval
+      - tests/factdeck/test_slots.py::AdmissionTests.test_accepted_slot_needs_an_admitted_slice
     ci_gate: governance
 - id: SCHEMA-001
   level: MUST

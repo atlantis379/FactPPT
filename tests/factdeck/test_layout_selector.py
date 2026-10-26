@@ -20,7 +20,9 @@ class SelectorTests(unittest.TestCase):
         self.assertEqual(selection.layout_id, "checklist")
         self.assertEqual(selection.columns, 2)
         self.assertNotEqual(selection.columns, 6)
-        self.assertIn("3个月", selection.anchor["value"])
+        self.assertEqual(selection.anchor["value"], "")
+        self.assertIn("连续3个月及以上", selection.anchor["statement"])
+        self.assertNotEqual(selection.anchor["value"], "3个月")
 
     def test_plain_five_bullets_are_a_checklist(self):
         slide = {

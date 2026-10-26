@@ -191,10 +191,19 @@ def _checklist_anchor(slide: dict, items: list[dict]) -> dict:
         blob = f"{item.get('title') or ''}{item.get('body') or ''}"
         match = DURATION.search(blob)
         if match:
+            body = str(item.get("body") or "")
+            title = str(item.get("title") or "")
+            clip = f"{match.group(1)}{match.group(2)}"
+            source = body if DURATION.search(body) else title
+            from factdeck.slots import gate_keeps_display
+
+            # A digit-unit clip such as 「3个月」 drops 连续 / 及以上. Do not
+            # put that string on the anchor unless the fact gate admits it.
+            value = clip if gate_keeps_display(source, clip) else ""
             return {
                 "kind": "metric",
                 "label": item.get("title") or slide.get("title") or "",
-                "value": f"{match.group(1)}{match.group(2)}",
+                "value": value,
                 "statement": item.get("body") or "",
                 "statement_label": item.get("title") or "",
                 "source_item_id": item.get("id"),

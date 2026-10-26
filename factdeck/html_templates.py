@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import html
+import json
 import re
 
-from factdeck.layout_selector import Selection, clean_source, is_metric_item
+from factdeck.layout_selector import Selection
+from factdeck.slots import SlideTrace, SlotVerdict, emit_fact_value, trace_slide
 from factdeck.theme import CSS, MEASURE_JS
 
 PERCENT = re.compile(r"(约?\d+(?:\.\d+)?(?:\s*[-–—]\s*\d+(?:\.\d+)?)?\s*[%％])")
@@ -24,7 +26,8 @@ def render_html(slide: dict, selection: Selection) -> str:
     }.get(selection.layout_id)
     if renderer is None:
         raise KeyError(f"no body template for {selection.layout_id}")
-    body = renderer(slide, selection)
+    trace = trace_slide(slide, selection)
+    body = renderer(slide, selection, trace)
     title = html.escape(str(slide.get("title") or ""))
     return (
         "<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\">"
@@ -36,38 +39,62 @@ def _esc(value) -> str:
     return html.escape(str(value or ""), quote=True)
 
 
+def _attr(verdict: SlotVerdict) -> str:
+    parts = [
+        f'data-slot="{_esc(verdict.slot_id)}"',
+        f'data-kind="{_esc(verdict.kind)}"',
+        f'data-role="{_esc(verdict.role)}"',
+        f'data-fact="{"1" if verdict.fact_bearing else "0"}"',
+        f'data-status="{_esc(verdict.status)}"',
+    ]
+    if verdict.source_id:
+        parts.append(f'data-source-id="{_esc(verdict.source_id)}"')
+    if verdict.source_field:
+        parts.append(f'data-source-field="{_esc(verdict.source_field)}"')
+    if verdict.pair_id:
+        parts.append(f'data-pair="{_esc(verdict.pair_id)}"')
+    if verdict.provenance:
+        parts.append(f'data-provenance="{_esc(verdict.provenance)}"')
+    if verdict.admitted_slices:
+        payload = json.dumps([item.to_dict() for item in verdict.admitted_slices], ensure_ascii=False)
+        parts.append(f'data-slices="{_esc(payload)}"')
+    return " ".join(parts)
+
+
+def _el(trace: SlideTrace, slot_id: str, *, tag: str = "div", class_name: str = "", inner: str | None = None, extra: str = "") -> str:
+    verdict = trace.by_id()[slot_id]
+    if not emit_fact_value(verdict):
+        return ""
+    content = _esc(verdict.display_text) if inner is None else inner
+    class_attr = f' class="{class_name}"' if class_name else ""
+    extra_attr = f" {extra}" if extra else ""
+    return f"<{tag}{class_attr} {_attr(verdict)}{extra_attr}>{content}</{tag}>"
+
+
 def _emphasize(text: str) -> str:
     escaped = _esc(text)
     return PERCENT.sub(r"<strong>\1</strong>", escaped)
 
 
-def _chrome_open(slide: dict, selection: Selection) -> str:
-    kicker = _esc(slide.get("kicker") or "")
-    title = _esc(slide.get("title") or "")
+def _chrome_open(slide: dict, selection: Selection, trace: SlideTrace) -> str:
     figure = slide.get("figure")
-    figure_html = (
-        f'<div class="fig" data-slot="fig" data-kind="text">{_esc(figure)}</div>' if figure else '<div class="fig"></div>'
-    )
+    figure_html = _el(trace, "fig", class_name="fig") if figure else '<div class="fig"></div>'
     return (
         f'<article class="slide" data-layout="{_esc(selection.layout_id)}" '
         f'data-variant="{_esc(selection.variant)}" data-columns="{selection.columns}">'
         '<header class="top"><div>'
-        f'<div class="kicker" data-slot="kicker" data-kind="text">{kicker}</div>'
-        f'<h1 data-slot="title" data-kind="text">{title}</h1>'
-        '<div class="rule" data-slot="title-rule" data-kind="line"></div>'
+        f'{_el(trace, "kicker", class_name="kicker")}'
+        f'{_el(trace, "title", tag="h1")}'
+        f'{_el(trace, "title-rule", class_name="rule")}'
         f'</div>{figure_html}</header><main>'
     )
 
 
-def _chrome_close(slide: dict) -> str:
-    page = _esc(slide.get("page") or "")
-    source = clean_source(str(slide.get("source") or ""))
-    if source and not source.startswith("来源"):
-        source = f"来源：{source}"
+def _chrome_close(trace: SlideTrace) -> str:
     return (
         "</main><footer>"
-        f'<div class="folio" data-slot="folio" data-kind="text">{page}</div>'
-        f'<div class="source" data-slot="source" data-kind="text">{_esc(source)}</div>'
+        f'{_el(trace, "folio", class_name="folio")}'
+        f'{_el(trace, "source", class_name="source")}'
         "</footer></article>"
     )
 
@@ -81,47 +108,45 @@ def _items(slide: dict) -> list[dict]:
     return ready
 
 
-def _metric_row(slide: dict, selection: Selection) -> str:
+def _metric_row(slide: dict, selection: Selection, trace: SlideTrace) -> str:
     items = _items(slide)
     if selection.variant == "band":
         cells = []
-        for index, item in enumerate(items[:3], start=1):
+        for index, _item in enumerate(items[:3], start=1):
             cells.append(
                 '<div class="cell">'
-                f'<div class="label" data-slot="m{index}-label" data-kind="text">{_esc(item.get("title"))}</div>'
-                f'<div class="value" data-slot="m{index}-value" data-kind="text">{_esc(item.get("value") or item.get("body"))}</div>'
+                f'{_el(trace, f"m{index}-label", class_name="label")}'
+                f'{_el(trace, f"m{index}-value", class_name="value")}'
                 "</div>"
             )
-        main = f'<div class="metric-band" data-slot="metric-band" data-kind="shape">{"".join(cells)}</div>'
-        return _chrome_open(slide, selection) + main + _chrome_close(slide)
+        main = f'{_el(trace, "metric-band", class_name="metric-band", inner="".join(cells))}'
+        return _chrome_open(slide, selection, trace) + main + _chrome_close(trace)
 
     anchor = selection.anchor
     hero_id = anchor.get("source_item_id")
     statement_id = anchor.get("statement_item_id")
     notes = [item for item in items if item.get("id") not in {hero_id, statement_id}]
-    hero = (
-        '<div class="hero" data-slot="hero" data-kind="shape">'
-        f'<div class="label" data-slot="hero-label" data-kind="text">{_esc(anchor.get("label"))}</div>'
-        f'<div class="value" data-slot="hero-value" data-kind="text">{_esc(anchor.get("value"))}</div>'
-        "</div>"
+    hero = _el(
+        trace,
+        "hero",
+        class_name="hero",
+        inner=_el(trace, "hero-label", class_name="label") + _el(trace, "hero-value", class_name="value"),
     )
     label = anchor.get("statement_label") or ""
-    label_html = ""
-    if label and label != slide.get("title"):
-        label_html = f'<div class="label" data-slot="take-label" data-kind="text">{_esc(label)}</div>'
+    label_html = _el(trace, "take-label", class_name="label") if label and label != slide.get("title") else ""
     takeaway = (
         '<div class="takeaway">'
         f"{label_html}"
-        f'<div class="text" data-slot="take-text" data-kind="text">{_esc(anchor.get("statement"))}</div>'
+        f'{_el(trace, "take-text", class_name="text")}'
         "</div>"
     )
     note_html = []
-    for index, item in enumerate(notes, start=1):
+    for index, _item in enumerate(notes, start=1):
         note_html.append(
             '<div class="note">'
-            f'<div class="idx" data-slot="n{index}-idx" data-kind="text">{index:02d}</div>'
-            f'<h3 data-slot="n{index}-title" data-kind="text">{_esc(item.get("title"))}</h3>'
-            f'<p data-slot="n{index}-body" data-kind="text">{_esc(item.get("body") if not is_metric_item(item) else item.get("body"))}</p>'
+            f'{_el(trace, f"n{index}-idx", class_name="idx")}'
+            f'{_el(trace, f"n{index}-title", tag="h3")}'
+            f'{_el(trace, f"n{index}-body", tag="p")}'
             "</div>"
         )
     columns = "cols-1" if selection.columns <= 1 or len(notes) <= 1 else "cols-2"
@@ -129,34 +154,39 @@ def _metric_row(slide: dict, selection: Selection) -> str:
         f'<div class="hero-row">{hero}{takeaway}</div>'
         f'<div class="notes {columns}">{"".join(note_html)}</div>'
     )
-    return _chrome_open(slide, selection) + main + _chrome_close(slide)
+    return _chrome_open(slide, selection, trace) + main + _chrome_close(trace)
 
 
-def _checklist(slide: dict, selection: Selection) -> str:
+def _checklist(slide: dict, selection: Selection, trace: SlideTrace) -> str:
     items = _items(slide)
-    anchor = selection.anchor
-    panel = (
-        '<aside class="anchor-panel" data-slot="anchor" data-kind="shape">'
-        f'<div class="label" data-slot="anchor-label" data-kind="text">{_esc(anchor.get("label"))}</div>'
-        f'<div class="value" data-slot="anchor-value" data-kind="text">{_esc(anchor.get("value"))}</div>'
-        f'<div class="text" data-slot="anchor-text" data-kind="text">{_esc(anchor.get("statement"))}</div>'
-        "</aside>"
+    index = trace.by_id()
+    value_html = _el(trace, "anchor-value", class_name="value") if "anchor-value" in index else ""
+    panel = _el(
+        trace,
+        "anchor",
+        tag="aside",
+        class_name="anchor-panel",
+        inner=(
+            f'{_el(trace, "anchor-label", class_name="label")}'
+            f"{value_html}"
+            f'{_el(trace, "anchor-text", class_name="text")}'
+        ),
     )
     rows = []
-    for index, item in enumerate(items, start=1):
+    for number, _item in enumerate(items, start=1):
         rows.append(
             '<div class="check">'
-            f'<div class="idx" data-slot="c{index}-idx" data-kind="text">{index:02d}</div>'
-            f'<h3 data-slot="c{index}-title" data-kind="text">{_esc(item.get("title"))}</h3>'
-            f'<p data-slot="c{index}-body" data-kind="text">{_esc(item.get("body"))}</p>'
+            f'{_el(trace, f"c{number}-idx", class_name="idx")}'
+            f'{_el(trace, f"c{number}-title", tag="h3")}'
+            f'{_el(trace, f"c{number}-body", tag="p")}'
             "</div>"
         )
     columns = "cols-1" if selection.columns <= 1 else "cols-2"
     main = f'<div class="check-wrap">{panel}<div class="checks {columns}">{"".join(rows)}</div></div>'
-    return _chrome_open(slide, selection) + main + _chrome_close(slide)
+    return _chrome_open(slide, selection, trace) + main + _chrome_close(trace)
 
 
-def _claim_evidence(slide: dict, selection: Selection) -> str:
+def _claim_evidence(slide: dict, selection: Selection, trace: SlideTrace) -> str:
     items = _items(slide)
     anchor = selection.anchor
     claim_id = anchor.get("source_item_id")
@@ -164,93 +194,91 @@ def _claim_evidence(slide: dict, selection: Selection) -> str:
     primary_done = False
     index = 0
     for item in items:
-        chunks = []
+        chunk = False
         if item.get("id") == claim_id and item.get("evidence"):
-            chunks.append((item.get("title") or "依据", item.get("evidence")))
+            chunk = True
             primary_done = True
         elif item.get("id") != claim_id:
             text = item.get("evidence") or item.get("body") or item.get("value") or ""
-            if text:
-                chunks.append((item.get("title") or "", text))
+            chunk = bool(text)
         elif item.get("id") == claim_id and not item.get("evidence"):
             primary_done = True
-        for title, text in chunks:
-            index += 1
-            evidence_rows.append(
-                '<div class="ev-item">'
-                f'<h3 data-slot="e{index}-title" data-kind="text">{_esc(title)}</h3>'
-                f'<p data-slot="e{index}-body" data-kind="text">{_emphasize(text)}</p>'
-                "</div>"
-            )
+        if not chunk:
+            continue
+        index += 1
+        evidence_rows.append(
+            '<div class="ev-item">'
+            f'{_el(trace, f"e{index}-title", tag="h3")}'
+            f'{_el(trace, f"e{index}-body", tag="p", inner=_emphasize(trace.by_id()[f"e{index}-body"].display_text))}'
+            "</div>"
+        )
     if not primary_done and anchor.get("statement"):
         evidence_rows.insert(
             0,
             '<div class="ev-item">'
-            f'<h3 data-slot="e0-title" data-kind="text">{_esc(anchor.get("statement_label"))}</h3>'
-            f'<p data-slot="e0-body" data-kind="text">{_emphasize(anchor.get("statement"))}</p>'
+            f'{_el(trace, "e0-title", tag="h3")}'
+            f'{_el(trace, "e0-body", tag="p", inner=_emphasize(trace.by_id()["e0-body"].display_text))}'
             "</div>",
         )
     main = (
         '<div class="ce">'
         '<section class="claim">'
-        f'<div class="label" data-slot="claim-label" data-kind="text">{_esc(anchor.get("label"))}</div>'
-        f'<h2 data-slot="claim-text" data-kind="text">{_esc(anchor.get("value"))}</h2>'
+        f'{_el(trace, "claim-label", class_name="label")}'
+        f'{_el(trace, "claim-text", tag="h2")}'
         "</section>"
         '<section class="ev">'
-        '<div class="label" data-slot="ev-label" data-kind="text">依据</div>'
+        f'{_el(trace, "ev-label", class_name="label")}'
         f'{"".join(evidence_rows)}'
         "</section></div>"
     )
-    return _chrome_open(slide, selection) + main + _chrome_close(slide)
+    return _chrome_open(slide, selection, trace) + main + _chrome_close(trace)
 
 
-def _matrix(slide: dict, selection: Selection) -> str:
+def _matrix(slide: dict, selection: Selection, trace: SlideTrace) -> str:
     items = _items(slide)
     if len(items) != 4:
         raise ValueError("matrix_2x2 requires 4 items")
-    axes = slide.get("axes") or {}
-    rows = list(axes.get("rows") or ["", ""])
-    cols = list(axes.get("cols") or ["", ""])
     cells = []
-    for index, item in enumerate(items):
+    for index, _item in enumerate(items):
         cells.append(
             '<div class="cell">'
-            f'<h3 data-slot="x{index}-title" data-kind="text">{_esc(item.get("title"))}</h3>'
-            f'<p data-slot="x{index}-body" data-kind="text">{_esc(item.get("body"))}</p>'
+            f'{_el(trace, f"x{index}-title", tag="h3")}'
+            f'{_el(trace, f"x{index}-body", tag="p")}'
             "</div>"
         )
     main = (
         '<div class="matrix"><div class="grid">'
-        '<div class="corner" data-slot="mx-corner" data-kind="shape"></div>'
-        f'<div class="gh" data-slot="mx-c0" data-kind="shape"><span data-slot="mx-c0t" data-kind="text">{_esc(cols[0])}</span></div>'
-        f'<div class="gh" data-slot="mx-c1" data-kind="shape"><span data-slot="mx-c1t" data-kind="text">{_esc(cols[1])}</span></div>'
-        f'<div class="rh" data-slot="mx-r0" data-kind="shape"><span data-slot="mx-r0t" data-kind="text">{_esc(rows[0])}</span></div>'
+        f'{_el(trace, "mx-corner", class_name="corner")}'
+        f'{_el(trace, "mx-c0", class_name="gh", inner=_el(trace, "mx-c0t", tag="span"))}'
+        f'{_el(trace, "mx-c1", class_name="gh", inner=_el(trace, "mx-c1t", tag="span"))}'
+        f'{_el(trace, "mx-r0", class_name="rh", inner=_el(trace, "mx-r0t", tag="span"))}'
         f'{cells[0]}{cells[1]}'
-        f'<div class="rh" data-slot="mx-r1" data-kind="shape"><span data-slot="mx-r1t" data-kind="text">{_esc(rows[1])}</span></div>'
+        f'{_el(trace, "mx-r1", class_name="rh", inner=_el(trace, "mx-r1t", tag="span"))}'
         f'{cells[2]}{cells[3]}'
         "</div></div>"
     )
-    return _chrome_open(slide, selection) + main + _chrome_close(slide)
+    return _chrome_open(slide, selection, trace) + main + _chrome_close(trace)
 
 
-def _node_html(node: dict) -> str:
+def _node_html(node: dict, trace: SlideTrace) -> str:
     kind = node.get("type") or "action"
-    slot = _esc(node.get("id"))
-    chip = {"start": "起始", "decision": "判定", "action": "处置", "exclude": "排除"}.get(kind, "处置")
+    slot = str(node.get("id"))
     css = {"start": "node-start", "decision": "node-decision", "action": "node-action", "exclude": "node-exclude"}.get(kind, "node-action")
-    title = (
-        f'<div class="ntitle" data-slot="{slot}-title" data-kind="text">{_esc(node.get("title"))}</div>'
-    )
-    chip_html = f'<div class="chip" data-slot="{slot}-chip" data-kind="text">{chip}</div>'
-    body = node.get("body") or ""
-    body_html = f'<div class="nbody" data-slot="{slot}-body" data-kind="text">{_esc(body)}</div>' if body else ""
+    title = _el(trace, f"{slot}-title", class_name="ntitle")
+    chip_html = _el(trace, f"{slot}-chip", class_name="chip")
+    body_html = _el(trace, f"{slot}-body", class_name="nbody") if f"{slot}-body" in trace.by_id() else ""
     lines = []
-    for index, line in enumerate(node.get("lines") or [], start=1):
+    index = 1
+    while f"{slot}-line{index}" in trace.by_id():
         css_line = "threshold" if kind == "decision" else "subline"
-        lines.append(f'<div class="{css_line}" data-slot="{slot}-line{index}" data-kind="text">{_esc(line)}</div>')
-    return (
-        f'<div class="node {css}" data-slot="{slot}" data-kind="shape" data-node-type="{_esc(kind)}">'
-        f"{chip_html}{title}{body_html}{''.join(lines)}</div>"
+        lines.append(_el(trace, f"{slot}-line{index}", class_name=css_line))
+        index += 1
+    return _el(
+        trace,
+        slot,
+        class_name=f"node {css}",
+        extra=f'data-node-type="{_esc(kind)}"',
+        inner=f"{chip_html}{title}{body_html}{''.join(lines)}",
     )
 
 
@@ -267,7 +295,7 @@ def _chain(start_id: str, edges: list[dict], nodes: dict[str, dict], skip: set[s
     return ordered
 
 
-def _algorithm(slide: dict, selection: Selection) -> str:
+def _algorithm(slide: dict, selection: Selection, trace: SlideTrace) -> str:
     nodes = {node["id"]: node for node in slide.get("nodes") or []}
     edges = list(slide.get("edges") or [])
     decision = next((node for node in nodes.values() if node.get("type") == "decision"), None)
@@ -275,40 +303,40 @@ def _algorithm(slide: dict, selection: Selection) -> str:
     yes_edge = next((edge for edge in edges if edge.get("from") == (decision or {}).get("id") and edge.get("label") == "是"), None)
     no_edge = next((edge for edge in edges if edge.get("from") == (decision or {}).get("id") and edge.get("label") == "否"), None)
     if decision and yes_edge and no_edge:
-        skip = {start["id"]} if start else set()
-        skip.add(decision["id"])
         yes_nodes = _chain(yes_edge["to"], edges, nodes, skip=set())
         no_nodes = _chain(no_edge["to"], edges, nodes, skip=set())
         main = '<div class="tree">'
         if start:
-            main += _node_html(start)
-            main += '<div class="stem" data-slot="stem-start" data-kind="line"></div>'
-        main += _node_html(decision)
-        main += '<div class="stem" data-slot="stem-decision" data-kind="line"></div>'
-        main += '<div class="split"><div class="bridge" data-slot="bridge" data-kind="line"></div>'
-        main += _arm("yes", "是", yes_nodes)
-        main += _arm("no", "否", no_nodes)
+            main += _node_html(start, trace)
+            main += _el(trace, "stem-start", class_name="stem")
+        main += _node_html(decision, trace)
+        main += _el(trace, "stem-decision", class_name="stem")
+        main += f'<div class="split">{_el(trace, "bridge", class_name="bridge")}'
+        main += _arm("yes", yes_nodes, trace)
+        main += _arm("no", no_nodes, trace)
         main += "</div></div>"
-        return _chrome_open(slide, selection) + main + _chrome_close(slide)
+        return _chrome_open(slide, selection, trace) + main + _chrome_close(trace)
 
     stacked = []
     for index, node in enumerate(slide.get("nodes") or []):
         if index:
-            stacked.append(f'<div class="stem" data-slot="stem-{index}" data-kind="line"></div>')
-        stacked.append(_node_html(node))
+            stacked.append(_el(trace, f"stem-{index}", class_name="stem"))
+        stacked.append(_node_html(node, trace))
     main = f'<div class="tree tree-stack">{"".join(stacked)}</div>'
-    return _chrome_open(slide, selection) + main + _chrome_close(slide)
+    return _chrome_open(slide, selection, trace) + main + _chrome_close(trace)
 
 
-def _arm(name: str, label: str, nodes: list[dict]) -> str:
+def _arm(name: str, nodes: list[dict], trace: SlideTrace) -> str:
     body = [
-        f'<div class="stem-label"><div class="stem" data-slot="stem-{name}" data-kind="line"></div>'
-        f'<div class="edge-label" data-slot="label-{name}" data-kind="text">{_esc(label)}</div></div>'
+        '<div class="stem-label">'
+        f'{_el(trace, f"stem-{name}", class_name="stem")}'
+        f'{_el(trace, f"label-{name}", class_name="edge-label")}'
+        "</div>"
     ]
     for index, node in enumerate(nodes):
         if index:
-            body.append(f'<div class="stem" data-slot="stem-{name}-{index}" data-kind="line"></div>')
-        body.append(_node_html(node))
+            body.append(_el(trace, f"stem-{name}-{index}", class_name="stem"))
+        body.append(_node_html(node, trace))
     return f'<div class="arm arm-{name}">{"".join(body)}</div>'
 
 
@@ -321,45 +349,45 @@ def _badge(text: str) -> str | None:
     return None
 
 
-def _table(slide: dict, selection: Selection) -> str:
+def _table(slide: dict, selection: Selection, trace: SlideTrace) -> str:
     table = slide.get("table") or {}
     columns = list(table.get("columns") or [])
     rows = list(table.get("rows") or [])
     highlight_cols = set(table.get("highlight_columns") or [])
     highlight_rows = set(table.get("highlight_rows") or [])
     header = []
-    for index, name in enumerate(columns):
+    for index, _name in enumerate(columns):
         klass = "hi" if index in highlight_cols else ""
-        header.append(
-            f'<th class="{klass}" data-slot="th-{index}" data-kind="text">{_esc(name)}</th>'
-        )
+        header.append(_el(trace, f"th-{index}", tag="th", class_name=klass))
     body = []
     for r_index, row in enumerate(rows):
-        label = row.get("label")
         values = list(row.get("cells") or [])
-        cells = [
-            f'<td class="rowhead" data-slot="r{r_index}-h" data-kind="text">{_esc(label)}</td>'
-        ]
+        cells = [_el(trace, f"r{r_index}-h", tag="td", class_name="rowhead")]
         for c_index, value in enumerate(values, start=1):
             classes = []
             if c_index in highlight_cols or r_index in highlight_rows:
                 classes.append("hi")
             badge = _badge(str(value))
-            inner = badge if badge else _esc(value)
             cells.append(
-                f'<td class="{" ".join(classes)}" data-slot="r{r_index}-c{c_index}" data-kind="text">{inner}</td>'
+                _el(
+                    trace,
+                    f"r{r_index}-c{c_index}",
+                    tag="td",
+                    class_name=" ".join(classes),
+                    inner=badge,
+                )
             )
         body.append(f"<tr>{''.join(cells)}</tr>")
     caption = table.get("caption") or ""
-    caption_html = f"<caption data-slot=\"caption\" data-kind=\"text\">{_esc(caption)}</caption>" if caption else ""
+    caption_html = _el(trace, "caption", tag="caption") if caption else ""
     colgroup = []
     widths = table.get("widths") or []
     for index, _name in enumerate(columns):
         width = widths[index] if index < len(widths) else ""
         colgroup.append(f'<col style="width:{_esc(width)}">' if width else "<col>")
     main = (
-        '<div class="table-wrap"><table class="clinical" data-slot="table" data-kind="shape">'
-        f"<colgroup>{''.join(colgroup)}</colgroup>"
-        f"<thead><tr>{''.join(header)}</tr></thead><tbody>{''.join(body)}</tbody>{caption_html}</table></div>"
+        '<div class="table-wrap">'
+        f'{_el(trace, "table", tag="table", class_name="clinical", inner="<colgroup>" + "".join(colgroup) + "</colgroup><thead><tr>" + "".join(header) + "</tr></thead><tbody>" + "".join(body) + "</tbody>" + caption_html)}'
+        "</div>"
     )
-    return _chrome_open(slide, selection) + main + _chrome_close(slide)
+    return _chrome_open(slide, selection, trace) + main + _chrome_close(trace)
