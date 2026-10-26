@@ -6,8 +6,12 @@ every slot and admits on-screen fact text through the display fact gate.
 There is no second renderer that skips the gate.
 
 Cover, section, and comparison have no teaching-layout body. This entry
-does not invent one for them. Summary slimming and a deck-wide card wall
-are not part of it.
+does not invent one for them. A deck-wide card wall is not part of it.
+
+``prepare_deck`` slims a SUMMARY before ``select_layout``. Bullets that
+cannot bind to a source slice are omitted. Chapter limits are
+``max_sections``, ``max_pages``, and ``bullets_per_section`` (see
+``factdeck.summary.ChapterLimits``).
 """
 
 from __future__ import annotations
@@ -18,6 +22,7 @@ from dataclasses import dataclass
 from factdeck.html_templates import render_html
 from factdeck.layout_selector import select_layout
 from factdeck.slots import trace_slide
+from factdeck.summary import ChapterLimits, DeckSummary, prepare_deck
 
 # No HTTP route. Callers use build_deck.
 API_DECK = None
@@ -52,17 +57,33 @@ class DeckPage:
         }
 
 
-def build_deck(slides: Sequence[Mapping]) -> list[DeckPage]:
+def build_deck(
+    slides: Sequence[Mapping] | None = None,
+    *,
+    summary: DeckSummary | Mapping | None = None,
+    limits: ChapterLimits | None = None,
+    max_sections: int | None = None,
+    max_pages: int | None = None,
+    bullets_per_section: int | None = None,
+) -> list[DeckPage]:
     """Render teaching pages through the template library.
 
-    ``previous`` is threaded the same way as the preview deck, so a repeated
-    layout can move to a close alternative. The HTML for each page comes
-    only from ``render_html``.
+    The slim pass runs first. ``previous`` is threaded the same way as the
+    preview deck, so a repeated layout can move to a close alternative.
+    The HTML for each page comes only from ``render_html``.
     """
 
+    prepared = prepare_deck(
+        slides,
+        summary=summary,
+        limits=limits,
+        max_sections=max_sections,
+        max_pages=max_pages,
+        bullets_per_section=bullets_per_section,
+    )
     pages: list[DeckPage] = []
     previous: str | None = None
-    for slide in slides:
+    for slide in prepared.slides:
         payload = dict(slide)
         selection = select_layout(payload, previous=previous)
         html = render_html(payload, selection)

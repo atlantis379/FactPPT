@@ -4,6 +4,7 @@
 original span. ``trace_slide`` binds each measured slot to a source slice
 and admits it only through that gate. ``factdeck.deck.build_deck`` is the
 default deck entry: template pages only, with no HTTP ``/api/deck``.
+It slims a SUMMARY before layout selection.
 """
 
 __all__ = [
@@ -14,6 +15,9 @@ __all__ = [
     "trace_slide",
     "bind_layout",
     "gate_keeps_display",
+    "prepare_deck",
+    "summary_from_slides",
+    "summary_from_outline",
 ]
 
 
@@ -57,3 +61,21 @@ def gate_keeps_display(*args, **kwargs):
     from factdeck.slots import gate_keeps_display as _gate_keeps_display
 
     return _gate_keeps_display(*args, **kwargs)
+
+
+def prepare_deck(*args, **kwargs):
+    from factdeck.summary import prepare_deck as _prepare_deck
+
+    return _prepare_deck(*args, **kwargs)
+
+
+def summary_from_slides(*args, **kwargs):
+    from factdeck.summary import summary_from_slides as _summary_from_slides
+
+    return _summary_from_slides(*args, **kwargs)
+
+
+def summary_from_outline(*args, **kwargs):
+    from factdeck.summary import summary_from_outline as _summary_from_outline
+
+    return _summary_from_outline(*args, **kwargs)
