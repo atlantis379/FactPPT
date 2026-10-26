@@ -20,6 +20,8 @@ Establish enforceable development governance before business implementation.
 - tests/governance/**
 - .github/workflows/**
 - pyproject.toml
+- factdeck/**
+- tests/factdeck/**
 
 ## Forbidden paths
 - src/**
@@ -56,7 +58,7 @@ Establish enforceable development governance before business implementation.
 none; no Golden Set exists in M0.
 
 ## Change policy
-Any frozen dependency change requires an APPROVED Change Request.
+Any frozen dependency change requires an APPROVED Change Request. The `factdeck/` template package and its tests are an admitted path for layout selection and HTML-measured native slides. Frozen specs, decisions, and v0.2 schemas stay unchanged.
 
 ## Completion report
 Required before FREEZE.
