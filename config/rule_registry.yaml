@@ -13,9 +13,10 @@ rules:
   statement: 关键 Claim/NumericFact/Relation 必须可追溯到至少一个 SourceSpan。
   status: ACTIVE
   enforcement:
-    code: null
-    tests: []
-    ci_gate: null
+    code: factdeck/facts.py::extract_unit_slices
+    tests:
+      - tests/factdeck/test_fact_gate.py::SliceTests.test_slice_offsets_point_at_original_text
+    ci_gate: governance
 - id: TRACE-001
   level: MUST
   statement: 所有派生对象必须保存 schema_version、pipeline_run_id、document_version 与 revision
@@ -30,17 +31,20 @@ rules:
   statement: NumericFact 审计真值必须使用 Decimal/字符串序列化，不使用二进制 float。
   status: ACTIVE
   enforcement:
-    code: null
-    tests: []
-    ci_gate: null
+    code: factdeck/facts.py::UnitSlice
+    tests:
+      - tests/factdeck/test_fact_gate.py::SliceTests.test_numeric_audit_value_is_decimal
+    ci_gate: governance
 - id: NUM-002
   level: MUST
   statement: LLM 只能抽取数字候选，百分比、差值、单位换算和四舍五入由确定性代码完成。
   status: ACTIVE
   enforcement:
-    code: null
-    tests: []
-    ci_gate: null
+    code: factdeck/facts.py::gate_display
+    tests:
+      - tests/factdeck/test_fact_gate.py::DrugAndDoseAdmissionTests.test_whitespace_fold_cannot_stitch_dose_fragments
+      - tests/factdeck/test_fact_gate.py::DrugAndDoseAdmissionTests.test_rounding_is_not_silent
+    ci_gate: governance
 - id: REL-001
   level: MUST
   statement: Embedding 只负责 Relation 候选召回，Relation 类型必须经分类与独立 Gate。
@@ -62,9 +66,10 @@ rules:
   statement: NEEDS_REVIEW / REJECTED / VERIFIED 对象不得进入正式下游。
   status: ACTIVE
   enforcement:
-    code: null
-    tests: []
-    ci_gate: null
+    code: factdeck/facts.py::FactGateResult.admits_to_approved_graph
+    tests:
+      - tests/factdeck/test_fact_gate.py::HumanGateTests.test_display_acceptance_is_not_graph_approval
+    ci_gate: governance
 - id: SCHEMA-001
   level: MUST
   statement: Frozen Artifact 未经 Approved Change Request 不得修改。
@@ -128,9 +133,11 @@ rules:
   statement: 关键数字不可验证、OCR 低置信、关系冲突等情况进入 Human Review。
   status: ACTIVE
   enforcement:
-    code: null
-    tests: []
-    ci_gate: null
+    code: factdeck/facts.py::gate_display
+    tests:
+      - tests/factdeck/test_fact_gate.py::HumanGateTests.test_named_derivation_and_human_gate_allow_omission
+      - tests/factdeck/test_fact_gate.py::DisplayOmissionTests.test_contrast_and_population_drop_is_not_accepted
+    ci_gate: governance
 - id: IDEMP-001
   level: MUST
   statement: 每个 stage 必须支持基于幂等键安全重跑，不覆盖历史审计记录。
