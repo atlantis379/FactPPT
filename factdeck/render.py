@@ -1,4 +1,9 @@
-"""HTML template → Chrome measure → native PPTX, plus preview PNGs."""
+"""HTML template → Chrome measure → native PPTX, plus preview PNGs.
+
+``render_previews`` does not choose a layout or fill a page itself. It
+measures the pages ``build_deck`` already rendered through the template
+library. There is no parallel deck path.
+"""
 
 from __future__ import annotations
 
@@ -6,9 +11,8 @@ import argparse
 import json
 from pathlib import Path
 
+from factdeck.deck import build_deck
 from factdeck.fixtures import preview_slides
-from factdeck.html_templates import render_html
-from factdeck.layout_selector import select_layout
 from factdeck.measure import measure_html
 from factdeck.pptx_export import add_measured_slide, new_presentation
 
@@ -30,34 +34,34 @@ figcaption b { font-weight: 700; }
 def render_previews(out_dir: Path) -> list[dict]:
     out_dir.mkdir(parents=True, exist_ok=True)
     prs = new_presentation()
-    previous = None
+    slides = preview_slides()
+    pages = build_deck(slides)
     manifest = []
-    for slide in preview_slides():
-        selection = select_layout(slide, previous=previous)
-        html = render_html(slide, selection)
-        png = out_dir / f"preview-{slide['preview_id']}.png"
-        html_path = out_dir / f"preview-{slide['preview_id']}.html"
-        html_path.write_text(html, encoding="utf-8")
-        slots = measure_html(html, png)
+    for slide, page in zip(slides, pages):
+        png = out_dir / f"preview-{page.preview_id}.png"
+        html_path = out_dir / f"preview-{page.preview_id}.html"
+        html_path.write_text(page.html, encoding="utf-8")
+        slots = measure_html(page.html, png)
         drawn = add_measured_slide(prs, slots)
         structural = [slot for slot in slots if slot.get("kind") in {"shape", "line"} or (slot.get("text") or "").strip()]
         if len(drawn.shapes) < len([slot for slot in slots if slot.get("kind") in {"shape", "line"}]):
-            raise RuntimeError(f"{slide['preview_id']} dropped structural slots")
+            raise RuntimeError(f"{page.preview_id} dropped structural slots")
         manifest.append(
             {
-                "preview_id": slide["preview_id"],
+                "preview_id": page.preview_id,
                 "title": slide.get("title"),
                 "page": slide.get("page"),
                 "proposed": slide.get("proposed"),
                 "relation": slide.get("relation"),
-                "selection": selection.to_dict(),
+                "selection": page.selection,
+                "trace_status": page.trace_status,
+                "renderer": page.renderer,
                 "png": str(png),
                 "slots": len(slots),
                 "shapes": len(drawn.shapes),
                 "structural_slots": len(structural),
             }
         )
-        previous = selection.layout_id
     pptx_path = out_dir / "preview-teaching-layouts.pptx"
     prs.save(pptx_path)
     contact = _contact_html(manifest, out_dir)
