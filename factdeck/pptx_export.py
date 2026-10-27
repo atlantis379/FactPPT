@@ -18,7 +18,7 @@ SLIDE_W = 12_192_000
 SLIDE_H = 6_858_000
 PX_TO_EMU = SLIDE_W / 1920
 FONT_NAME = "WenQuanYi Micro Hei"
-PAPER = "F3F1EB"
+PAPER = "FFFFFF"
 
 _COLOR = re.compile(r"rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([0-9.]+))?\s*\)")
 

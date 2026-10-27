@@ -88,10 +88,11 @@ def _chrome_open(slide: dict, selection: Selection, trace: SlideTrace) -> str:
     return (
         f'<article class="slide" data-layout="{_esc(selection.layout_id)}" '
         f'data-variant="{_esc(selection.variant)}" data-columns="{selection.columns}">'
-        '<header class="top"><div>'
+        '<header class="top">'
+        f'{_el(trace, "title-rule", class_name="rule")}'
+        '<div class="titles">'
         f'{_el(trace, "kicker", class_name="kicker")}'
         f'{_el(trace, "title", tag="h1")}'
-        f'{_el(trace, "title-rule", class_name="rule")}'
         f'</div>{figure_html}</header><main>'
     )
 
@@ -234,7 +235,7 @@ def _claim_evidence(slide: dict, selection: Selection, trace: SlideTrace) -> str
         "</section>"
         '<section class="ev">'
         f'{_el(trace, "ev-label", class_name="label")}'
-        f'{"".join(evidence_rows)}'
+        f'<div class="ev-list">{"".join(evidence_rows)}</div>'
         "</section></div>"
     )
     return _chrome_open(slide, selection, trace) + main + _chrome_close(trace)
@@ -373,7 +374,12 @@ def _table(slide: dict, selection: Selection, trace: SlideTrace) -> str:
             classes = []
             if c_index in highlight_cols or r_index in highlight_rows:
                 classes.append("hi")
-            badge = _badge(str(value))
+            stripped = str(value).strip()
+            if stripped in BADGE_YES:
+                classes.append("yes-word")
+            elif stripped in BADGE_NO:
+                classes.append("no-word")
+            badge = _badge(stripped)
             cells.append(
                 _el(
                     trace,
