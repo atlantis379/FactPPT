@@ -6,6 +6,7 @@ and admits it only through that gate. ``factdeck.deck.build_deck`` is the
 default deck entry: template pages only, with no HTTP ``/api/deck``.
 It slims a SUMMARY before layout selection, omits a dangling half-sentence,
 and refuses an equal card wall that admitted facts do not differentiate.
+A semantic map, when supplied, orders that SUMMARY before the slim pass.
 """
 
 __all__ = [
@@ -19,6 +20,11 @@ __all__ = [
     "prepare_deck",
     "summary_from_slides",
     "summary_from_outline",
+    "parse_semantic_map",
+    "attach_claims",
+    "classify_key_points",
+    "summary_from_semantic_map",
+    "PIPELINE_ORDER",
 ]
 
 
@@ -80,3 +86,35 @@ def summary_from_outline(*args, **kwargs):
     from factdeck.summary import summary_from_outline as _summary_from_outline
 
     return _summary_from_outline(*args, **kwargs)
+
+
+def parse_semantic_map(*args, **kwargs):
+    from factdeck.semantic_map import parse_semantic_map as _parse_semantic_map
+
+    return _parse_semantic_map(*args, **kwargs)
+
+
+def attach_claims(*args, **kwargs):
+    from factdeck.semantic_map import attach_claims as _attach_claims
+
+    return _attach_claims(*args, **kwargs)
+
+
+def classify_key_points(*args, **kwargs):
+    from factdeck.semantic_map import classify_key_points as _classify_key_points
+
+    return _classify_key_points(*args, **kwargs)
+
+
+def summary_from_semantic_map(*args, **kwargs):
+    from factdeck.semantic_map import summary_from_semantic_map as _summary_from_semantic_map
+
+    return _summary_from_semantic_map(*args, **kwargs)
+
+
+def __getattr__(name: str):
+    if name == "PIPELINE_ORDER":
+        from factdeck.semantic_map import PIPELINE_ORDER as _pipeline_order
+
+        return _pipeline_order
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
