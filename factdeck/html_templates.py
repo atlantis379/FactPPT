@@ -98,11 +98,14 @@ def _chrome_open(slide: dict, selection: Selection, trace: SlideTrace) -> str:
 
 
 def _chrome_close(trace: SlideTrace) -> str:
+    take = _el(trace, "footer-take", tag="p", class_name="take-line") if "footer-take" in trace.by_id() else ""
     return (
         "</main><footer>"
+        f"{take}"
+        '<div class="footer-line">'
         f'{_el(trace, "folio", class_name="folio")}'
         f'{_el(trace, "source", class_name="source")}'
-        "</footer></article>"
+        "</div></footer></article>"
     )
 
 
@@ -157,9 +160,13 @@ def _metric_row(slide: dict, selection: Selection, trace: SlideTrace) -> str:
             "</div>"
         )
     columns = "cols-1" if selection.columns <= 1 or len(notes) <= 1 else "cols-2"
+    # Three or fewer notes sit beside the figure so a short list is not alone.
+    arrangement = "beside" if len(notes) <= 3 else "stack"
     main = (
+        f'<div class="metric-split {arrangement}">'
         f'<div class="hero-row">{hero}{takeaway}</div>'
         f'<div class="notes {columns}">{"".join(note_html)}</div>'
+        "</div>"
     )
     return _chrome_open(slide, selection, trace) + main + _chrome_close(trace)
 
@@ -189,7 +196,9 @@ def _checklist(slide: dict, selection: Selection, trace: SlideTrace) -> str:
             "</div>"
         )
     columns = "cols-1" if selection.columns <= 1 else "cols-2"
-    main = f'<div class="check-wrap">{panel}<div class="checks {columns}">{"".join(rows)}</div></div>'
+    # A short list keeps the admitted lead beside it. Longer lists span the width.
+    arrangement = "split" if selection.columns <= 1 and len(items) <= 3 else "stack"
+    main = f'<div class="check-wrap {arrangement}">{panel}<div class="checks {columns}">{"".join(rows)}</div></div>'
     return _chrome_open(slide, selection, trace) + main + _chrome_close(trace)
 
 
@@ -228,7 +237,7 @@ def _claim_evidence(slide: dict, selection: Selection, trace: SlideTrace) -> str
             "</div>",
         )
     main = (
-        '<div class="ce">'
+        '<div class="ce ce-split">'
         '<section class="claim">'
         f'{_el(trace, "claim-label", class_name="label")}'
         f'{_el(trace, "claim-text", tag="h2")}'

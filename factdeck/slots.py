@@ -653,6 +653,29 @@ def _fact(
     )
 
 
+def _footer_take(
+    layout_id: str,
+    display: str,
+    source: str,
+    source_id: str,
+    source_field: str,
+) -> SlotBinding | None:
+    """One footer line copied from an admitted field. Empty text is omitted."""
+
+    if not str(display or "").strip() or not str(source or "").strip():
+        return None
+    return _fact(
+        layout_id,
+        "footer-take",
+        "body",
+        display,
+        source,
+        source_id,
+        source_field,
+        f"{source_id}:footer",
+    )
+
+
 def _metric_bindings(slide: Mapping, selection) -> list[SlotBinding]:
     layout_id = selection.layout_id
     items = _prepared_items(slide.get("items") or [])
@@ -816,6 +839,15 @@ def _claim_bindings(slide: Mapping, selection) -> list[SlotBinding]:
         bindings.append(
             _fact(layout_id, "claim-text", "body", claim_text, _source_for_display(claim, claim_text, source), source_id, field, source_id)
         )
+        footer = _footer_take(
+            layout_id,
+            claim_text,
+            _source_for_display(claim, claim_text, source),
+            source_id,
+            field,
+        )
+        if footer is not None:
+            bindings.append(footer)
     bindings.append(_chrome(layout_id, "ev-label", "text", "依据", None, None))
     rows, primary_done = _claim_rows(items, claim_id)
     for index, row in enumerate(rows, start=1):

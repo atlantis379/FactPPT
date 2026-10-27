@@ -32,20 +32,25 @@ figcaption b { font-weight: 700; color: #0E4D7B; }
 
 COMPARE_NOTES = """# COMPARE_NOTES
 
-Visual comparison against the previous teaching deck (beige paper, navy metric tile, dark sidebar, letter-spaced kicker, pill chips).
+Density pass on the hospital-lecture deck. Layout ids, fact gate, slot pairing, summary slim, and half-sentence omission are unchanged. No new clinical sentences.
 
-Layout ids, fact gate, slot pairing, summary slim, and half-sentence omission are unchanged.
+## Before
+- Side margin about 104px. Title bar 136px. Gap under the bar about 40px.
+- Checklist text sat in one column even when the selector asked for two. The algorithm was about 1220px wide. Tables used the inset content box, with open white under short lists.
 
-## What changed on the page
-- White 16:9 slide. Full-width medical-blue title bar: small section label, large white title, figure number on the right. The bar is the measured title rule, so the PPTX background matches the PNG.
-- Margins are about 104px. Footer is a page number and a source line.
-- metric_row: the key figure is a large numeral on white, then a lead sentence, then a single numbered list. The dark metric tile is gone.
-- checklist: the anchor is a left-rule lead sentence. The six actions are one numbered list. The dark sidebar and two-column grid are gone.
-- claim_evidence: the claim is a large sentence; evidence sits under it as a list.
-- matrix_2x2: one bordered lecture table (blue column heads, gray row heads, white cells).
-- algorithm_tree: one flowchart of plain rectangles and a dashed exclusion box. Captions are words. The threshold is bold type, not a pill.
-- data_table_highlight: a bordered comparison table. 是 / 否 are bold colored words, not filled badges.
-- Type is WenQuanYi Micro Hei. The title is larger than the body. Body text is near-black on white.
+## After
+- Side margin 56px (inside 48–64). Title bar is still full-width medical blue, now 88px. Gap under the bar is 20px (inside 16–24).
+- Body blocks aim at roughly 60% of the 1920×1080 slide: checklist, claim, matrix, algorithm, and the comparison table use a 720px content block across the content width.
+- Checklist: six actions are two columns under a full-width lead. One to three items keep that lead in a side column. Undifferentiated peers stay one column.
+- Metric row: three or fewer notes sit beside the numeral and the admitted lead sentence. That sentence stays in the body, so the footer is only the page number and the source.
+- Claim and evidence stack full width. The admitted claim sentence is the lead, and the same sentence is one footer line. Page number and source stay.
+- Matrix and the comparison table span the content width. The algorithm split is 96% of that width, above the 80% floor.
+- Still a white lecture slide: no equal-card wall, no dark metric tile, no pill chips.
+
+## Measured on the biologics preview (1920×1080)
+- Title bar 88px. Gap under the bar 20px. Side inset 56px.
+- Content block above the footer rule, as a share of the slide: metric 62.8%, checklist 62.8%, claim 62.8%, matrix 62.8%, table 62.4%, algorithm 60.3%.
+- Checklist, claim, matrix, and table span the content width. The algorithm's ink is 96% of that width.
 """
 
 
@@ -108,7 +113,7 @@ def _contact_html(manifest: list[dict], out_dir: Path) -> str:
         )
     body = (
         "<header><h1>医院课件 · 生物制剂样本页</h1>"
-        "<p class=\"sub\">每页一条标题，正文是少量编号要点，或一张表 / 一幅路径图。页脚只有页码和来源。</p></header>"
+        "<p class=\"sub\">页边 56px，标题栏压低。清单、表和路径图铺在内容区里。页脚保留页码和来源。</p></header>"
         f'<div class="grid">{"".join(figures)}</div>'
     )
     return (
