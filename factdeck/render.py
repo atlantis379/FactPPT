@@ -18,16 +18,34 @@ from factdeck.pptx_export import add_measured_slide, new_presentation
 
 CONTACT_CSS = """
 * { box-sizing: border-box; }
-html, body { margin: 0; width: 2400px; height: 1560px; overflow: hidden; background: #E6E1D6;
-  font-family: "Noto Sans", "WenQuanYi Micro Hei", sans-serif; color: #0E2C4A; }
+html, body { margin: 0; width: 2400px; height: 1560px; overflow: hidden; background: #F4F7FA;
+  font-family: "WenQuanYi Micro Hei", "Droid Sans Fallback", "Noto Sans", sans-serif; color: #1A1A1A; }
 header { padding: 28px 36px 8px; }
-h1 { margin: 0; font-size: 32px; font-weight: 700; }
-p.sub { margin: 6px 0 0; font-size: 16px; color: #5E7184; }
+h1 { margin: 0; font-size: 32px; font-weight: 700; color: #0E4D7B; }
+p.sub { margin: 6px 0 0; font-size: 16px; color: #5C6770; }
 .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 22px 22px; padding: 18px 36px 28px; }
 figure { margin: 0; }
-img { width: 100%; height: auto; display: block; background: #fff; }
-figcaption { margin-top: 6px; font-size: 16px; line-height: 1.35; }
-figcaption b { font-weight: 700; }
+img { width: 100%; height: auto; display: block; background: #fff; border: 1px solid #D5DCE3; }
+figcaption { margin-top: 6px; font-size: 16px; line-height: 1.35; color: #243040; }
+figcaption b { font-weight: 700; color: #0E4D7B; }
+"""
+
+COMPARE_NOTES = """# COMPARE_NOTES
+
+Visual comparison against the previous teaching deck (beige paper, navy metric tile, dark sidebar, letter-spaced kicker, pill chips).
+
+Layout ids, fact gate, slot pairing, summary slim, and half-sentence omission are unchanged.
+
+## What changed on the page
+- White 16:9 slide. Full-width medical-blue title bar: small section label, large white title, figure number on the right. The bar is the measured title rule, so the PPTX background matches the PNG.
+- Margins are about 104px. Footer is a page number and a source line.
+- metric_row: the key figure is a large numeral on white, then a lead sentence, then a single numbered list. The dark metric tile is gone.
+- checklist: the anchor is a left-rule lead sentence. The six actions are one numbered list. The dark sidebar and two-column grid are gone.
+- claim_evidence: the claim is a large sentence; evidence sits under it as a list.
+- matrix_2x2: one bordered lecture table (blue column heads, gray row heads, white cells).
+- algorithm_tree: one flowchart of plain rectangles and a dashed exclusion box. Captions are words. The threshold is bold type, not a pill.
+- data_table_highlight: a bordered comparison table. 是 / 否 are bold colored words, not filled badges.
+- Type is WenQuanYi Micro Hei. The title is larger than the body. Body text is near-black on white.
 """
 
 
@@ -73,6 +91,7 @@ def render_previews(out_dir: Path) -> list[dict]:
         json.dumps({"pptx": str(pptx_path), "slides": manifest}, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+    (out_dir / "COMPARE_NOTES.md").write_text(COMPARE_NOTES, encoding="utf-8")
     return manifest
 
 
@@ -88,8 +107,8 @@ def _contact_html(manifest: list[dict], out_dir: Path) -> str:
             "</figure>"
         )
     body = (
-        "<header><h1>教学版式重组 · 生物制剂样本页</h1>"
-        "<p class=\"sub\">并列要点不再铺成等分卡片。锚点是数值、主张或决策图；其余降为通栏、清单或表。</p></header>"
+        "<header><h1>医院课件 · 生物制剂样本页</h1>"
+        "<p class=\"sub\">每页一条标题，正文是少量编号要点，或一张表 / 一幅路径图。页脚只有页码和来源。</p></header>"
         f'<div class="grid">{"".join(figures)}</div>'
     )
     return (

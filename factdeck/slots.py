@@ -702,7 +702,7 @@ def _metric_bindings(slide: Mapping, selection) -> list[SlotBinding]:
     hidden = {hero_id, statement_id}
     notes = [item for item in items if item.get("id") not in hidden]
     for index, item in enumerate(notes, start=1):
-        bindings.append(_chrome(layout_id, f"n{index}-idx", "text", f"{index:02d}", f"item:{item['id']}", "index"))
+        bindings.append(_chrome(layout_id, f"n{index}-idx", "text", f"{index}、", f"item:{item['id']}", "index"))
         bindings.extend(_item_title_body(layout_id, item, f"n{index}"))
     return bindings
 
@@ -789,7 +789,7 @@ def _checklist_bindings(slide: Mapping, selection) -> list[SlotBinding]:
             _fact(layout_id, "anchor-text", "body", shown, _source_for_display(item, shown, body), source_id, "body", source_id)
         )
     for index, entry in enumerate(items, start=1):
-        bindings.append(_chrome(layout_id, f"c{index}-idx", "text", f"{index:02d}", f"item:{entry['id']}", "index"))
+        bindings.append(_chrome(layout_id, f"c{index}-idx", "text", f"{index}、", f"item:{entry['id']}", "index"))
         bindings.extend(_item_title_body(layout_id, entry, f"c{index}"))
     return bindings
 
