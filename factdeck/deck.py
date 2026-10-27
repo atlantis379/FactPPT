@@ -15,6 +15,10 @@ half-sentence is omitted with its bullet or slot.
 cannot bind to a source slice are omitted. Chapter limits are
 ``max_sections``, ``max_pages``, and ``bullets_per_section`` (see
 ``factdeck.summary.ChapterLimits``).
+
+A ``semantic_map`` argument builds that SUMMARY first. Chapters follow
+the map (mainline nodes, then the others). Claims and key points are
+attached before the slim pass. Slide lists without a map are unchanged.
 """
 
 from __future__ import annotations
@@ -24,6 +28,7 @@ from dataclasses import dataclass
 
 from factdeck.html_templates import render_html
 from factdeck.layout_selector import refuse_equal_card_wall, select_layout
+from factdeck.semantic_map import SemanticMap, summary_from_semantic_map
 from factdeck.slots import trace_slide
 from factdeck.summary import ChapterLimits, DeckSummary, prepare_deck
 
@@ -68,14 +73,31 @@ def build_deck(
     max_sections: int | None = None,
     max_pages: int | None = None,
     bullets_per_section: int | None = None,
+    semantic_map: SemanticMap | Mapping | str | bytes | None = None,
+    key_points: Sequence[Mapping] | None = None,
+    claims: Sequence[Mapping] | None = None,
+    units: Mapping[str, str] | None = None,
 ) -> list[DeckPage]:
     """Render teaching pages through the template library.
 
     The slim pass runs first. ``previous`` is threaded the same way as the
     preview deck, so a repeated layout can move to a close alternative.
-    The HTML for each page comes only from ``render_html``.
+    The HTML for each page comes only from ``render_html``. When
+    ``semantic_map`` is set, the SUMMARY is built from that map before
+    the slim pass.
     """
 
+    if semantic_map is not None and (summary is not None or slides):
+        raise ValueError("pass a semantic map or slides or a summary, not a combination")
+    if semantic_map is None and (key_points is not None or claims is not None or units is not None):
+        raise ValueError("key_points and claims require a semantic map")
+    if semantic_map is not None:
+        summary = summary_from_semantic_map(
+            semantic_map,
+            () if key_points is None else key_points,
+            () if claims is None else claims,
+            units=units,
+        )
     prepared = prepare_deck(
         slides,
         summary=summary,

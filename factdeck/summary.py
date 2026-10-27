@@ -31,6 +31,12 @@ and comparison still have no body template; this pass does not invent
 one. A bullet whose text is a dangling half-sentence of its source is
 ``HALF_SENTENCE`` and is omitted whole. The deck entry refuses an equal
 card wall when the admitted facts do not differentiate those peers.
+
+When the caller passes a semantic map, chapter order comes from that map
+before this pass. Mainline nodes come first. ``factdeck.semantic_map``
+rejects a key point whose claims belong to a different node. This pass
+still copies bullet strings and still drops anything the fact gate or
+the half-sentence rule does not admit.
 """
 
 from __future__ import annotations
