@@ -366,7 +366,16 @@ def deck_brief(w: dict, b: dict) -> None:
                          "页面的 key_point_ids 写该页讲的信息（key_point_id），内容只引用该信息的 facts（事实 id 即原句 id），"
                          "原句太长或要放进图表格子时，按原文切出更细的逐字事实（deck facts，同一核对）。"
                          "core 与 limit 信息每条至少上一页；reserve 信息写进讲稿备注，不必上页；relations 决定版式（先后→流程/时间轴，对照→对照/表格，条件→决策树，证据→证据要点）。"
-                         "pages 为 0 的主题不上页，在 omissions 中写明原因。")
+                         "pages 为 0 的主题不上页，在 omissions 中写明原因。"
+                         "facts 中省略 display 的事实，显示文字即 quote；units 只列事实所在的单元（切分只能从这些单元切）。")
+    # topic_draft + facts carry the confirmed draft: the summary view and its key-point texts repeat the same quotes,
+    # and pages cite the draft's sentences only, so units beyond theirs are never cut from
+    b.pop("summary", None)
+    b.pop("summary_key_points", None)
+    units = {f["unit"] for f in b["facts"] if f.get("unit")}
+    b["units"] = [{k: v for k, v in u.items() if v is not False} for u in b["units"] if u["id"] in units]
+    b["facts"] = [{k: v for k, v in f.items() if v not in (None, "", [], False) and not (k == "display" and v == f.get("quote"))}
+                  for f in b["facts"]]
 
 
 def draft(w: dict) -> dict:
