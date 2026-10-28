@@ -104,6 +104,11 @@ sources → summary → fact store → deck spec → 代码渲染原生 PPTX。�
 
 ## Development
 
+Before committing a change to sentence cutting (`factdeck/auto_claims.py`, `source_coverage.segments`), the topic-pass
+contract or its checks, run `python tools/replay.py <data root> <workflow id>` on a project copy with accepted topic
+passes: it re-accepts the archived results under the new code (no model calls, no writes) and names what would be
+refused or read against changed text. Stored sentence references carry text anchors; never compare ids alone.
+
 Preserve legacy semantic endpoints and their safeguards. SQLite transactions serialize job claims; do not replace them with
 concurrent writes to `data/projects.json`. Keep factdeck domain-neutral: subject vocabulary goes in project terms or
 `config/factdeck_lexicon.json`, not code. The UI uses the user-selected licensed template (MIT or purchased); do not invent a

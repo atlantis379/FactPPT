@@ -261,3 +261,6 @@ def test_a_terminator_inside_brackets_does_not_cut_the_sentence():
     out = [c["quote"] for c in cut([{"id": "X:1:b1", "page_id": "X:1", "source_id": "X", "text": text}], {"X:1": "SUBSTANTIVE"}, {})]
     assert out[0].startswith("该药") and "FeNO<25 ppb）患者" in out[0]
     assert "下一句。" in out and any(q.startswith("括号未闭合（这里；") for q in out)
+    items = "重新评估治疗方案（诱导痰（若有）；考虑加用第一种附加治疗以明确诊断；考虑进行第二种检查以明确其他诊断；作为最后手段考虑第三种）"
+    cut_items = [c["quote"] for c in cut([{"id": "X:2:b1", "page_id": "X:2", "source_id": "X", "text": items}], {"X:2": "SUBSTANTIVE"}, {})]
+    assert len(cut_items) == 4                     # a long bracketed list is still cut per item

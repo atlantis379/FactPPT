@@ -260,6 +260,7 @@ def _recut(monkeypatch, sentence_id, text):
     """A new cutter under which `sentence_id` names other text (the units are unchanged)."""
     from factdeck import auto_claims
     real = auto_claims.cut
+    monkeypatch.setattr(sm, "_CUTS", {})            # the cache trusts that one cutter version cuts one way
     monkeypatch.setattr(auto_claims, "SCHEMA", auto_claims.SCHEMA + "+recut")
     monkeypatch.setattr(auto_claims, "cut", lambda *a: [{**c, "quote": text} if c["id"] == sentence_id else c for c in real(*a)])
 
@@ -290,3 +291,23 @@ def test_an_exclusion_holds_only_for_the_text_the_customer_decided_on(store, mon
     w = store.get(w["id"])
     assert sm.claims(w)[target["id"]]["kind"] != "excluded"                     # never applied to text not decided on
     assert w["stage"] == "EXCLUSIONS_CHANGED" and "d1" in w["open_items"][0]
+
+
+def test_replay_names_accepted_work_that_a_code_change_would_misread(store, monkeypatch):
+    """tools/replay.py re-accepts the archived results under the current code without writing anything: clean on
+    unchanged code, and it names a referenced sentence whose text changed under its id."""
+    import importlib.util
+    from pathlib import Path
+    spec = importlib.util.spec_from_file_location("replay", Path(__file__).resolve().parents[1] / "tools" / "replay.py")
+    replay = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(replay)
+    w, other = _all_passed(store)
+    root = store.root
+    report = replay.replay(root, w["id"])
+    assert not replay.failed(report) and [t["status"] for t in report["topics"]] == ["OK", "OK"]
+    _recut(monkeypatch, other["id"], "另一段完全不同的文字。")
+    report = replay.replay(root, w["id"])
+    n1 = next(t for t in report["topics"] if t["topic"] == "n1")
+    assert replay.failed(report) and [x["id"] for x in n1["text_changed"]] == [other["id"]]
+    assert "RESULT: FAIL" in replay.markdown(report)
+    assert store.get(w["id"])["topic_passes"]["n1"]["result"] == w["topic_passes"]["n1"]["result"]   # nothing written

@@ -28,10 +28,21 @@ TERMINATORS = set('。！？；!?;')
 # into a segment of its own, which then sat inside a claim span and could be neither expressed nor dismissed.
 SEGMENTER = 'sentence.v2'
 SEGMENTERS = ('sentence.v1', SEGMENTER)
-# sentence.v3 (semantic-first cutting only): a terminator inside brackets that close soon after does not end the
-# sentence — "（BEC<150/μl；FeNO<25 ppb）" stays with the drug it qualifies. Ledgers keep the segmenter they recorded.
+# sentence.v3 (semantic-first cutting only): a terminator inside a short bracketed qualifier does not end the
+# sentence — "（BEC<150/μl；FeNO<25 ppb）" stays with the drug it qualifies — while a long bracketed list of items
+# ("（诱导痰（若有）；考虑加用…；…）") is still cut per item. Ledgers keep the segmenter they recorded.
 BRACKETS = {'（': '）', '(': ')', '［': '］', '[': ']', '【': '】'}
-BRACKET_SPAN = 80
+BRACKET_SPAN = 40          # opening to matching close, in characters: longer brackets hold items, not a qualifier
+
+
+def _closes(text, at):
+    """Index of the bracket matching the opening bracket at `at` (nesting counted), or -1."""
+    o, c, depth = text[at], BRACKETS[text[at]], 0
+    for k in range(at, min(len(text), at + BRACKET_SPAN + 1)):
+        depth += (text[k] == o) - (text[k] == c)
+        if depth == 0:
+            return k
+    return -1
 _CITATION = re.compile(r'[ \t]*[(\[（【][ \t]*\d+(?:[ \t]*[,，、\-–—][ \t]*\d+)*[ \t]*[)\]）】]')
 # One chunk is one worker session's bounded goal. S03 pilot (older Codex build): ~170 sentences per session; COPD run
 # 2026-10-17 (Codex 0.163): sessions ended before finishing a 70–84 sentence chunk, so chunks are now ~40 sentences.
@@ -71,14 +82,14 @@ def segments(text, segmenter=SEGMENTER):
     while i < len(text):
         if segmenter == 'sentence.v3':
             if text[i] in BRACKETS:
-                open_.append(text[i])
-            elif open_ and text[i] == BRACKETS[open_[-1]]:
+                open_.append(i)
+            elif open_ and text[i] == BRACKETS[text[open_[-1]]]:
                 open_.pop()
         if text[i] in TERMINATORS and open_:
-            if BRACKETS[open_[-1]] in text[i + 1:i + 1 + BRACKET_SPAN]:
+            if all(_closes(text, k) > i for k in open_):     # every enclosing bracket is a short qualifier
                 i += 1
                 continue
-            open_ = []                       # a bracket that does not close nearby is not holding the sentence together
+            open_ = []                       # a long or unclosed bracket is not holding the sentence together
         if text[i] in TERMINATORS:
             j = i + 1
             while j < len(text) and (text[j] in TERMINATORS or text[j].isspace()):
