@@ -1300,7 +1300,7 @@ class Store(GenerationMixin, _BaseStore):
                                                                  "had_claims": any(s.get("claims") for s in w["sources"])})
                 w["semantic_map_first"] = changes["semantic_map_first"]
             if "exclusions" in changes:                 # the customer's decisions that rule material out, applied by code
-                w["exclusions"] = semantic_map_stage.check_exclusions(changes["exclusions"])
+                w["exclusions"] = semantic_map_stage.anchor_exclusions(w, semantic_map_stage.check_exclusions(changes["exclusions"]))
             if "requirements" in changes:
                 w["requirements"] = self._requirements(changes["requirements"])
             if "theme" in changes:

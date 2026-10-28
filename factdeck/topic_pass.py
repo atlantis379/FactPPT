@@ -128,7 +128,7 @@ def check(result: Mapping, topic_id: str, claims: Mapping[str, dict], pages: int
         seen[mid] = m
     _need(any(m["role"] == "core" for m in msgs), "至少要有一条 core 信息")
 
-    rels, authored = result.get("relations") or [], []
+    rels, authored, based = result.get("relations") or [], [], set()
     _need(isinstance(rels, list), "relations 须为列表")
     for i, r in enumerate(rels, 1):
         _need(isinstance(r, Mapping) and r.get("type") in RELATIONS, f"第{i}条关系的 type 须为 {' / '.join(RELATIONS)}")
@@ -136,6 +136,7 @@ def check(result: Mapping, topic_id: str, claims: Mapping[str, dict], pages: int
         _need(len(ends) >= 2 and all(e in seen for e in ends), f"第{i}条关系的 from/to 须为已列出的 message id")
         basis = _ids(r.get("basis") or [], f"第{i}条关系的 basis")
         usable(basis, f"第{i}条关系")
+        based |= set(basis)
         sources_of = lambda mid: {claims[x]["source_id"] for x in seen[mid]["claims"]}
         basis_src = {claims[x]["source_id"] for x in basis}
         if not basis or any(not (sources_of(e) & basis_src) for e in ends):
@@ -205,7 +206,7 @@ def check(result: Mapping, topic_id: str, claims: Mapping[str, dict], pages: int
     return {"schema_version": SCHEMA, "topic": topic_id, "question": q, "messages": [dict(m) for m in msgs],
             "relations": [dict(r) for r in rels], "page_plan": plan,
             "checks": [dict(c) for c in result.get("checks") or []], "left_out": left_out, "gaps": list(gaps),
-            "signals": signals, "counts": {"accounted": n_keys, "cited": len(cited), "checked": len(checked),
+            "signals": signals, "referenced": sorted(cited | based | checked | left), "counts": {"accounted": n_keys, "cited": len(cited), "checked": len(checked),
                                            "left_out": len(left - cited - checked)}}
 
 

@@ -68,11 +68,15 @@ def gate(w: dict):
         return None
     if not semantic_map_current(w):
         return "SEMANTIC_MAP_REQUIRED", ["资料的语义地图尚未完成或已过期"]
+    broken = broken_exclusions(w)
+    if broken:
+        return "EXCLUSIONS_CHANGED", ["客户排除规则指向的句子原文已变化，请重新确认：" + "、".join(broken[:8])]
+    changed = [f"{n['title']}（{len(x)} 句）" for n in nodes(w) if (x := changed_references(w, n["id"]))]
     todo = [n["title"] for n in nodes(w) if not topic_current(w, n["id"])]
     referred = [n["title"] for n in nodes(w) if topic_current(w, n["id"]) and pending_referrals(w, n["id"])]
     if todo or referred:
         return "TOPICS_REQUIRED", ([f"{len(todo)} 个主题尚未梳理重点：" + "、".join(todo[:5])] if todo else []) + \
-            ([f"{len(referred)} 个主题有其他主题新转来的句子待判断：" + "、".join(referred[:5])] if referred else [])
+            ([f"{len(referred)} 个主题有其他主题新转来的句子待判断：" + "、".join(referred[:5])] if referred else []) +             (["已接受的梳理所引用的句子原文已变化：" + "、".join(changed[:5])] if changed else [])
     if not _d().content_approved(w):
         pending = unconfirmed_sentences(w)
         return "CONTENT_CONFIRMATION", ["客户尚未确认初稿"] + ([f"初稿引用的 {len(pending)} 句图片/图表转录尚未核定"] if pending else [])
@@ -147,7 +151,7 @@ def accept(w: dict, result: dict, author: str) -> None:
     refresh_summary(w)                       # topic passes under the old map are stale until redone
 
 
-EXCLUSION_KEYS = {"id", "decision", "reason", "pages", "units", "sentences", "contains", "sources"}
+EXCLUSION_KEYS = {"id", "decision", "reason", "pages", "units", "sentences", "contains", "sources", "anchors"}   # anchors: code
 
 
 def check_exclusions(rules) -> list[dict]:
@@ -171,26 +175,79 @@ def _excluded_by(c: dict, rules: list[dict]) -> dict | None:
     for r in rules:
         if r.get("sources") and c["source_id"] not in r["sources"]:
             continue
-        if (c["page_id"] in (r.get("pages") or ()) or c["unit_id"] in (r.get("units") or ()) or c["id"] in (r.get("sentences") or ())
+        named = c["id"] in (r.get("sentences") or ()) and (r.get("anchors") or {}).get(c["id"], anchor(c["quote"])) == anchor(c["quote"])
+        if (c["page_id"] in (r.get("pages") or ()) or c["unit_id"] in (r.get("units") or ()) or named
                 or (r.get("contains") and auto_claims.canon(r["contains"]) in auto_claims.canon(c["quote"]))):
             return r
     return None
 
 
-def claims(w: dict) -> dict[str, dict]:
-    """Every unit cut into verbatim sentences, each attached to the topic whose unit hints name its unit (id → claim);
-    sentences the customer's exclusion rules match are marked excluded."""
-    d = _d()
+_CUTS: dict[str, list[dict]] = {}        # cut sentences by what they rest on; the cut is pure, so cached results are exact
+CUT_CACHE = 8
+
+
+def anchor(quote: str) -> str:
+    """What a stored sentence reference rests on: the sentence's text. Ids are positions in a unit and may name other
+    text after a new cut; a reference is only valid while its anchor still matches."""
+    return digest(quote)[:16]
+
+
+def _cut_key(w: dict) -> tuple[str, list, dict, dict]:
+    units = _d().all_units(w)
     topic_of = {h: n["id"] for n in nodes(w) for h in n["unit_hints"]}
     page_class = {p["id"]: p["reading"]["classification"] for s in w["sources"] for p in s["pages"]}
+    key = digest({"units": [(u["id"], u["page_id"], u["source_id"], u["text"], u.get("signals"), u.get("needs_confirmation"))
+                            for u in units], "topic_of": topic_of, "page_class": page_class, "schema": auto_claims.SCHEMA})
+    return key, units, page_class, topic_of
+
+
+def _cached(key: str, make):
+    if key not in _CUTS:
+        while len(_CUTS) >= CUT_CACHE:
+            _CUTS.pop(next(iter(_CUTS)))
+        _CUTS[key] = make()
+    return _CUTS[key]
+
+
+def _cut(w: dict) -> list[dict]:
+    """Every unit cut into verbatim sentences attached to topics, before the customer's exclusions (read-only)."""
+    key, units, page_class, topic_of = _cut_key(w)
+    return _cached(key, lambda: auto_claims.cut(units, page_class, topic_of))
+
+
+def claims(w: dict) -> dict[str, dict]:
+    """Every unit cut into verbatim sentences, each attached to the topic whose unit hints name its unit (id → claim);
+    sentences the customer's exclusion rules match are marked excluded. Read-only: the result is shared."""
     rules = w.get("exclusions") or []
-    out = {}
-    for c in auto_claims.cut(d.all_units(w), page_class, topic_of):
-        r = _excluded_by(c, rules) if rules else None
-        if r:
-            c = {**c, "kind": "excluded", "excluded_by": f"{r['id']}：{r['decision']}"}
-        out[c["id"]] = c
-    return out
+
+    def make():
+        out = {}
+        for c in _cut(w):
+            r = _excluded_by(c, rules) if rules else None
+            if r:
+                c = {**c, "kind": "excluded", "excluded_by": f"{r['id']}：{r['decision']}"}
+            out[c["id"]] = c
+        return out
+    return _cached(digest([_cut_key(w)[0], rules]), make)
+
+
+def anchor_exclusions(w: dict, rules: list[dict]) -> list[dict]:
+    """Anchor every sentence id an exclusion rule names to the sentence's current text. A rule keeps the anchors it
+    was decided on: if a later cut gives the id other text, the rule no longer applies to it (`broken_exclusions`)."""
+    cut = {c["id"]: c for c in _cut(w)}
+    for r in rules:
+        if r.get("sentences"):
+            unknown = [x for x in r["sentences"] if x not in cut and x not in (r.get("anchors") or {})]
+            require(not unknown, f"排除规则 {r['id']} 中有不存在的句子：" + "、".join(unknown[:8]), 422)
+            r["anchors"] = {x: (r.get("anchors") or {}).get(x) or anchor(cut[x]["quote"]) for x in r["sentences"]}
+    return rules
+
+
+def broken_exclusions(w: dict) -> list[str]:
+    """Exclusion rules naming a sentence whose text is no longer the text the customer decided on."""
+    cut = {c["id"]: c for c in _cut(w)}
+    return [f"{r['id']}：{x}" for r in w.get("exclusions") or [] for x, a in (r.get("anchors") or {}).items()
+            if x not in cut or anchor(cut[x]["quote"]) != a]
 
 
 def _node(w: dict, node_id: str) -> dict:
@@ -213,18 +270,28 @@ def referred_to(w: dict, node_id: str) -> dict[str, str]:
 
 
 def topic_input(w: dict, node_id: str) -> str:
-    """What a topic pass rests on: the map, the topic's units, the customer's exclusions and the cutting and checking
-    rules. Sentences other topics refer here are not part of it: topics run in parallel, and a referral arriving while
-    this topic is being worked out must not cancel that work — it is decided in a follow-up pass (`pending_referrals`)."""
-    hints = set(_node(w, node_id)["unit_hints"])
+    """What a topic pass rests on: the map and the topic's own sentences as cut (id, kind, text) — the text itself,
+    so a new cutter that leaves this topic's sentences alone leaves its pass current, and one that changes them makes
+    it due. Sentences other topics refer here are not part of it: topics run in parallel, and a referral arriving
+    while this topic is being worked out must not cancel that work — it is decided in a follow-up pass."""
+    _node(w, node_id)
     return digest({"map": (w.get("semantic_map") or {}).get("result_sha256"), "topic": node_id,
-                   "units": [(u["id"], u["text"]) for u in _d().all_units(w) if u["id"] in hints],
-                   "exclusions": w.get("exclusions") or [], "schemas": [auto_claims.SCHEMA, topic_pass.SCHEMA]})
+                   "sentences": [(c["id"], c["kind"], anchor(c["quote"])) for c in claims(w).values() if c["topic"] == node_id],
+                   "schema": topic_pass.SCHEMA})
+
+
+def changed_references(w: dict, node_id: str) -> list[str]:
+    """Sentence ids the accepted pass references whose text is no longer what it was accepted on (or are gone, or now
+    excluded): the pass is stale and they are named, never silently read as other text."""
+    rec = ((w.get("topic_passes") or {}).get(node_id) or {}).get("result") or {}
+    cl = claims(w)
+    return [x for x, a in (rec.get("anchors") or {}).items() if x not in cl or anchor(cl[x]["quote"]) != a or cl[x]["kind"] == "excluded"]
 
 
 def topic_current(w: dict, node_id: str) -> bool:
     t = (w.get("topic_passes") or {}).get(node_id)
-    return bool(t) and semantic_map_current(w) and t.get("input_sha256") == topic_input(w, node_id)
+    return (bool(t) and semantic_map_current(w) and t.get("input_sha256") == topic_input(w, node_id)
+            and not changed_references(w, node_id))
 
 
 def pending_referrals(w: dict, node_id: str) -> dict[str, str]:
@@ -317,6 +384,8 @@ def accept_topic(w: dict, node_id: str, result: dict, author: str, referrals: li
     except topic_pass.TopicPassError as e:
         raise _d().WorkflowError(f"主题 {n['title']} 的重点梳理不合格：{e}", 422)
     rec["referrals"] = sorted(referred)
+    cl = claims(w)
+    rec["anchors"] = {x: anchor(cl[x]["quote"]) for x in sorted(set(rec.pop("referenced")) | set(referred)) if x in cl}
     w.setdefault("topic_passes", {})[node_id] = {"input_sha256": topic_input(w, node_id), "result": rec,
                                                 "result_sha256": digest(rec), "author": author, "accepted_at": now()}
     refresh_summary(w)

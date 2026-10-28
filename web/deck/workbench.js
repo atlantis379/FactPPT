@@ -24,7 +24,7 @@ const STAGE_GUIDANCE = {
   SUMMARY_AMEND_RUNNING:"答复已保存，局部处理任务已排队；执行端提交后自动排队独立复核。",
   READING_REQUIRED:"上传全部资料，填写要求并选择模板，再启动资料读取。",
   SEMANTIC_MAP_REQUIRED:"资料已读取，下一步由模型梳理资料的整体结构。",
-  TOPICS_REQUIRED:"整体结构已定，下一步由模型逐个主题梳理重点和逻辑；原句由代码切分并核对。",
+  EXCLUSIONS_CHANGED:"资料切分变化后，客户排除规则所指的句子原文已不同：请在设置中重新确认这些规则。", TOPICS_REQUIRED:"整体结构已定，下一步由模型逐个主题梳理重点和逻辑；原句由代码切分并核对。",
   CLAIMS_REQUIRED:"资料已读取，下一步整理来源要点并保留出处。",
   SUMMARY_REQUIRED:"来源要点已准备，下一步生成覆盖全部章节的总结。",
   SUMMARY_REVIEW_REQUIRED:"总结已生成，须由独立执行端逐项审核；审核后再由你确认内容。",
@@ -61,7 +61,7 @@ function stageGuide(w) {
   const action=STAGE_ACTIONS[w.stage] || ["查看项目",null,"overview"];
   const tasks=Array.isArray(w.tasks)?w.tasks.filter(t=>["PENDING","RUNNING"].includes(t.status) && (!action[1] || t.kind===action[1])):[];
   const running=tasks.some(t=>t.status==="RUNNING" && t.lease_until>Date.now()/1000);
-  const phase=["READING_REQUIRED","SEMANTIC_MAP_REQUIRED","TOPICS_REQUIRED","CLAIMS_REQUIRED","SUMMARY_REQUIRED"].includes(w.stage)?0:["SUMMARY_AMEND_RUNNING","SUMMARY_REVIEW_REQUIRED","SUMMARY_ISSUES","CONTENT_CONFIRMATION","FACTS_REQUIRED"].includes(w.stage)?1:["READY_TO_EXPORT","DELIVERED"].includes(w.stage)?3:2;
+  const phase=["READING_REQUIRED","SEMANTIC_MAP_REQUIRED","EXCLUSIONS_CHANGED","TOPICS_REQUIRED","CLAIMS_REQUIRED","SUMMARY_REQUIRED"].includes(w.stage)?0:["SUMMARY_AMEND_RUNNING","SUMMARY_REVIEW_REQUIRED","SUMMARY_ISSUES","CONTENT_CONFIRMATION","FACTS_REQUIRED"].includes(w.stage)?1:["READY_TO_EXPORT","DELIVERED"].includes(w.stage)?3:2;
   return {phase,text:STAGE_GUIDANCE[w.stage] || "查看当前待办，完成后进入下一阶段。",owner:running?"执行端正在处理":tasks.length?"等待执行端领取":responsibility(w).label,waiting:tasks.length && !running,target:tasks.length?"tasks":action[2]};
 }
 function workflowGuide(w) {

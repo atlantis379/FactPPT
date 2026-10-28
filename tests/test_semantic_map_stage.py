@@ -242,3 +242,51 @@ def test_a_stale_topic_pass_refers_nothing(store):
         assert sm.referred_to(ww, "n2") == {moved["ids"][0]: "n1"}
         ww["topic_passes"]["n1"]["input_sha256"] = "stale"
         assert sm.referred_to(ww, "n2") == {}
+
+
+def _all_passed(store):
+    w = mapped(store)
+    store.queue(w["id"], "TOPIC_PASS")
+    while t := store.claim(w["id"], "topic-1", "TOPIC_PASS"):
+        r = topic_result(t["brief"])
+        if t["binding"] == "n1":                 # n1 also cites a sentence of n2 (borrowed)
+            other = next(c for c in sm.claims(store.get(w["id"])).values() if c["topic"] == "n2" and c["kind"] == "sentence")
+            r["messages"][0]["claims"].append(other["id"])
+        store.complete(w["id"], t["id"], t["lease_token"], r)
+    return store.get(w["id"]), other
+
+
+def _recut(monkeypatch, sentence_id, text):
+    """A new cutter under which `sentence_id` names other text (the units are unchanged)."""
+    from factdeck import auto_claims
+    real = auto_claims.cut
+    monkeypatch.setattr(auto_claims, "SCHEMA", auto_claims.SCHEMA + "+recut")
+    monkeypatch.setattr(auto_claims, "cut", lambda *a: [{**c, "quote": text} if c["id"] == sentence_id else c for c in real(*a)])
+
+
+def test_a_reference_is_valid_only_while_its_text_is_unchanged(store, monkeypatch):
+    """Ids are positions; references carry the text they were accepted on. Text that changes under an id is named;
+    a new cutter that leaves a topic's sentences alone leaves its pass current."""
+    w, other = _all_passed(store)
+    assert all(sm.topic_current(w, n) for n in ("n1", "n2"))
+    from factdeck import auto_claims
+    monkeypatch.setattr(auto_claims, "SCHEMA", "auto_claims.test-recut")       # a recut giving the same sentences
+    assert all(sm.topic_current(w, n) for n in ("n1", "n2"))
+    _recut(monkeypatch, other["id"], "另一段完全不同的文字。")
+    w = store.get(w["id"])
+    assert other["id"] in sm.changed_references(w, "n1") and not sm.topic_current(w, "n1")
+    assert w["stage"] == "TOPICS_REQUIRED" and any("原文已变化" in x for x in w["open_items"])
+
+
+def test_an_exclusion_holds_only_for_the_text_the_customer_decided_on(store, monkeypatch):
+    w = mapped(store)
+    target = next(c for c in sm.claims(w).values() if c["kind"] == "sentence")
+    w = store.settings(w["id"], {"exclusions": [{"id": "d1", "decision": "测试记录：这一句不用", "sentences": [target["id"]]}]})
+    assert w["exclusions"][0]["anchors"] == {target["id"]: sm.anchor(target["quote"])}
+    assert sm.claims(w)[target["id"]]["kind"] == "excluded"
+    with pytest.raises(WorkflowError, match="不存在的句子"):
+        store.settings(w["id"], {"exclusions": [{"id": "d2", "decision": "测试记录", "sentences": ["nowhere~1"]}]})
+    _recut(monkeypatch, target["id"], "另一段完全不同的文字。")
+    w = store.get(w["id"])
+    assert sm.claims(w)[target["id"]]["kind"] != "excluded"                     # never applied to text not decided on
+    assert w["stage"] == "EXCLUSIONS_CHANGED" and "d1" in w["open_items"][0]

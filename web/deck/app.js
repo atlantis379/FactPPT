@@ -11,7 +11,7 @@ const time = (t) => (t ? String(t).replace("T", " ").slice(0, 19) : "—");
 const STEPS = [
   ["阅读", ["READING_REQUIRED"]],
   ["语义地图", ["SEMANTIC_MAP_REQUIRED"]],
-  ["主题重点", ["TOPICS_REQUIRED"]],
+  ["主题重点", ["EXCLUSIONS_CHANGED", "TOPICS_REQUIRED"]],
   ["论断清单", ["CLAIMS_REQUIRED"]],
   ["总结", ["SUMMARY_REQUIRED"]],
   ["总结审查", ["SUMMARY_REVIEW_REQUIRED", "SUMMARY_ISSUES"]],
@@ -26,7 +26,7 @@ const STEPS = [
   ["交付", ["READY_TO_EXPORT", "DELIVERED"]],
 ];
 const STAGE_LABEL = {
-  READING_REQUIRED: "待阅读资料", SEMANTIC_MAP_REQUIRED: "待定语义地图", TOPICS_REQUIRED: "待梳理各主题重点", CLAIMS_REQUIRED: "待列论断清单", SUMMARY_REQUIRED: "待全文总结",
+  READING_REQUIRED: "待阅读资料", SEMANTIC_MAP_REQUIRED: "待定语义地图", EXCLUSIONS_CHANGED: "排除规则待重新确认", TOPICS_REQUIRED: "待梳理各主题重点", CLAIMS_REQUIRED: "待列论断清单", SUMMARY_REQUIRED: "待全文总结",
   SUMMARY_AMEND_RUNNING: "答复处理中", SUMMARY_REVIEW_REQUIRED: "待独立总结审查", SUMMARY_ISSUES: "总结审查有阻断问题", CONTENT_CONFIRMATION: "待客户确认内容",
   FACTS_REQUIRED: "待建立事实库", DECK_REQUIRED: "待编写页面规格", DECK_REVISION: "页面规格需修订",
   CONFIRMATIONS_REQUIRED: "待人工确认", SEMANTIC_REVIEW_REQUIRED: "待独立语义审查", SEMANTIC_ISSUES: "语义审查有阻断问题",
