@@ -17,7 +17,7 @@ from app.deck_generation import VISUAL_KINDS
 router = APIRouter(prefix="/api/deck", tags=["FactDeck 主线"])
 # FACTDECK_DATA_ROOT runs a service against another data directory (e.g. a validation copy of a project).
 store = Store(Path(os.environ["FACTDECK_DATA_ROOT"]) if os.environ.get("FACTDECK_DATA_ROOT") else None)
-Kind = Literal["READ_SOURCE", "SECOND_READ", "CLAIMS", "STRUCTURE", "STRUCTURE_REVIEW", "SUMMARY", "SUMMARY_AMEND", "SUMMARY_REVIEW", "FACTS", "DECK", "SEMANTIC_REVIEW", "VISUAL_CRITIQUE", "VISUAL_DESIGN", "VISUAL_LAYOUT", "VISUAL_CLEAN", "VISUAL_VECTOR", "VISUAL_BLIND_READ"]
+Kind = Literal["READ_SOURCE", "SECOND_READ", "SEMANTIC_MAP", "TOPIC_PASS", "CLAIMS", "STRUCTURE", "STRUCTURE_REVIEW", "SUMMARY", "SUMMARY_AMEND", "SUMMARY_REVIEW", "FACTS", "DECK", "SEMANTIC_REVIEW", "VISUAL_CRITIQUE", "VISUAL_DESIGN", "VISUAL_LAYOUT", "VISUAL_CLEAN", "VISUAL_VECTOR", "VISUAL_BLIND_READ"]
 
 
 class Strict(BaseModel):
@@ -40,6 +40,7 @@ class Create(Strict):
     requirements: Requirements = Requirements()
     theme: str = "navy-teal"
     context: dict[str, Any] | None = None
+    semantic_map_first: bool = True      # new projects: the model maps the material's structure before claims
 
 
 class Settings(Strict):
@@ -50,11 +51,14 @@ class Settings(Strict):
     context: dict[str, Any] | None = None
     visual_template: str | None = None
     structure_first: bool | None = None
+    semantic_map_first: bool | None = None
+    exclusions: list[dict[str, Any]] | None = None
 
 
 class Queue(Strict):
     kind: Kind
     sources: list[str] | None = None        # CLAIMS only: redo these sources
+    topics: list[str] | None = None         # TOPIC_PASS only: redo these topics
     pages: list[str] | None = None          # visual revision only
     checks: list[Literal["COVERAGE", "RELATIONS"]] | None = None   # SEMANTIC_REVIEW only: queue these checklists
     chapters: list[str] | None = None       # SUMMARY / SUMMARY_REVIEW of a chaptered project: these chapters
@@ -211,7 +215,8 @@ def workflows():
 
 @router.post("/workflows", status_code=201)
 def create(body: Create):
-    return call(store.create, body.title, body.outline, body.requirements.model_dump(exclude_none=True), body.context, body.theme)
+    return call(store.create, body.title, body.outline, body.requirements.model_dump(exclude_none=True), body.context, body.theme,
+                semantic_map_first=body.semantic_map_first)
 
 
 @router.get("/workflows/{workflow_id}")
@@ -248,6 +253,17 @@ def workflow_task_stats_api(workflow_id: str):
     """Executor (Codex worker) tasks: counts and claimed→completed time per kind; tokens reported as unknown."""
     from factdeck.jobstats import workflow_task_stats
     return workflow_task_stats(call(store.get, workflow_id))
+
+
+@router.get("/workflows/{workflow_id}/topic-draft")
+def topic_draft_api(workflow_id: str, format: Literal["json", "md"] = "json"):
+    """Semantic-first projects: the code-assembled draft (topics → messages → verbatim sentences)."""
+    from app import semantic_map_stage as sm
+    w = call(store.get, workflow_id)
+    if not sm.enabled(w) or not sm.semantic_map_current(w):
+        raise HTTPException(409, "本项目没有当前版本的语义地图")
+    d = sm.draft(w)
+    return Response(sm.draft_markdown(d), media_type="text/markdown; charset=utf-8") if format == "md" else d
 
 
 @router.get("/workflows/{workflow_id}/progress")
@@ -343,7 +359,7 @@ def adopt_rules(workflow_id: str, body: RulesAdoption):
 @router.post("/workflows/{workflow_id}/tasks")
 def queue(workflow_id: str, body: Queue, compact: bool = False):
     if sum(bool(x) for x in (body.sources, body.pages, body.checks, body.chapters)) > 1: raise HTTPException(422, "sources、pages、checks、chapters 只能提交其一")
-    result = call(store.queue, workflow_id, body.kind, body.pages or body.sources or body.checks or body.chapters)
+    result = call(store.queue, workflow_id, body.kind, body.pages or body.sources or body.topics or body.checks or body.chapters)
     return workflow_ack(result, body.kind) if compact else result
 
 
@@ -625,6 +641,11 @@ def draft(workflow_id: str):
     w = call(store.get, workflow_id)
     if not w["summary"]:
         raise HTTPException(409, "尚无全文总结")
+    from app import semantic_map_stage as sm
+    if sm.enabled(w):                                      # semantic-first: the confirmation draft is the topic draft
+        head = f"# {w['title']}：内容确认稿\n\n版本校验值：{digest(w['summary'])}\n\n"
+        return Response(head + sm.draft_markdown(sm.draft(w)).split("\n", 1)[1], media_type="text/markdown; charset=utf-8",
+                        headers={"Content-Disposition": 'attachment; filename="confirmation.md"'})
     loc = {p["id"]: f"{s['filename']} · {p['location']}" for s in w["sources"] for p in s["pages"]}
     lines = [f"# {w['title']}：内容确认稿", f"版本校验值：{digest(w['summary'])}", "", w["summary"]["overall_summary"]]
     units = {u["id"]: u for u in all_units(w)}

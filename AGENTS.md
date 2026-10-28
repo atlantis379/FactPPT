@@ -87,6 +87,21 @@ code and existing projects remain readable; do not queue its tasks for new work.
   cell by cell exactly as seen; in diagrams, each box is a cell and each arrow a cell
   "start→end"; a table sub-row or subtype names its group cell as `parent`; a body sentence the
   PDF text layer breaks apart may be transcribed whole. Never guess or complete unreadable content.
+- Semantic-first projects (`semantic_map_first`, default for new projects since 2026-10-27): the model
+  understands, code keeps sources exact. There are no CLAIMS, STRUCTURE or SUMMARY tasks; code cuts every
+  unit into verbatim sentences (`factdeck/auto_claims.py`) and assembles the draft.
+  SEMANTIC_MAP: read every page and name the material's topics in speaking order (role, one-sentence
+  thesis, the units each rests on, main line, `pages` budget) and the links between them; every
+  substantive page belongs to a topic; titles and theses carry no numbers.
+  TOPIC_PASS (one per topic): read all of the topic's sentences (table cells come with their row and
+  column headers) and decide the question, the messages — core / support / limit taught on the pages
+  (limits stand alone), reserve for the notes — each citing the sentence ids that state it; relations
+  with the sentence ids they rest on; the page plan; checks for data you cannot verify (never drop it);
+  what is left out and why; the gaps. Decide what matters before what fits: relevant material that does
+  not fit goes to reserve, not left_out. Labels organise and carry no numbers; content is sentence ids only.
+  Every sentence and table row is cited, checked or left out; judge each omission (typed `why` + note,
+  small entries, numeric sentences alone) — never generate left_out by script. The customer's exclusion
+  decisions are code rules (`exclusions`): excluded sentences are not shown and may not be cited.
 - CLAIMS lists what each page of a source says: each claim is 1–8 verbatim spans
   (a sentence or a cell, never a whole page) with a type (recommendation, result,
   association, interpretation, …) and scope fragments; the source gets a profile

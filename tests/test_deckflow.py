@@ -561,7 +561,8 @@ def test_api_routes_are_mounted(tmp_path, monkeypatch):
     wid = r.json()["id"]
     r = c.post(f"/api/deck/workflows/{wid}/sources", files={"file": ("a.docx", fx_.docx_source())})
     assert r.status_code == 200 and r.json()["sources"][0]["id"] == "S01"
-    assert c.post(f"/api/deck/workflows/{wid}/tasks", json={"kind": "FACTS"}).status_code == 409
+    # new API projects are semantic-first: the fact store is built by code at draft confirmation, never a FACTS task
+    assert c.post(f"/api/deck/workflows/{wid}/tasks", json={"kind": "FACTS"}).status_code == 422
     assert c.post("/api/deck/workflows", json={"title": "x", "requirements": {"bogus": 1}}).status_code == 422
     assert c.post("/api/deck/workflows", json={"title": "x", "theme": "neon"}).status_code == 422
 

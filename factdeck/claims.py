@@ -48,7 +48,11 @@ def cites(text: str) -> list[str]:
 
 
 def qualifiers(text: str) -> list[str]:
+    """Hedges, limits and negations in the text. Words in which a qualifier character is only part of another word
+    ("反应" for 应, "不良" for 不; lexicon claim_qualifier_compounds) are masked first."""
     t = canon(text)
+    for w in lexicon().get("claim_qualifier_compounds", []):
+        t = t.replace(canon(w), "|" * len(canon(w)))
     return [q for q in lexicon().get("claim_qualifiers", []) if canon(q) in t]
 
 

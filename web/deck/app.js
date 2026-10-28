@@ -10,6 +10,8 @@ const time = (t) => (t ? String(t).replace("T", " ").slice(0, 19) : "—");
 
 const STEPS = [
   ["阅读", ["READING_REQUIRED"]],
+  ["语义地图", ["SEMANTIC_MAP_REQUIRED"]],
+  ["主题重点", ["TOPICS_REQUIRED"]],
   ["论断清单", ["CLAIMS_REQUIRED"]],
   ["总结", ["SUMMARY_REQUIRED"]],
   ["总结审查", ["SUMMARY_REVIEW_REQUIRED", "SUMMARY_ISSUES"]],
@@ -24,7 +26,7 @@ const STEPS = [
   ["交付", ["READY_TO_EXPORT", "DELIVERED"]],
 ];
 const STAGE_LABEL = {
-  READING_REQUIRED: "待阅读资料", CLAIMS_REQUIRED: "待列论断清单", SUMMARY_REQUIRED: "待全文总结",
+  READING_REQUIRED: "待阅读资料", SEMANTIC_MAP_REQUIRED: "待定语义地图", TOPICS_REQUIRED: "待梳理各主题重点", CLAIMS_REQUIRED: "待列论断清单", SUMMARY_REQUIRED: "待全文总结",
   SUMMARY_AMEND_RUNNING: "答复处理中", SUMMARY_REVIEW_REQUIRED: "待独立总结审查", SUMMARY_ISSUES: "总结审查有阻断问题", CONTENT_CONFIRMATION: "待客户确认内容",
   FACTS_REQUIRED: "待建立事实库", DECK_REQUIRED: "待编写页面规格", DECK_REVISION: "页面规格需修订",
   CONFIRMATIONS_REQUIRED: "待人工确认", SEMANTIC_REVIEW_REQUIRED: "待独立语义审查", SEMANTIC_ISSUES: "语义审查有阻断问题",
@@ -772,7 +774,7 @@ function tabRender() {
   clearTimeout(generationPoll);
   const w = current, r = w.render, d = w.draft_render;
   const canGenerate = ["RENDER_REQUIRED","GENERATION_RUNNING","GENERATION_FAILED"].includes(w.stage);
-  const canDraft = !!w.deck && !["READING_REQUIRED","CLAIMS_REQUIRED","SUMMARY_REQUIRED","SUMMARY_REVIEW_REQUIRED","SUMMARY_ISSUES","CONTENT_CONFIRMATION","FACTS_REQUIRED","DECK_REQUIRED"].includes(w.stage);
+  const canDraft = !!w.deck && !["READING_REQUIRED","SEMANTIC_MAP_REQUIRED","TOPICS_REQUIRED","CLAIMS_REQUIRED","SUMMARY_REQUIRED","SUMMARY_REVIEW_REQUIRED","SUMMARY_ISSUES","CONTENT_CONFIRMATION","FACTS_REQUIRED","DECK_REQUIRED"].includes(w.stage);
   const nextTab = (STAGE_ACTIONS[w.stage] || [null,null,"summary"])[2];
   const gateNotice = !canGenerate ? `<div class="alert alert-info"><div><b>暂不能正式生成：${esc(STAGE_LABEL[w.stage] || w.stage)}</b><div>${w.open_items.map(esc).join("；") || "请完成当前阶段。"}</div><a class="btn btn-sm mt-2" href="#/w/${esc(w.id)}/${nextTab}">处理当前步骤</a> <a class="btn btn-sm mt-2" href="#/w/${esc(w.id)}/tasks">查看执行任务</a></div></div>` : "";
   const lowDpi = (x) => x && x.warnings && x.warnings.figure_low_dpi.length ? `<div class="small text-warning">清晰度提示（不拦截，请在逐页审核时判断）：

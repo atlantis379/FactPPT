@@ -48,6 +48,7 @@ from app.deck_scope import check_spec, selected_spec, scope_of, context as scope
 from app import review_ledger as ledger
 from app import semantic_review as semrev
 from app import structure_stage
+from app import semantic_map_stage
 
 TEMPLATE = "factdeck.v1"
 ENGINE_VERSION = "factdeck-render.1"
@@ -58,7 +59,7 @@ DEIDENTIFIED = ("NO_PATIENT_CONTENT", "DEIDENTIFIED", "IDENTIFIABLE")
 # Content-rule version. A project keeps the version it started with; when the rules change mid-project, new content
 # tasks wait until someone adopts the new version explicitly (recorded), so rules never change under a running review.
 CONTENT_RULES_VERSION = "content-rules.2026-10-16"   # SUMMARY model_understanding.v4 + source_coverage.v2
-KINDS = ("READ_SOURCE", "SECOND_READ", "CLAIMS", "STRUCTURE", "STRUCTURE_REVIEW", "SUMMARY", "SUMMARY_AMEND", "SUMMARY_REVIEW", "FACTS", "DECK", "SEMANTIC_REVIEW", "VISUAL_CRITIQUE") + VISUAL_KINDS
+KINDS = ("READ_SOURCE", "SECOND_READ", "SEMANTIC_MAP", "TOPIC_PASS", "CLAIMS", "STRUCTURE", "STRUCTURE_REVIEW", "SUMMARY", "SUMMARY_AMEND", "SUMMARY_REVIEW", "FACTS", "DECK", "SEMANTIC_REVIEW", "VISUAL_CRITIQUE") + VISUAL_KINDS
 REQUIREMENT_KEYS = {"audience", "purpose", "duration_minutes", "target_pages", "emphasis", "tone", "notes"}
 
 
@@ -399,7 +400,7 @@ def all_claims(w: dict) -> dict[str, dict]:
 def claim_view(k: dict) -> dict:
     """A claim as workers see it: its spans' text, type, scope and what code read off it."""
     return {"id": k["id"], "type": k["type"], "text": " ｜ ".join(sp["quote"] for sp in k["spans"]), "unit_ids": k["unit_ids"],
-            **{x: k[x] for x in ("scope", "qualifiers", "numbers", "cites") if k.get(x)},
+            **{x: k[x] for x in ("scope", "qualifiers", "numbers", "cites", "semantic_node_id") if k.get(x)},
             **({"source_kind": k["source_kind"]} if k.get("source_kind") else {})}
 
 
@@ -672,7 +673,7 @@ def deck_sha(w: dict) -> str | None:
 def summary_key_points(w: dict) -> dict[str, str] | None:
     """Key point id -> full point text, for a complete-notes (model_understanding.v4) summary; None otherwise."""
     s = w.get("summary") or {}
-    if s.get("summary_algorithm") != "model_understanding.v4":
+    if s.get("summary_algorithm") not in ("model_understanding.v4", semantic_map_stage.SUMMARY_ALGORITHM):
         return None
     return {f"{sec['id']}.k{i}": k.get("point", "") for sec in s["sections"] for i, k in enumerate(sec.get("key_points") or [], 1)}
 
@@ -883,9 +884,8 @@ def delivery_subject(w: dict) -> str:
                    "reviews": {p["id"]: w["page_reviews"].get(p["id"]) for p in (w["render"] or {}).get("pages", [])}})
 
 
-def status(w: dict) -> tuple[str, list[str]]:
-    """(stage, open items) — the first unmet gate and everything still open."""
-    if not fully_read(w): return "READING_REQUIRED", ["资料尚未全部阅读"]
+def summary_status(w: dict) -> tuple[str, list[str]] | None:
+    """Claims → structure → summary → review → customer confirmation; None once the content is confirmed."""
     if not fully_claimed(w): return "CLAIMS_REQUIRED", ["资料的论断清单尚未全部完成"]
     gate = structure_stage.gate(w)
     if gate: return gate
@@ -905,6 +905,14 @@ def status(w: dict) -> tuple[str, list[str]]:
         if not summary_review_current(w): return "SUMMARY_REVIEW_REQUIRED", ["总结需要独立审查"]
         if open_summary_issues(w): return "SUMMARY_ISSUES", [blocker_text("总结审查", open_summary_issues(w))]
         return "CONTENT_CONFIRMATION", ["客户尚未确认全文总结"]
+    return None
+
+
+def status(w: dict) -> tuple[str, list[str]]:
+    """(stage, open items) — the first unmet gate and everything still open."""
+    if not fully_read(w): return "READING_REQUIRED", ["资料尚未全部阅读"]
+    gate = semantic_map_stage.gate(w) if semantic_map_stage.enabled(w) else summary_status(w)
+    if gate: return gate
     if not facts_current(w): return "FACTS_REQUIRED", ["需要根据已确认总结建立事实库"]
     if not deck_current(w): return "DECK_REQUIRED", ["需要根据需求编写页面规格"]
     v = verified(w)
@@ -1201,7 +1209,8 @@ class Store(GenerationMixin, _BaseStore):
         return {"workflow_id": workflow_id, "archived": moved}
 
     # ---- project
-    def create(self, title: str, outline: str = "", requirements: dict | None = None, context: dict | None = None, theme: str = "navy-teal", generation_route: str = TEMPLATE_ROUTE) -> dict:
+    def create(self, title: str, outline: str = "", requirements: dict | None = None, context: dict | None = None, theme: str = "navy-teal", generation_route: str = TEMPLATE_ROUTE,
+               semantic_map_first: bool = False) -> dict:
         require(bool(title.strip()), "请填写项目名称", 422)
         require(generation_route in {TEMPLATE_ROUTE, VISUAL_ROUTE, "CODE_NATIVE"}, "生成路线无效", 422)
         w = {"id": uid("deck"), "title": title.strip(), "revision": 1, "created_at": now(), "updated_at": now(), "template": TEMPLATE,
@@ -1212,7 +1221,8 @@ class Store(GenerationMixin, _BaseStore):
              "confirmations": {"derivations": {}, "resolutions": {}, "transcriptions": {}, "figures": {}, "figure_licenses": {}},
              "deck": None, "semantic_review": None, "render": None, "critique": None, "page_reviews": {}, "style_approval": None,
              "approvals": [], "tasks": [], "deliveries": [], "generation_route": generation_route, "generation": None,
-             "source_evidence_policy": "verified-transcription.v1", "rules_version": CONTENT_RULES_VERSION, "rules_history": []}
+             "source_evidence_policy": "verified-transcription.v1", "rules_version": CONTENT_RULES_VERSION, "rules_history": [],
+             "semantic_map_first": semantic_map_first}
         with self.connect() as db:
             db.execute("INSERT INTO workflows VALUES(?,?,?)", (w["id"], 1, json.dumps(w, ensure_ascii=False)))
             db.execute("INSERT INTO events(workflow_id,created_at,event,details) VALUES(?,?,?,?)", (w["id"], now(), "CREATE", digest(w)))
@@ -1283,6 +1293,14 @@ class Store(GenerationMixin, _BaseStore):
                     w.setdefault("settings_history", []).append({"structure_first": changes["structure_first"], "at": now(),
                                                                  "had_summary": bool(w.get("summary"))})
                 w["structure_first"] = changes["structure_first"]
+            if "semantic_map_first" in changes:
+                require(isinstance(changes["semantic_map_first"], bool), "semantic_map_first 须为布尔值", 422)
+                if bool(w.get("semantic_map_first")) != changes["semantic_map_first"]:
+                    w.setdefault("settings_history", []).append({"semantic_map_first": changes["semantic_map_first"], "at": now(),
+                                                                 "had_claims": any(s.get("claims") for s in w["sources"])})
+                w["semantic_map_first"] = changes["semantic_map_first"]
+            if "exclusions" in changes:                 # the customer's decisions that rule material out, applied by code
+                w["exclusions"] = semantic_map_stage.check_exclusions(changes["exclusions"])
             if "requirements" in changes:
                 w["requirements"] = self._requirements(changes["requirements"])
             if "theme" in changes:
@@ -2171,10 +2189,16 @@ class Store(GenerationMixin, _BaseStore):
                 b['rules'].insert(0, '复用SUMMARY已同步建立并逐字核验的fact_candidates及bindings。只补必要的细粒度切分、实体/属性/冲突信息；不得把候选重新机械合并成新的教学要点。PENDING绑定仍须人工裁定，不得静默用于教学。')
         elif kind == 'DECK' and w.get('generation_route') == TEMPLATE_ROUTE:
             template_deck_brief(b)
+        if kind == 'DECK' and semantic_map_stage.enabled(w):
+            semantic_map_stage.deck_brief(w, b)
         return b
 
     def _brief(self, w: dict, kind: str, binding: str | None) -> dict:
         req = {"requirements": w["requirements"], "outline": w["outline"], "context": w["context"]}
+        if kind == "SEMANTIC_MAP":
+            return {**req, **semantic_map_stage.brief(w)}
+        if kind == "TOPIC_PASS":
+            return semantic_map_stage.topic_brief(w, binding)
         if kind == "STRUCTURE":
             return {**req, **structure_stage.brief(w)}
         if kind == "SUMMARY" and binding is None and w.get("structure_first") and structure_stage.approved(w):
@@ -2522,6 +2546,10 @@ class Store(GenerationMixin, _BaseStore):
         if kind in CHAPTER_KINDS and binding:
             c = chapter_of(w, binding)
             return chapter_input(w, c) if kind == "SUMMARY" else chapter_review_input(w, c)
+        if kind == "SEMANTIC_MAP":
+            return semantic_map_stage.semantic_map_input(w)
+        if kind == "TOPIC_PASS":
+            return semantic_map_stage.topic_input(w, binding)
         return {"STRUCTURE": structure_stage.structure_input, "STRUCTURE_REVIEW": structure_stage.review_input,
                 "SUMMARY": input_hash, "SUMMARY_REVIEW": summary_review_input, "FACTS": facts_input, "DECK": deck_input,
                 "VISUAL_CRITIQUE": critique_input}[kind](w)
@@ -2543,6 +2571,7 @@ class Store(GenerationMixin, _BaseStore):
                 require(bindings, "没有需要第二次独立转录或截取的资料")
             elif kind == "CLAIMS":
                 require(fully_read(w), "请先完成全部资料阅读")
+                require(not semantic_map_stage.enabled(w), "本项目由代码按语义地图切分原句，不再安排论断清单任务", 422)
                 if page_ids:                        # redo named sources (a revised claims list replaces the current one)
                     known = {s["id"] for s in w["sources"]}
                     require(set(page_ids) <= known, "资料不存在：" + "、".join(sorted(set(page_ids) - known)), 404)
@@ -2550,8 +2579,22 @@ class Store(GenerationMixin, _BaseStore):
                 else:
                     bindings = [s["id"] for s in w["sources"] if not claims_current(s)]
                 require(bindings, "全部资料的论断清单均为当前版本")
+            elif kind == "SEMANTIC_MAP":
+                require(semantic_map_stage.enabled(w), "本项目未启用“先定语义地图”（设置 semantic_map_first）")
+                require(fully_read(w), "请先完成全部资料阅读")
+                bindings = [None]
+            elif kind == "TOPIC_PASS":
+                require(semantic_map_stage.enabled(w) and semantic_map_stage.semantic_map_current(w), "请先完成当前版本的语义地图（SEMANTIC_MAP）")
+                if page_ids:                        # redo named topics
+                    known = {n["id"] for n in semantic_map_stage.nodes(w)}
+                    require(set(page_ids) <= known, "主题不存在：" + "、".join(sorted(set(page_ids) - known)), 404)
+                    bindings = list(page_ids)
+                else:
+                    bindings = semantic_map_stage.pending_topics(w)
+                require(bindings, "全部主题的重点梳理均为当前版本")
             elif kind == "STRUCTURE":
                 require(w.get("structure_first"), "本项目未启用“先定整体结构”（设置 structure_first）")
+                require(not semantic_map_stage.enabled(w), "本项目按语义地图与主题梳理组织内容，不使用整体结构任务", 422)
                 require(fully_claimed(w), "请先完成全部资料阅读和论断清单")
                 bindings = [None]
             elif kind == "STRUCTURE_REVIEW":
@@ -2560,6 +2603,7 @@ class Store(GenerationMixin, _BaseStore):
             elif kind in CHAPTER_KINDS and chapters(w):
                 bindings = self.next_chapters(w, kind, page_ids)
             elif kind == "SUMMARY":
+                require(not semantic_map_stage.enabled(w), "本项目按语义地图与主题梳理组织内容，初稿由代码生成", 422)
                 require(fully_claimed(w), "请先完成全部资料阅读和论断清单")
                 require(not w.get("structure_first") or structure_stage.approved(w), "请先完成课程整体结构的独立审查与客户确认")
                 bindings = [None]
@@ -2571,6 +2615,7 @@ class Store(GenerationMixin, _BaseStore):
                 require(summary_current(w), "请先完成当前版本的总结")
                 bindings = [None]
             elif kind == "FACTS":
+                require(not semantic_map_stage.enabled(w), "本项目的事实库由代码在客户确认初稿时生成", 422)
                 require(content_approved(w), "请先完成客户全文内容确认")
                 bindings = [None]
             elif kind == "DECK":
@@ -2634,6 +2679,10 @@ class Store(GenerationMixin, _BaseStore):
             if t["kind"] in {"READ_SOURCE", "SECOND_READ", "CLAIMS"} and not any(s["id"] == t["binding"] for s in w["sources"]):
                 return False
             if t["kind"] == "CLAIMS" and not fully_read(w): return False
+            if t["kind"] == "CLAIMS" and semantic_map_stage.enabled(w): return False
+            if t["kind"] == "TOPIC_PASS" and not (semantic_map_stage.enabled(w) and semantic_map_stage.semantic_map_current(w)
+                                                  and any(n["id"] == t["binding"] for n in semantic_map_stage.nodes(w))): return False
+            if t["kind"] == "SEMANTIC_MAP" and not (semantic_map_stage.enabled(w) and fully_read(w)): return False
             if t["kind"] == "STRUCTURE" and not (w.get("structure_first") and fully_claimed(w)): return False
             if t["kind"] == "STRUCTURE_REVIEW" and not structure_stage.structure_current(w): return False
             if t["kind"] in CHAPTER_KINDS and t.get("binding"):
@@ -2666,6 +2715,8 @@ class Store(GenerationMixin, _BaseStore):
             {"READ_SOURCE": lambda: self.reading(w, t["binding"], result, t["worker"]),
              "SECOND_READ": lambda: self.second_read(w, t["binding"], result, t["worker"]),
              "CLAIMS": lambda: self.accept_claims(w, t["binding"], result, t["worker"]),
+             "SEMANTIC_MAP": lambda: (semantic_map_stage.accept(w, result, t["worker"]), self.snapshot(w, "semantic_map", result)),
+             "TOPIC_PASS": lambda: (semantic_map_stage.accept_topic(w, t["binding"], result, t["worker"]), self.snapshot(w, "topic_pass", result)),
              "STRUCTURE": lambda: (structure_stage.accept(w, result, t["worker"]), self.snapshot(w, "structure", result)),
              "STRUCTURE_REVIEW": lambda: (structure_stage.accept_review(w, result, t["worker"]), self.snapshot(w, "structure_review", result)),
              "SUMMARY": lambda: (self.accept_chapter_summary(w, t, result) if t.get("binding") else
@@ -2835,6 +2886,11 @@ class Store(GenerationMixin, _BaseStore):
                 require(structure_stage.review_current(w), "课程结构须先经独立审查")
                 require(not structure_stage.review_blockers(w), "结构审查的问题需先修订结构")
                 expected = digest(w["structure"]["result"])
+            elif kind == "content" and semantic_map_stage.enabled(w):
+                require(fully_read(w) and semantic_map_stage.draft_ready(w) and summary_current(w), "请先完成语义地图和全部主题的重点梳理")
+                pending = semantic_map_stage.unconfirmed_sentences(w)
+                require(not pending, "初稿引用了尚未核定的图片/图表转录，请先完成第二次独立读取或人工对照确认：" + "、".join(pending[:10]))
+                expected = digest(w["summary"])
             elif kind == "content":
                 require(fully_read(w) and summary_current(w), "请先完成全文阅读和当前版本总结")
                 require(not w["summary"]["pending_issues"], "总结中的待解决问题需先处理")
@@ -2855,6 +2911,8 @@ class Store(GenerationMixin, _BaseStore):
             w[kind + "_approval"] = a
             w["approvals"].append(a)
             self.snapshot(w, kind + "_approval", a)
+            if kind == "content" and semantic_map_stage.enabled(w):    # the confirmed draft's sentences are the fact store
+                self.accept_facts(w, semantic_map_stage.draft_facts(w), semantic_map_stage.FACTS_AUTHOR)
         return self.get(workflow_id)
 
     def confirm_derivation(self, workflow_id: str, der_id: str, record: dict):

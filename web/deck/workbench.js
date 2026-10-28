@@ -7,7 +7,7 @@ const WORKBENCH_STEPS = [
 const THEME_NAMES = {"navy-teal":"墨蓝青绿", "clinical-blue":"经典蓝", "graphite-amber":"炭黑琥珀", forest:"森林绿", plum:"梅紫", brand:"我的模板"};
 const STAGE_ACTIONS = {
   SUMMARY_AMEND_RUNNING:["查看答复处理进度",null,"tasks"],
-  READING_REQUIRED:["开始读取资料","READ_SOURCE","sources"], CLAIMS_REQUIRED:["整理来源要点","CLAIMS","summary"],
+  READING_REQUIRED:["开始读取资料","READ_SOURCE","sources"], SEMANTIC_MAP_REQUIRED:["梳理资料整体结构","SEMANTIC_MAP","summary"], TOPICS_REQUIRED:["梳理各主题重点","TOPIC_PASS","summary"], CLAIMS_REQUIRED:["整理来源要点","CLAIMS","summary"],
   SUMMARY_REQUIRED:["生成全文总结","SUMMARY","summary"], SUMMARY_REVIEW_REQUIRED:["启动独立内容审核","SUMMARY_REVIEW","summary"],
   SUMMARY_ISSUES:["查看问题并修订",null,"confirm"], CONTENT_CONFIRMATION:["复核并确认内容",null,"confirm"],
   FACTS_REQUIRED:["准备已确认内容","FACTS","summary"], DECK_REQUIRED:["编排PPT页面","DECK","render"],
@@ -23,6 +23,8 @@ let workbenchPoll = null;
 const STAGE_GUIDANCE = {
   SUMMARY_AMEND_RUNNING:"答复已保存，局部处理任务已排队；执行端提交后自动排队独立复核。",
   READING_REQUIRED:"上传全部资料，填写要求并选择模板，再启动资料读取。",
+  SEMANTIC_MAP_REQUIRED:"资料已读取，下一步由模型梳理资料的整体结构。",
+  TOPICS_REQUIRED:"整体结构已定，下一步由模型逐个主题梳理重点和逻辑；原句由代码切分并核对。",
   CLAIMS_REQUIRED:"资料已读取，下一步整理来源要点并保留出处。",
   SUMMARY_REQUIRED:"来源要点已准备，下一步生成覆盖全部章节的总结。",
   SUMMARY_REVIEW_REQUIRED:"总结已生成，须由独立执行端逐项审核；审核后再由你确认内容。",
@@ -44,7 +46,7 @@ const STAGE_GUIDANCE = {
   READY_TO_EXPORT:"整套交付条件已满足，进入下载交付并生成交付包。",
   DELIVERED:"交付包已生成，可下载PPTX、PDF和审核记录。",
 };
-const EXECUTOR_STAGES = new Set(["SUMMARY_AMEND_RUNNING","READING_REQUIRED","CLAIMS_REQUIRED","SUMMARY_REQUIRED","SUMMARY_REVIEW_REQUIRED","SUMMARY_ISSUES","FACTS_REQUIRED","DECK_REQUIRED","DECK_REVISION","SEMANTIC_REVIEW_REQUIRED","SEMANTIC_ISSUES","GENERATION_RUNNING","GENERATION_FAILED"]);
+const EXECUTOR_STAGES = new Set(["SUMMARY_AMEND_RUNNING","READING_REQUIRED","SEMANTIC_MAP_REQUIRED","TOPICS_REQUIRED","CLAIMS_REQUIRED","SUMMARY_REQUIRED","SUMMARY_REVIEW_REQUIRED","SUMMARY_ISSUES","FACTS_REQUIRED","DECK_REQUIRED","DECK_REVISION","SEMANTIC_REVIEW_REQUIRED","SEMANTIC_ISSUES","GENERATION_RUNNING","GENERATION_FAILED"]);
 function responsibility(w) {
   if(w.stage==="READING_REQUIRED" && !(Array.isArray(w.sources)?w.sources.length:w.sources)) return {kind:"user",label:"需要你操作",task:"上传资料，填写生成要求并选择模板。"};
   if(EXECUTOR_STAGES.has(w.stage)) return {kind:"executor",label:"由执行端处理",task:/ISSUES|REVISION/.test(w.stage)?"执行端修订内容并重新独立审核；你可查看问题，审核完成后再确认。":"执行端完成内容或设计任务；你可查看进度，无需填写审核结论。"};
@@ -59,7 +61,7 @@ function stageGuide(w) {
   const action=STAGE_ACTIONS[w.stage] || ["查看项目",null,"overview"];
   const tasks=Array.isArray(w.tasks)?w.tasks.filter(t=>["PENDING","RUNNING"].includes(t.status) && (!action[1] || t.kind===action[1])):[];
   const running=tasks.some(t=>t.status==="RUNNING" && t.lease_until>Date.now()/1000);
-  const phase=["READING_REQUIRED","CLAIMS_REQUIRED","SUMMARY_REQUIRED"].includes(w.stage)?0:["SUMMARY_AMEND_RUNNING","SUMMARY_REVIEW_REQUIRED","SUMMARY_ISSUES","CONTENT_CONFIRMATION","FACTS_REQUIRED"].includes(w.stage)?1:["READY_TO_EXPORT","DELIVERED"].includes(w.stage)?3:2;
+  const phase=["READING_REQUIRED","SEMANTIC_MAP_REQUIRED","TOPICS_REQUIRED","CLAIMS_REQUIRED","SUMMARY_REQUIRED"].includes(w.stage)?0:["SUMMARY_AMEND_RUNNING","SUMMARY_REVIEW_REQUIRED","SUMMARY_ISSUES","CONTENT_CONFIRMATION","FACTS_REQUIRED"].includes(w.stage)?1:["READY_TO_EXPORT","DELIVERED"].includes(w.stage)?3:2;
   return {phase,text:STAGE_GUIDANCE[w.stage] || "查看当前待办，完成后进入下一阶段。",owner:running?"执行端正在处理":tasks.length?"等待执行端领取":responsibility(w).label,waiting:tasks.length && !running,target:tasks.length?"tasks":action[2]};
 }
 function workflowGuide(w) {

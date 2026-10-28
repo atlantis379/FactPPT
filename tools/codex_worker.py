@@ -27,7 +27,7 @@ def asset_url_allowed(workflow_id, name, asset_url):
             or asset_url.startswith(prefix + "/visual-standard/standard_content_")
             or asset_url.startswith(prefix + "/visual-standard/project_reference_")
             or (name == "academic_template" and asset_url == prefix + "/visual-template"))
-DECK_KINDS = ["READ_SOURCE", "SECOND_READ", "CLAIMS", "STRUCTURE", "STRUCTURE_REVIEW", "SUMMARY", "SUMMARY_AMEND", "SUMMARY_REVIEW", "FACTS", "DECK", "SEMANTIC_REVIEW", "VISUAL_CRITIQUE", "VISUAL_DESIGN", "VISUAL_LAYOUT", "VISUAL_CLEAN", "VISUAL_VECTOR", "VISUAL_BLIND_READ"]
+DECK_KINDS = ["READ_SOURCE", "SECOND_READ", "SEMANTIC_MAP", "TOPIC_PASS", "CLAIMS", "STRUCTURE", "STRUCTURE_REVIEW", "SUMMARY", "SUMMARY_AMEND", "SUMMARY_REVIEW", "FACTS", "DECK", "SEMANTIC_REVIEW", "VISUAL_CRITIQUE", "VISUAL_DESIGN", "VISUAL_LAYOUT", "VISUAL_CLEAN", "VISUAL_VECTOR", "VISUAL_BLIND_READ"]
 FACT_KINDS = ["READ_SOURCE", "SUMMARY", "PAGE_PLAN", "IMAGE"]
 VISUAL_KINDS = ["VISUAL_DESIGN", "VISUAL_LAYOUT", "VISUAL_CLEAN", "VISUAL_VECTOR", "VISUAL_BLIND_READ"]
 
