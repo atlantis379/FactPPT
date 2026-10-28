@@ -103,6 +103,7 @@ def test_each_topic_is_worked_out_by_the_model_and_checked_by_code(store):
     t = store.claim(w["id"], "topic-1", "TOPIC_PASS")
     b = t["brief"]
     assert b["topic"]["id"] == t["binding"] and b["sentences"]
+    assert isinstance(b["cut_warnings"], dict) and set(b["cut_warning_codes"]) == {"orphan_close", "open_at_end", "starts_mid", "too_long"}
 
     def refused(change, match):
         r = topic_result(b)

@@ -347,7 +347,11 @@ def topic_brief(w: dict, node_id: str) -> dict:
                                            for c in refs if c in cl and cl[c]["kind"] != "excluded"],
             "excluded_by_customer": [{"rule": k, "sentences": v} for k, v in excluded.items()],
             "why_kinds": topic_pass.WHY,
-            "rules": ["sentences 是本主题全部原文句子，由代码从资料中逐字切出：[句子id, 类型, 原文, 位置]。类型 sentence 为句子；cell 为表格的一格，"
+            "cut_warnings": {c["id"]: c["anomalies"] for c in shown if c.get("anomalies")},
+            "cut_warning_codes": auto_claims.ANOMALIES,
+            "rules": ["cut_warnings 是代码按标点认为可能切错的句子（含义见 cut_warning_codes）：引用前读其前后句，"
+                      "它缺的上下文（主语、条件、括号内容）若在相邻句中，一并引用；拿不准时列入 checks。",
+                      "sentences 是本主题全部原文句子，由代码从资料中逐字切出：[句子id, 类型, 原文, 位置]。类型 sentence 为句子；cell 为表格的一格，"
                       "位置写出它所在的行标题和列标题；header 为表格首行的列标题；label 为图表标签等短片段；heading 为章节标题；gloss 为缩写注释；data 为图表中连成一串的数字。"
                       "视觉转录的格子在位置中写出它在原图中的位置。客户决定排除的句子已由代码去掉（见 excluded_by_customer），不得引用。",
                       "读完全部句子，像资深讲者一样决定这一主题要讲什么：question 写本主题要回答的一个问题；messages 列出信息，"

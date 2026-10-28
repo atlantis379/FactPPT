@@ -107,7 +107,10 @@ sources → summary → fact store → deck spec → 代码渲染原生 PPTX。�
 Before committing a change to sentence cutting (`factdeck/auto_claims.py`, `source_coverage.segments`), the topic-pass
 contract or its checks, run `python tools/replay.py <data root> <workflow id>` on a project copy with accepted topic
 passes: it re-accepts the archived results under the new code (no model calls, no writes) and names what would be
-refused or read against changed text. Stored sentence references carry text anchors; never compare ids alone.
+refused or read against changed text. For the cut itself, save `tools/cut_audit.py <data root> --save before.json` on
+the old code and run `--against before.json` on the new: changed/added/removed sentences and anomalies fixed or
+introduced (a mis-cut is named by code, never repaired by guessing). Stored sentence references carry text anchors;
+never compare ids alone.
 
 Preserve legacy semantic endpoints and their safeguards. SQLite transactions serialize job claims; do not replace them with
 concurrent writes to `data/projects.json`. Keep factdeck domain-neutral: subject vocabulary goes in project terms or

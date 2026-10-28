@@ -264,3 +264,44 @@ def test_a_terminator_inside_brackets_does_not_cut_the_sentence():
     items = "重新评估治疗方案（诱导痰（若有）；考虑加用第一种附加治疗以明确诊断；考虑进行第二种检查以明确其他诊断；作为最后手段考虑第三种）"
     cut_items = [c["quote"] for c in cut([{"id": "X:2:b1", "page_id": "X:2", "source_id": "X", "text": items}], {"X:2": "SUBSTANTIVE"}, {})]
     assert len(cut_items) == 4                     # a long bracketed list is still cut per item
+
+
+def test_a_mis_cut_is_named_never_repaired_by_guessing():
+    from factdeck.auto_claims import anomalies
+    assert anomalies("FeNO<25 ppb）患者的急性发作次数。", "sentence") == ["orphan_close"]
+    assert anomalies("重新评估治疗方案（诱导痰（若有）；", "sentence") == ["open_at_end"]
+    assert anomalies("、鼻窦异常的组织学证据。", "sentence") == ["starts_mid"]
+    assert anomalies("字" * 301, "sentence") == ["too_long"]
+    assert anomalies("其中包括：1）经治疗后仍控制不佳；2）口服依赖。", "sentence") == []      # list numbering
+    assert anomalies("感染（TB NTM)等", "sentence") == []                                     # mixed widths
+    assert anomalies("56 (31, 82)", "cell") == [] and anomalies("）", "label") == []
+
+
+def test_a_taught_message_on_a_mis_cut_sentence_is_a_review_signal():
+    cl = {"X:1~1": {"id": "X:1~1", "kind": "sentence", "quote": "某药减少低炎症（BEC<150；", "unit_id": "X:1", "source_id": "X",
+                    "topic": "t", "anomalies": ["open_at_end"]},
+          "X:1~2": {"id": "X:1~2", "kind": "sentence", "quote": "FeNO<25）患者的发作。", "unit_id": "X:1", "source_id": "X",
+                    "topic": "t", "anomalies": ["orphan_close"]}}
+    r = _pass()
+    r["messages"] = [{"id": "m1", "role": "core", "label": "要点", "claims": ["X:1~1"]},
+                     {"id": "m2", "role": "reserve", "label": "备查", "claims": ["X:1~2"]}]
+    r["page_plan"], r["left_out"], r["relations"], r["checks"] = [["m1"]], [], [], []
+    rec = topic_pass.check(r, "t", cl, topics={"t"})
+    assert rec["signals"]["mis_cut_taught"] == ["X:1~1"]                # reserve is not taught on a page
+
+
+def test_the_cut_audit_compares_two_cutters_with_one_detector():
+    import importlib.util
+    from pathlib import Path
+    spec = importlib.util.spec_from_file_location("cut_audit", Path(__file__).resolve().parents[1] / "tools" / "cut_audit.py")
+    ca = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ca)
+    before = {"cutter": "old", "projects": {"w": {"title": "T", "sentences": {
+        "U~1": {"quote": "减少低炎症（BEC<150；", "kind": "sentence", "anomalies": []},
+        "U~2": {"quote": "FeNO<25）患者的发作。", "kind": "sentence", "anomalies": []}}}}}
+    now = {"cutter": "new", "projects": {"w": {"title": "T", "sentences": {
+        "U~1": {"quote": "减少低炎症（BEC<150；FeNO<25）患者的发作。", "kind": "sentence", "anomalies": []}}}}}
+    d = ca.compare(before, now)["w"]
+    assert d["changed"] == ["U~1"] and d["removed"] == ["U~2"] and len(d["fixed"]) == 2 and not d["introduced"]
+    assert "RESULT: PASS" in ca.markdown(now, ca.compare(before, now))
+    assert "RESULT: FAIL" in ca.markdown(before, ca.compare(now, before))

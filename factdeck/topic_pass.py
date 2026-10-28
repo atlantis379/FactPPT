@@ -201,6 +201,8 @@ def check(result: Mapping, topic_id: str, claims: Mapping[str, dict], pages: int
         "numeric_left_out_in_groups": sorted(numeric_grouped),
         "shared_off_topic_notes": sorted(len(v) for v in per_note.values() if len(v) > REVIEW_ENTRY),
         "pages_vs_budget": [len(plan), pages],
+        # a taught message resting on a sentence the cutter doubted: the review reads it with its neighbours
+        "mis_cut_taught": sorted({x for m in msgs if m["role"] in TAUGHT for x in m["claims"] if claims[x].get("anomalies")}),
     }
     n_keys = len({key_of(c) for c in own.values() if c["kind"] in ACCOUNTED})
     return {"schema_version": SCHEMA, "topic": topic_id, "question": q, "messages": [dict(m) for m in msgs],

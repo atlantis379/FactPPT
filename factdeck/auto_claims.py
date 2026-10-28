@@ -16,7 +16,9 @@ code cannot summarise, but it can cut and attach without changing a character:
   "RR：相对危险比；"), ``cell`` (one cell of a table: read with its row and column headers, see ``table_context``), ``header`` (a cell of
   a table's first row),
   ``label`` (a short fragment with no sentence) or ``sentence``;
-- the topic is the map node whose ``unit_hints`` contain the unit; a unit no node names stays unattached.
+- the topic is the map node whose ``unit_hints`` contain the unit; a unit no node names stays unattached;
+- a sentence or cell that looks mis-cut carries ``anomalies`` (codes in ``ANOMALIES``): code cannot know the right cut,
+  so it names the doubt for the reader, the review and the cut audit (``tools/cut_audit.py``) instead of guessing.
 
 Domain-neutral: punctuation and layout only. Nothing here decides what a sentence means.
 """
@@ -113,6 +115,42 @@ def _pieces(text: str) -> list[tuple[int, int, str]]:
     return out
 
 
+# what a mis-cut looks like, by punctuation only; codes are reported, never repaired by guessing
+ANOMALIES = {"orphan_close": "有右括号而没有对应的左括号：可能从括号中间切开，前文在上一句",
+             "open_at_end": "左括号到句末仍未闭合：可能是括号中列举的一项，或句子被切断",
+             "starts_mid": "以逗号、顿号、右括号等接续标点开头：可能接续上一句",
+             "too_long": "超长：可能把几句并成了一句"}
+LONG_CHARS = 300
+_OPEN = {"（": "round", "(": "round", "［": "square", "[": "square", "【": "square"}     # full and half width alike:
+_CLOSE = {"）": "round", ")": "round", "］": "square", "]": "square", "】": "square"}    # sources mix them
+_MID = tuple("，,、；;：:）)］]】")
+_LIST_MARK = re.compile(r"(?:^|(?<=[\s：:，,；;。]))(?:[0-9]{1,2}|[A-Za-z]|[一二三四五六七八九十]{1,2})[）)]")   # "1）" "a)" "二）"
+
+
+def anomalies(quote: str, kind: str) -> list[str]:
+    if kind not in ("sentence", "cell"):
+        return []
+    out, q = [], quote.strip()
+    marks = {m.end() - 1 for m in _LIST_MARK.finditer(q)}      # "1）" closes nothing when no bracket is open
+    depth, low = {"round": 0, "square": 0}, {"round": 0, "square": 0}
+    for i, ch in enumerate(q):
+        if ch in _OPEN:
+            depth[_OPEN[ch]] += 1
+        elif ch in _CLOSE and not (i in marks and depth[_CLOSE[ch]] == 0):
+            f = _CLOSE[ch]
+            depth[f] -= 1
+            low[f] = min(low[f], depth[f])
+    if any(v < 0 for v in low.values()):
+        out.append("orphan_close")
+    if any(depth[f] - low[f] > 0 for f in depth):          # opened after the lowest point and never closed
+        out.append("open_at_end")
+    if q.startswith(_MID):
+        out.append("starts_mid")
+    if len(q) > LONG_CHARS:
+        out.append("too_long")
+    return out
+
+
 def _kind(quote: str, page_class: str, repeated: bool, hint: str, titled: bool, unit_id: str = "") -> str:
     if hint:
         return hint
@@ -176,6 +214,8 @@ def cut(units: list[dict], page_class: dict[str, str], topic_of: dict[str, str])
                 c[k] = v
         if u.get("needs_confirmation"):
             c["needs_confirmation"] = True
+        if (bad := anomalies(q, c["kind"])):
+            c["anomalies"] = bad
         out.append(c)
     return out
 
