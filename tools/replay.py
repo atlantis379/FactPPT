@@ -14,6 +14,10 @@ pass in their original order. For each pass it reports:
 - counts and signals that differ from the accepted record.
 
 Exit status 1 when anything is refused or a reference changed text, so it can gate a change.
+
+With --apply it writes back the passes re-accepted cleanly (current checks pass, every referenced sentence has
+exactly the text the executor read): accepted work follows a rule or cutter change without a model call; the rest
+stays stale for a real rerun.
 """
 from __future__ import annotations
 
@@ -81,6 +85,11 @@ def referenced(result: dict, own: dict) -> set[str]:
 
 
 def replay(data_root: Path, workflow_id: str) -> dict:
+    return _replay(data_root, workflow_id)[0]
+
+
+def _replay(data_root: Path, workflow_id: str) -> tuple[dict, dict, dict]:
+    """(report, the replayed in-memory project, the project as loaded)."""
     w0 = load(data_root, workflow_id)
     raw = snapshots(data_root, w0)
     done = [t for t in w0["tasks"] if t["kind"] in KINDS and t["status"] == "COMPLETE" and t.get("result_sha256") in raw]
@@ -105,7 +114,7 @@ def replay(data_root: Path, workflow_id: str) -> dict:
             entry["status"], entry["reason"] = "REFUSED", str(e)
         report["map"] = entry
         if entry["status"] != "OK":
-            return report
+            return report, w, w0
     elif accepted:
         w["semantic_map"] = {**accepted, "input_sha256": sm.semantic_map_input(w)}
         report["map"] = {"status": "OK", "input_changed": accepted.get("input_sha256") != sm.semantic_map_input(w0),
@@ -140,6 +149,9 @@ def replay(data_root: Path, workflow_id: str) -> dict:
                 entry["text_changed"].append({"id": x, "shown": "（接受时的原文，见 anchors）", "now": cl[x]["quote"]})
             elif x not in cl and x not in entry["missing"]:
                 entry["missing"].append(x)
+        # a reference whose original text is known neither from the brief nor from an anchor cannot be vouched for
+        entry["unverified"] = sorted(x for x in refs | set(referrals or []) if x in cl and x not in shown
+                                     and x not in (holds[node]["result"].get("anchors") or {}))
         r["input_sha256"] = sm.topic_input(w, node)
         try:
             sm.accept_topic(w, node, r, t["worker"], referrals)
@@ -151,7 +163,34 @@ def replay(data_root: Path, workflow_id: str) -> dict:
                                 if _n(old["signals"].get(k)) != _n(v)}
         except WorkflowError as e:
             entry["status"], entry["reason"] = "REFUSED", str(e)
+        entry["applicable"] = (entry["status"] == "OK" and not entry["text_changed"] and not entry["missing"]
+                               and not entry["unverified"])
         report["topics"].append(entry)
+    return report, w, w0
+
+
+def apply(data_root: Path, workflow_id: str) -> dict:
+    """Write back the passes the replay re-accepted cleanly — current checks pass and every referenced sentence has
+    exactly the text the executor read — so accepted work follows a code change without a model call. Anything else
+    stays stale for a real rerun. Refuses if the project changed since it was read."""
+    from app.deckflow import Store, now, require
+    report, w, w0 = _replay(data_root, workflow_id)
+    ok = [t for t in report["topics"] if t.get("applicable")]
+    report["applied"] = []
+    if not ok:
+        return report
+    st = Store(data_root)
+    with st.transaction(workflow_id, "REPLAY_APPLY") as ww:
+        require(digest(ww.get("topic_passes")) == digest(w0.get("topic_passes"))
+                and digest(ww.get("semantic_map")) == digest(w0.get("semantic_map")), "项目在重放后已变更，请重新运行", 409)
+        if not sm.semantic_map_current(ww):
+            report["apply_note"] = "the recorded map is not current under this code; nothing applied"
+            return report
+        for t in ok:
+            ww["topic_passes"][t["topic"]] = {**w["topic_passes"][t["topic"]],
+                                              "reaccepted": {"by": "code:replay", "task": t["task"], "at": now()}}
+            report["applied"].append(t["topic"])
+        sm.refresh_summary(ww)
     return report
 
 
@@ -192,6 +231,8 @@ def markdown(report: dict) -> str:
         line += " (input changed)" if t["input_changed"] else ""
         line += f"; {len(t['text_changed'])} text changed under id" if t["text_changed"] else ""
         line += f"; {len(t['missing'])} missing" if t["missing"] else ""
+        line += f"; {len(t['unverified'])} without a known original text" if t.get("unverified") else ""
+        line += "; applied" if t["topic"] in report.get("applied", []) else ""
         line += f"; counts {t['counts']}" if t.get("counts") else ""
         line += f"; signals {t['signals']}" if t.get("signals") else ""
         out.append(line)
@@ -211,8 +252,9 @@ def main():
     ap.add_argument("data_root", type=Path)
     ap.add_argument("workflow_id")
     ap.add_argument("--out", type=Path, help="write the markdown report here (JSON beside it)")
+    ap.add_argument("--apply", action="store_true", help="write back the passes re-accepted cleanly (no model call)")
     a = ap.parse_args()
-    report = replay(a.data_root.resolve(), a.workflow_id)
+    report = (apply if a.apply else replay)(a.data_root.resolve(), a.workflow_id)
     md = markdown(report)
     if a.out:
         a.out.write_text(md, encoding="utf-8")

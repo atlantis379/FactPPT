@@ -357,3 +357,26 @@ def test_sibling_topics_finish_in_any_order(store, order):
             r["checks"] = [{"claims": t["brief"]["new_referrals"], "reason": "测试记录：转来的句子待核"}] if t["brief"].get("new_referrals") else []
             store.complete(w["id"], t["id"], t["lease_token"], r)
     assert store.get(w["id"])["stage"] == "CONTENT_CONFIRMATION"
+
+
+def test_replay_apply_brings_clean_work_forward_and_leaves_changed_work_stale(store, monkeypatch):
+    import importlib.util
+    from pathlib import Path
+    spec = importlib.util.spec_from_file_location("replay", Path(__file__).resolve().parents[1] / "tools" / "replay.py")
+    replay = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(replay)
+    w, other = _all_passed(store)
+    with store.transaction(w["id"], "TEST_FORMULA") as ww:          # an input formula change: both passes due
+        for n in ("n1", "n2"):
+            ww["topic_passes"][n]["input_sha256"] = "older-formula"
+    assert not any(sm.topic_current(store.get(w["id"]), n) for n in ("n1", "n2"))
+    report = replay.apply(store.root, w["id"])
+    w = store.get(w["id"])
+    assert report["applied"] == ["n1", "n2"] and all(sm.topic_current(w, n) for n in ("n1", "n2"))
+    assert w["stage"] == "CONTENT_CONFIRMATION" and w["topic_passes"]["n1"]["reaccepted"]["by"] == "code:replay"
+    with store.transaction(w["id"], "TEST_FORMULA") as ww:
+        for n in ("n1", "n2"):
+            ww["topic_passes"][n]["input_sha256"] = "older-formula"
+    _recut(monkeypatch, other["id"], "另一段完全不同的文字。")        # n1 borrowed this sentence; n2 owns it
+    report = replay.apply(store.root, w["id"])
+    assert report["applied"] == [] and not sm.topic_current(store.get(w["id"]), "n1")
