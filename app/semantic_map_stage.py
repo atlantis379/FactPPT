@@ -69,8 +69,10 @@ def gate(w: dict):
     if not semantic_map_current(w):
         return "SEMANTIC_MAP_REQUIRED", ["资料的语义地图尚未完成或已过期"]
     todo = [n["title"] for n in nodes(w) if not topic_current(w, n["id"])]
-    if todo:
-        return "TOPICS_REQUIRED", [f"{len(todo)} 个主题尚未梳理重点：" + "、".join(todo[:5])]
+    referred = [n["title"] for n in nodes(w) if topic_current(w, n["id"]) and pending_referrals(w, n["id"])]
+    if todo or referred:
+        return "TOPICS_REQUIRED", ([f"{len(todo)} 个主题尚未梳理重点：" + "、".join(todo[:5])] if todo else []) + \
+            ([f"{len(referred)} 个主题有其他主题新转来的句子待判断：" + "、".join(referred[:5])] if referred else [])
     if not _d().content_approved(w):
         pending = unconfirmed_sentences(w)
         return "CONTENT_CONFIRMATION", ["客户尚未确认初稿"] + ([f"初稿引用的 {len(pending)} 句图片/图表转录尚未核定"] if pending else [])
@@ -98,8 +100,9 @@ def brief(w: dict) -> dict:
                       "title、thesis、one_liner 是作者组织文字：不写数字（阿拉伯或全角），不写比较或评价结论；one_liner 与每个 thesis 各一句。",
                       f"禁止使用保留节点 id `{UNASSIGNED_NODE_ID}`。",
                       "edges 可选：from/to 为节点 id，relation 取自 sequence（先后）、contrast（对照）、condition（条件/分支）、evidence（证据支撑）。",
-                      "pages 为每个节点的页数预算，按讲解重要性分配，不按资料篇幅；各节点之和接近 requirements.target_pages（未给出时按内容估计），"
-                      "不上页的节点写 0。",
+                      "pages 为每个节点讲清楚所需的页数估计：一页通常讲 2 条左右要上页的信息（核心、支撑或限定，各附其原句），"
+                      "按节点中要讲授的信息数估计，不按资料篇幅；重要性决定讲多少，不靠压缩页数体现。不上页的节点写 0。"
+                      "各节点之和与 requirements.target_pages 不一致时照实估计，不要为凑目标页数压低；差额会在初稿中提供给客户决定。",
                       "每页只显示前若干字（标 cut 的单元被截断或未显示文字）；需要全文时按 source_url 查看原件。"],
             "requirements": req,
             "result_contract": {"input_sha256": semantic_map_input(w), "schema_version": SCHEMA_VERSION, "one_liner": "",
@@ -197,10 +200,11 @@ def _node(w: dict, node_id: str) -> dict:
 
 
 def referred_to(w: dict, node_id: str) -> dict[str, str]:
-    """Sentences other topics' accepted passes left out as belonging to this topic (sentence id → referring topic)."""
+    """Sentences other topics' current passes left out as belonging to this topic (sentence id → referring topic).
+    A stale pass refers nothing: its ids may name other sentences under a new cut, and it is due to be redone."""
     out = {}
     for t_id, t in sorted((w.get("topic_passes") or {}).items()):
-        if t_id == node_id:
+        if t_id == node_id or not topic_current(w, t_id):
             continue
         for c, to in t["result"]["signals"].get("other_topic") or []:
             if to == node_id:
@@ -209,12 +213,12 @@ def referred_to(w: dict, node_id: str) -> dict[str, str]:
 
 
 def topic_input(w: dict, node_id: str) -> str:
-    """What a topic pass rests on: the map, the topic's units, the sentences other topics referred to it, the
-    customer's exclusions and the cutting and checking rules. A new referral makes the topic due again."""
+    """What a topic pass rests on: the map, the topic's units, the customer's exclusions and the cutting and checking
+    rules. Sentences other topics refer here are not part of it: topics run in parallel, and a referral arriving while
+    this topic is being worked out must not cancel that work — it is decided in a follow-up pass (`pending_referrals`)."""
     hints = set(_node(w, node_id)["unit_hints"])
     return digest({"map": (w.get("semantic_map") or {}).get("result_sha256"), "topic": node_id,
                    "units": [(u["id"], u["text"]) for u in _d().all_units(w) if u["id"] in hints],
-                   "referred": sorted(referred_to(w, node_id)),
                    "exclusions": w.get("exclusions") or [], "schemas": [auto_claims.SCHEMA, topic_pass.SCHEMA]})
 
 
@@ -223,8 +227,23 @@ def topic_current(w: dict, node_id: str) -> bool:
     return bool(t) and semantic_map_current(w) and t.get("input_sha256") == topic_input(w, node_id)
 
 
+def pending_referrals(w: dict, node_id: str) -> dict[str, str]:
+    """Sentences referred to this topic that its current pass has not decided on (sentence id → referring topic):
+    they arrived after its brief was written. A sentence the pass already cites or checks counts as decided."""
+    rec = ((w.get("topic_passes") or {}).get(node_id) or {}).get("result")
+    if not rec:
+        return {}
+    decided = set(rec.get("referrals", rec["signals"].get("referred_in") or []))
+    decided |= {c for m in rec["messages"] for c in m["claims"]} | {c for k in rec.get("checks") or [] for c in k["claims"]}
+    return {c: t for c, t in referred_to(w, node_id).items() if c not in decided}
+
+
+def topic_done(w: dict, node_id: str) -> bool:
+    return topic_current(w, node_id) and not pending_referrals(w, node_id)
+
+
 def pending_topics(w: dict) -> list[str]:
-    return [n["id"] for n in nodes(w) if not topic_current(w, n["id"])]
+    return [n["id"] for n in nodes(w) if not topic_done(w, n["id"])]
 
 
 def topic_brief(w: dict, node_id: str) -> dict:
@@ -241,7 +260,15 @@ def topic_brief(w: dict, node_id: str) -> dict:
     for c in mine:
         if c["kind"] == "excluded":
             excluded[c["excluded_by"]] = excluded.get(c["excluded_by"], 0) + 1
-    return {"kind": "TOPIC_PASS", "schema_version": topic_pass.SCHEMA, "input_sha256": topic_input(w, node_id),
+    follow_up = {}
+    if topic_current(w, node_id) and (new := pending_referrals(w, node_id)):
+        rec = w["topic_passes"][node_id]["result"]
+        follow_up = {"revision_base": {k: rec[k] for k in ("question", "messages", "relations", "page_plan", "checks", "left_out", "gaps")},
+                     "new_referrals": sorted(new),
+                     "follow_up_rule": "本主题已梳理过（revision_base），之后其他主题又转来了 new_referrals 中的句子：在 revision_base 的基础上"
+                                       "逐句判断这些句子（引用、列入 checks 或 left_out），其余内容保持不变，除非新句子改变了原来的判断。"
+                                       "提交完整结果。"}
+    return {"kind": "TOPIC_PASS", "schema_version": topic_pass.SCHEMA, "input_sha256": topic_input(w, node_id), **follow_up,
             "topic": {k: n[k] for k in ("id", "title", "role", "thesis", "mainline")} | ({"pages": n["pages"]} if n.get("pages") is not None else {}),
             "material": {"one_liner": m["one_liner"], "topics": [{"id": x["id"], "title": x["title"]} for x in nodes(w)],
                          "links": [{"from": titles[e["from"]], "to": titles[e["to"]], "relation": e["relation"]}
@@ -276,15 +303,20 @@ def topic_brief(w: dict, node_id: str) -> dict:
             "result_contract": topic_pass.contract(node_id) | {"input_sha256": topic_input(w, node_id)}}
 
 
-def accept_topic(w: dict, node_id: str, result: dict, author: str) -> None:
+def accept_topic(w: dict, node_id: str, result: dict, author: str, referrals: list[str] | None = None) -> None:
+    """`referrals`: the referred sentence ids the task's brief carried — the pass answers for those; referrals that
+    arrived later stay pending for a follow-up pass. None (no brief at hand) takes the current referrals."""
     require(semantic_map_current(w), "语义地图已过期，请先重做 SEMANTIC_MAP", 409)
     n = _node(w, node_id)
     require(isinstance(result, dict) and result.get("input_sha256") == topic_input(w, node_id), "主题对应的地图或资料已变更", 409)
+    now_referred = referred_to(w, node_id)
+    referred = now_referred if referrals is None else {c: now_referred.get(c, "") for c in referrals}
     try:
         rec = topic_pass.check({k: v for k, v in result.items() if k != "input_sha256"}, node_id, claims(w), n.get("pages"),
-                               {x["id"] for x in nodes(w)}, referred_to(w, node_id))
+                               {x["id"] for x in nodes(w)}, referred)
     except topic_pass.TopicPassError as e:
         raise _d().WorkflowError(f"主题 {n['title']} 的重点梳理不合格：{e}", 422)
+    rec["referrals"] = sorted(referred)
     w.setdefault("topic_passes", {})[node_id] = {"input_sha256": topic_input(w, node_id), "result": rec,
                                                 "result_sha256": digest(rec), "author": author, "accepted_at": now()}
     refresh_summary(w)
@@ -401,12 +433,25 @@ def draft(w: dict) -> dict:
     used = {c for t in (w.get("topic_passes") or {}).values() for x in t["result"]["messages"] for c in x["claims"]}
     lost = [{"sentence": c, "from_topic": t_id, "to_topic": to} for t_id, t in (w.get("topic_passes") or {}).items()
             for c, to in t["result"]["signals"].get("other_topic") or [] if c not in used]
-    return {"one_liner": m["one_liner"], "edges": m.get("edges") or [], "topics": topics, "lost_between_topics": lost}
+    # page count follows the content (user decision 2026-10-16): the plans are not squeezed to a target, the
+    # difference from the requested length and from the map's estimates is shown to the customer instead
+    planned = [(t, len(t["page_plan"])) for t in topics if t["current"]]
+    pages = {"target": (w.get("requirements") or {}).get("target_pages"), "planned": sum(n for _, n in planned),
+             "estimated": sum(t["pages"] or 0 for t in topics),
+             "over_estimate": [{"topic": t["title"], "planned": n, "estimated": t["pages"]}
+                               for t, n in planned if t["pages"] is not None and n > t["pages"]]}
+    return {"one_liner": m["one_liner"], "edges": m.get("edges") or [], "topics": topics, "lost_between_topics": lost,
+            "pages": pages}
 
 
 def draft_markdown(d: dict) -> str:
     role = {"core": "核心", "support": "支撑", "limit": "限定", "reserve": "备查"}
     out = [f"# 初稿\n\n{d['one_liner']}\n"]
+    p = d.get("pages") or {}
+    if p:
+        out.append(f"\n内容页：计划 {p['planned']} 页（地图估计 {p['estimated']} 页" + (f"，要求 {p['target']} 页" if p.get("target") else "") + "）。"
+                   + ("超出估计的主题：" + "；".join(f"{x['topic']} {x['planned']}/{x['estimated']}" for x in p["over_estimate"]) + "。"
+                      if p["over_estimate"] else ""))
     for t in d["topics"]:
         out.append(f"\n## {t['title']}" + ("" if t["mainline"] else "（支线）"))
         if not t["current"]:

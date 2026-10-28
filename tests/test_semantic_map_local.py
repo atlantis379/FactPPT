@@ -253,3 +253,11 @@ def test_a_sentence_referred_from_another_topic_must_be_decided_here():
     r["messages"][2]["claims"].append("X:1~1")
     rec = topic_pass.check(r, "t", cl, topics={"t", "u"}, referred={"X:1~1": "u"})
     assert rec["signals"]["referred_in"] == ["X:1~1"] and rec["signals"]["borrowed_claims"] == []
+
+
+def test_a_terminator_inside_brackets_does_not_cut_the_sentence():
+    from factdeck.auto_claims import cut
+    text = "该药还能减少低炎症（BEC<150/μl；FeNO<25 ppb）患者的急性发作，但未改善肺功能。下一句。括号未闭合（这里；后面很远" + "字" * 90 + "。"
+    out = [c["quote"] for c in cut([{"id": "X:1:b1", "page_id": "X:1", "source_id": "X", "text": text}], {"X:1": "SUBSTANTIVE"}, {})]
+    assert out[0].startswith("该药") and "FeNO<25 ppb）患者" in out[0]
+    assert "下一句。" in out and any(q.startswith("括号未闭合（这里；") for q in out)

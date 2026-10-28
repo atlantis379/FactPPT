@@ -2716,7 +2716,9 @@ class Store(GenerationMixin, _BaseStore):
              "SECOND_READ": lambda: self.second_read(w, t["binding"], result, t["worker"]),
              "CLAIMS": lambda: self.accept_claims(w, t["binding"], result, t["worker"]),
              "SEMANTIC_MAP": lambda: (semantic_map_stage.accept(w, result, t["worker"]), self.snapshot(w, "semantic_map", result)),
-             "TOPIC_PASS": lambda: (semantic_map_stage.accept_topic(w, t["binding"], result, t["worker"]), self.snapshot(w, "topic_pass", result)),
+             "TOPIC_PASS": lambda: (semantic_map_stage.accept_topic(w, t["binding"], result, t["worker"],
+                                                                    [r[0] for r in t["brief"].get("referred_from_other_topics") or []]),
+                                    self.snapshot(w, "topic_pass", result)),
              "STRUCTURE": lambda: (structure_stage.accept(w, result, t["worker"]), self.snapshot(w, "structure", result)),
              "STRUCTURE_REVIEW": lambda: (structure_stage.accept_review(w, result, t["worker"]), self.snapshot(w, "structure_review", result)),
              "SUMMARY": lambda: (self.accept_chapter_summary(w, t, result) if t.get("binding") else

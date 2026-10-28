@@ -195,3 +195,50 @@ def test_existing_projects_keep_the_old_order(store):
     assert not w.get("semantic_map_first")
     with pytest.raises(WorkflowError, match="semantic_map_first"):
         store.queue(w["id"], "SEMANTIC_MAP")
+
+
+def test_a_referral_arriving_while_a_topic_runs_does_not_cancel_it(store):
+    """Topics run in parallel: n1 referring a sentence to n2 while n2 is out must not void n2's work; n2 answers for
+    the new sentence in a follow-up pass that starts from its accepted result."""
+    w = mapped(store)
+    store.queue(w["id"], "TOPIC_PASS")
+    t1 = store.claim(w["id"], "topic-1", "TOPIC_PASS", "n1")
+    t2 = store.claim(w["id"], "topic-2", "TOPIC_PASS", "n2")
+    r1 = topic_result(t1["brief"])
+    moved = next(x for x in r1["left_out"] if "ids" in x)
+    moved.update(why="other_topic", topic="n2", note="测试记录：属于处理主题")
+    store.complete(w["id"], t1["id"], t1["lease_token"], r1)
+    store.complete(w["id"], t2["id"], t2["lease_token"], topic_result(t2["brief"]))   # not refused: the referral is new
+    w = store.get(w["id"])
+    assert sm.topic_current(w, "n2") and sm.pending_referrals(w, "n2") == {moved["ids"][0]: "n1"}
+    assert w["stage"] == "TOPICS_REQUIRED" and "新转来的句子" in w["open_items"][0] and w["summary"] is None
+    store.queue(w["id"], "TOPIC_PASS")
+    t = store.claim(w["id"], "topic-2", "TOPIC_PASS")
+    b = t["brief"]
+    assert t["binding"] == "n2" and b["new_referrals"] == moved["ids"] and b["revision_base"]["messages"]
+    r = topic_result(b)
+    r["checks"] = [{"claims": moved["ids"], "reason": "测试记录：转来的句子待核"}]
+    store.complete(w["id"], t["id"], t["lease_token"], r)
+    w = store.get(w["id"])
+    assert not sm.pending_referrals(w, "n2") and w["stage"] == "CONTENT_CONFIRMATION"
+
+
+def test_the_draft_reports_planned_pages_against_the_estimate():
+    w_pages = {"target": 1, "planned": 2, "estimated": 1, "over_estimate": [{"topic": "定义", "planned": 2, "estimated": 1}]}
+    md = sm.draft_markdown({"one_liner": "一句话。", "topics": [], "pages": w_pages})
+    assert "计划 2 页" in md and "要求 1 页" in md and "定义 2/1" in md
+
+
+def test_a_stale_topic_pass_refers_nothing(store):
+    """Referral ids from a pass made under an older cut or map may name other sentences: only current passes refer."""
+    w = mapped(store)
+    store.queue(w["id"], "TOPIC_PASS")
+    t1 = store.claim(w["id"], "topic-1", "TOPIC_PASS", "n1")
+    r1 = topic_result(t1["brief"])
+    moved = next(x for x in r1["left_out"] if "ids" in x)
+    moved.update(why="other_topic", topic="n2", note="测试记录：属于处理主题")
+    store.complete(w["id"], t1["id"], t1["lease_token"], r1)
+    with store.transaction(w["id"], "TEST_STALE") as ww:
+        assert sm.referred_to(ww, "n2") == {moved["ids"][0]: "n1"}
+        ww["topic_passes"]["n1"]["input_sha256"] = "stale"
+        assert sm.referred_to(ww, "n2") == {}

@@ -29,7 +29,8 @@ from .claims import cites, qualifiers
 from .lexicon import _BIBLIO, canon, critical_tokens
 from .source_coverage import segments
 
-SCHEMA = "auto_claims.v3"
+SCHEMA = "auto_claims.v4"
+SEGMENTER = "sentence.v3"           # bracket-aware: a terminator inside soon-closing brackets does not end the sentence
 LABEL_CHARS = 8              # a piece this short (canon characters) without a terminator is a label, not a sentence
 BOILERPLATE_PAGES = 3        # the same piece on this many pages of one source is a watermark or a footer
 _BULLET = re.compile(r"(?:^|(?<=\s))[•·▪●○◆➢►▶❖](?=\s*\S)")
@@ -63,7 +64,7 @@ def _pieces(text: str) -> list[tuple[int, int, str]]:
     """Sentence pieces of a unit as (start, end, hint), whitespace-trimmed. List markers start a new piece; running
     headers and bibliography entries become ``reference`` pieces; leading numbered headings become ``heading``."""
     cuts = []
-    for a, b in segments(text):
+    for a, b in segments(text, SEGMENTER):
         starts = [a] + [m.start() for m in _BULLET.finditer(text, a, b) if m.start() > a]
         for i, s0 in enumerate(starts):
             e0 = starts[i + 1] if i + 1 < len(starts) else b

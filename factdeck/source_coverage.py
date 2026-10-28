@@ -28,6 +28,10 @@ TERMINATORS = set('。！？；!?;')
 # into a segment of its own, which then sat inside a claim span and could be neither expressed nor dismissed.
 SEGMENTER = 'sentence.v2'
 SEGMENTERS = ('sentence.v1', SEGMENTER)
+# sentence.v3 (semantic-first cutting only): a terminator inside brackets that close soon after does not end the
+# sentence — "（BEC<150/μl；FeNO<25 ppb）" stays with the drug it qualifies. Ledgers keep the segmenter they recorded.
+BRACKETS = {'（': '）', '(': ')', '［': '］', '[': ']', '【': '】'}
+BRACKET_SPAN = 80
 _CITATION = re.compile(r'[ \t]*[(\[（【][ \t]*\d+(?:[ \t]*[,，、\-–—][ \t]*\d+)*[ \t]*[)\]）】]')
 # One chunk is one worker session's bounded goal. S03 pilot (older Codex build): ~170 sentences per session; COPD run
 # 2026-10-17 (Codex 0.163): sessions ended before finishing a 70–84 sentence chunk, so chunks are now ~40 sentences.
@@ -63,8 +67,18 @@ def segments(text, segmenter=SEGMENTER):
     """Sentence-level cut points: after each terminator, trailing whitespace attached. Domain-neutral punctuation only.
     sentence.v2 also attaches a closing citation marker when only a line break, a terminator or the end follows it;
     a numbered list marker such as "(1) 下一项" is followed by text and starts the next sentence."""
-    out, start, i = [], 0, 0
+    out, start, i, open_ = [], 0, 0, []
     while i < len(text):
+        if segmenter == 'sentence.v3':
+            if text[i] in BRACKETS:
+                open_.append(text[i])
+            elif open_ and text[i] == BRACKETS[open_[-1]]:
+                open_.pop()
+        if text[i] in TERMINATORS and open_:
+            if BRACKETS[open_[-1]] in text[i + 1:i + 1 + BRACKET_SPAN]:
+                i += 1
+                continue
+            open_ = []                       # a bracket that does not close nearby is not holding the sentence together
         if text[i] in TERMINATORS:
             j = i + 1
             while j < len(text) and (text[j] in TERMINATORS or text[j].isspace()):
