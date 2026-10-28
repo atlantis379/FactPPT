@@ -274,7 +274,7 @@ def test_a_mis_cut_is_named_never_repaired_by_guessing():
     assert anomalies("字" * 301, "sentence") == ["too_long"]
     assert anomalies("其中包括：1）经治疗后仍控制不佳；2）口服依赖。", "sentence") == []      # list numbering
     assert anomalies("感染（TB NTM)等", "sentence") == []                                     # mixed widths
-    assert anomalies("56 (31, 82)", "cell") == [] and anomalies("）", "label") == []
+    assert anomalies("56 (31, 82)", "cell") == [] and anomalies("）", "label") == [] and anomalies(";", "sentence") == []
 
 
 def test_a_taught_message_on_a_mis_cut_sentence_is_a_review_signal():

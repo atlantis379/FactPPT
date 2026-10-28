@@ -131,6 +131,8 @@ def anomalies(quote: str, kind: str) -> list[str]:
     if kind not in ("sentence", "cell"):
         return []
     out, q = [], quote.strip()
+    if not any(ch.isalnum() for ch in q):                  # a lone ";" carries nothing to misread
+        return []
     marks = {m.end() - 1 for m in _LIST_MARK.finditer(q)}      # "1）" closes nothing when no bracket is open
     depth, low = {"round": 0, "square": 0}, {"round": 0, "square": 0}
     for i, ch in enumerate(q):
