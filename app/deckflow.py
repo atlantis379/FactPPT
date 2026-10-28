@@ -26,6 +26,7 @@ from __future__ import annotations
 import copy
 import io
 import json
+import os
 import re
 import shutil
 import time
@@ -2702,6 +2703,44 @@ class Store(GenerationMixin, _BaseStore):
         except (StopIteration, KeyError, TypeError, WorkflowError):
             return False
 
+    # ---- sibling invariant: a task's input holds only upstream artifacts, never a sibling task's output.
+    # Tasks of these kinds run in parallel (one per source, topic, chapter or checklist); if accepting one changed
+    # another's input, that running work would be cancelled or refused — rework that grows with parallelism (it
+    # happened: a topic's referrals voided another topic's pass). Feedback between siblings goes through an inbox
+    # decided in a follow-up (semantic_map_stage.pending_referrals). A violation is recorded on the project
+    # (`sibling_invalidations`) and refused outright under FACTDECK_STRICT_SIBLINGS (set for the test suite).
+    PARALLEL_KINDS = frozenset({"READ_SOURCE", "SECOND_READ", "CLAIMS", "TOPIC_PASS", "SUMMARY", "SUMMARY_REVIEW", "SEMANTIC_REVIEW"})
+
+    def sibling_inputs(self, w: dict, t: dict) -> dict[str, str]:
+        if t["kind"] not in self.PARALLEL_KINDS:
+            return {}
+        out = {}
+        for x in w["tasks"]:
+            if x["id"] != t["id"] and x["kind"] == t["kind"] and x["status"] in {"PENDING", "RUNNING"} and self.task_current(w, x):
+                try:
+                    out[x["id"]] = self.fingerprint(w, x["kind"], x["binding"])
+                except (StopIteration, KeyError, TypeError, WorkflowError):
+                    continue
+        return out
+
+    def check_siblings(self, w: dict, t: dict, before: dict[str, str]) -> None:
+        changed = []
+        for x in w["tasks"]:
+            if x["id"] in before:
+                try:
+                    if self.fingerprint(w, x["kind"], x["binding"]) != before[x["id"]]:
+                        changed.append(x)
+                except (StopIteration, KeyError, TypeError, WorkflowError):
+                    changed.append(x)
+        if not changed:
+            return
+        names = "、".join(f"{x['kind']}:{x['binding']}" for x in changed)
+        if os.environ.get("FACTDECK_STRICT_SIBLINGS"):
+            raise WorkflowError(f"接受 {t['kind']}:{t['binding']} 会改变并行任务的输入（{names}）：任务输入只能来自上游，"
+                                "并行任务之间的反馈须经待办（如 pending_referrals）在后续处理", 500)
+        w.setdefault("sibling_invalidations", []).append({"at": now(), "completed": t["id"], "kind": t["kind"],
+                                                          "binding": t["binding"], "invalidated": [x["id"] for x in changed]})
+
     def complete(self, workflow_id: str, task_id: str, token: str, result: dict):
         task = next((t for t in self.get(workflow_id)["tasks"] if t["id"] == task_id), None)
         require(task, "任务不存在", 404)
@@ -2712,6 +2751,7 @@ class Store(GenerationMixin, _BaseStore):
         require(task["kind"] not in VISUAL_KINDS, "生图、去字、矢量化任务须提交实际文件与调用回执", 422)
         with self.transaction(workflow_id, "TASK_COMPLETE") as w:
             t = self.leased(w, task_id, token)
+            siblings = self.sibling_inputs(w, t)
             {"READ_SOURCE": lambda: self.reading(w, t["binding"], result, t["worker"]),
              "SECOND_READ": lambda: self.second_read(w, t["binding"], result, t["worker"]),
              "CLAIMS": lambda: self.accept_claims(w, t["binding"], result, t["worker"]),
@@ -2730,6 +2770,7 @@ class Store(GenerationMixin, _BaseStore):
              "DECK": lambda: self.accept_deck(w, result, t["worker"]),
              "SEMANTIC_REVIEW": lambda: self.accept_semantic(w, result, t["worker"], t["binding"], t["brief"]),
              "VISUAL_CRITIQUE": lambda: self.accept_critique(w, result, t["worker"])}[t["kind"]]()
+            self.check_siblings(w, t, siblings)
             t.update(status="COMPLETE", completed_at=now(), lease_token=None, result_sha256=digest(result))
             t["result_path"] = self.snapshot(w, "task_result", result)
             self.cancel_stale(w)

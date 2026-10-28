@@ -312,3 +312,48 @@ def test_replay_names_accepted_work_that_a_code_change_would_misread(store, monk
     assert replay.failed(report) and [x["id"] for x in n1["text_changed"]] == [other["id"]]
     assert "RESULT: FAIL" in replay.markdown(report)
     assert store.get(w["id"])["topic_passes"]["n1"]["result"] == w["topic_passes"]["n1"]["result"]   # nothing written
+
+
+def _refer(r, to):
+    moved = next(x for x in r["left_out"] if "ids" in x)
+    moved.update(why="other_topic", topic=to, note="测试记录：属于另一主题")
+    return moved["ids"][0]
+
+
+def test_the_sibling_invariant_catches_an_input_that_depends_on_a_sibling(store, monkeypatch):
+    """Reintroduce the original coupling (a topic's input includes what other topics refer to it): completing one
+    topic now changes its running sibling's input, and the store refuses it instead of silently voiding that work."""
+    real = sm.topic_input
+    monkeypatch.setattr(sm, "topic_input", lambda w, n: real(w, n) + ",".join(sorted(sm.referred_to(w, n))))
+    w = mapped(store)
+    store.queue(w["id"], "TOPIC_PASS")
+    t1 = store.claim(w["id"], "topic-1", "TOPIC_PASS", "n1")
+    store.claim(w["id"], "topic-2", "TOPIC_PASS", "n2")
+    r1 = topic_result(t1["brief"])
+    _refer(r1, "n2")
+    with pytest.raises(WorkflowError, match="并行任务的输入"):
+        store.complete(w["id"], t1["id"], t1["lease_token"], r1)
+
+
+@pytest.mark.parametrize("order", [("n1", "n2"), ("n2", "n1")])
+def test_sibling_topics_finish_in_any_order(store, order):
+    """Both topics run at once and refer sentences to each other; whichever finishes first, no work is lost: every
+    pass is accepted, late referrals are decided in follow-ups, and the draft is ready."""
+    w = mapped(store)
+    store.queue(w["id"], "TOPIC_PASS")
+    tasks = {n: store.claim(w["id"], f"topic-{n}", "TOPIC_PASS", n) for n in ("n1", "n2")}
+    for n in order:
+        r = topic_result(tasks[n]["brief"])
+        if sum(1 for x in r["left_out"] if "ids" in x):
+            _refer(r, "n2" if n == "n1" else "n1")
+        store.complete(w["id"], tasks[n]["id"], tasks[n]["lease_token"], r)        # never refused
+    for _ in range(3):                                                             # follow-ups until settled
+        w = store.get(w["id"])
+        if w["stage"] != "TOPICS_REQUIRED":
+            break
+        store.queue(w["id"], "TOPIC_PASS")
+        while t := store.claim(w["id"], "topic-f", "TOPIC_PASS"):
+            r = topic_result(t["brief"])
+            r["checks"] = [{"claims": t["brief"]["new_referrals"], "reason": "测试记录：转来的句子待核"}] if t["brief"].get("new_referrals") else []
+            store.complete(w["id"], t["id"], t["lease_token"], r)
+    assert store.get(w["id"])["stage"] == "CONTENT_CONFIRMATION"

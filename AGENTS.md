@@ -111,6 +111,9 @@ refused or read against changed text. For the cut itself, save `tools/cut_audit.
 the old code and run `--against before.json` on the new: changed/added/removed sentences and anomalies fixed or
 introduced (a mis-cut is named by code, never repaired by guessing). Stored sentence references carry text anchors;
 never compare ids alone.
+A task's input (its fingerprint) holds only upstream artifacts, never the output of a sibling task of the same kind
+(per source, topic, chapter, checklist); feedback between siblings goes through an inbox decided in a follow-up
+(e.g. `pending_referrals`). `Store.check_siblings` enforces it on every completion; the suite runs it strict.
 
 Preserve legacy semantic endpoints and their safeguards. SQLite transactions serialize job claims; do not replace them with
 concurrent writes to `data/projects.json`. Keep factdeck domain-neutral: subject vocabulary goes in project terms or
