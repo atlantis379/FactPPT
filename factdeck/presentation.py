@@ -138,6 +138,10 @@ def check(spec: Mapping, facts: Mapping[str, dict]) -> dict:
             extra = sorted(_digits(headline) - allowed)
             _need(not extra, f"第{i}页 headline 的数字在本页句子中找不到：{'、'.join(extra)}")
 
+        # A takeaway that repeats the number the page is already built around says nothing new either.
+        _need(not (lead and resolved_take and lead["fact"] == resolved_take["fact"]),
+              f"第{i}页 takeaway 与主数字是同一句，等于把标题重说一遍：换一句本页小结，或留空")
+
         out.append({"id": pid, "structure": st, "headline": headline, "lead": lead, "items": resolved,
                     "takeaway": resolved_take,
                     "section": _label(p.get("section"), f"第{i}页 section", 16),

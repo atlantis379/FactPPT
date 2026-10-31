@@ -125,3 +125,15 @@ def test_a_deck_numbers_its_pages_and_carries_its_sections():
     html = render_deck(pages, source="来源：GOLD 2026")
     assert html.count('class="slide"') == 2
     assert "疾病负担" in html and "治疗" in html and "2 / 2" in html
+
+
+def test_a_takeaway_cannot_just_repeat_the_main_number():
+    """The number page already says the number; a takeaway that cites the same sentence adds nothing."""
+    with pytest.raises(P.PresentationError, match="takeaway 与主数字是同一句"):
+        P.check(spec(takeaway={"fact": "a"}), FACTS)
+
+
+def test_a_takeaway_cannot_just_repeat_the_main_number():
+    """The number page already says the number; a takeaway that cites the same sentence adds nothing."""
+    with pytest.raises(P.PresentationError, match="takeaway 与主数字是同一句"):
+        P.check(spec(takeaway={"fact": "a"}), FACTS)
