@@ -41,6 +41,7 @@ body{margin:0;background:#E4E8ED;font-family:__FONT__;-webkit-font-smoothing:ant
 .stat-label{font-size:15pt;font-weight:600;color:__HEADLINE__;margin-top:14px;line-height:1.35}
 .stat-src{font-size:9.5pt;color:__CAPTION__;margin-top:10px}
 .points{list-style:none}
+.points li b{display:block;color:__HEADLINE__;font-weight:700;margin-bottom:3px}
 .points li{position:relative;padding-left:24px;font-size:19pt;line-height:1.55;color:__INK__;margin-bottom:26px}
 .points li::before{content:"";position:absolute;left:0;top:12px;width:8px;height:8px;background:__ACCENT__;
   border-radius:50%}
@@ -48,15 +49,17 @@ body{margin:0;background:#E4E8ED;font-family:__FONT__;-webkit-font-smoothing:ant
 .col{min-width:0}
 .col .hd{font-size:12pt;font-weight:700;letter-spacing:.1em;color:__ACCENT__;text-transform:uppercase;
   padding-bottom:8px;border-bottom:1px solid __LINE__;margin-bottom:16px}
+.col .lb{font-weight:700;color:__HEADLINE__;line-height:1.35;margin-top:6px}
 .col .n{font-size:11pt;font-weight:700;color:__ACCENT__;font-variant-numeric:tabular-nums;margin-bottom:2px}
-.cols .col{margin-bottom:34px}
+.cols .col:not(:last-child){margin-bottom:34px}
 .col p{font-size:inherit;line-height:1.55;color:__INK__;margin-top:5px}
 .steps{display:grid;gap:22px;align-items:start;position:relative}
 .steps::before{content:"";position:absolute;left:0;right:0;top:19px;height:1px;background:__LINE__}
 .step{position:relative;min-width:0}
 .step .dot{width:38px;height:38px;border-radius:50%;background:__PRIMARY__;color:#fff;font-size:13pt;font-weight:700;
   display:flex;align-items:center;justify-content:center;position:relative;z-index:1}
-.step p{margin-top:16px;font-size:15pt;line-height:1.45;color:__INK__}
+.step .lb{margin-top:14px;font-weight:700;color:__HEADLINE__;line-height:1.35}
+.step p{margin-top:6px;font-size:15pt;line-height:1.45;color:__INK__}
 .step .tag{margin-top:8px;font-size:10pt;color:__CAPTION__}
 """
 
@@ -89,7 +92,7 @@ def _css(theme: str) -> str:
 
 def _body_stat(p) -> str:
     lead = p["lead"]
-    pts = "".join(f"<li>{_esc(i['quote'])}</li>" for i in p["items"])
+    pts = "".join(f"<li><b>{_esc(i['label'])}</b>{_esc(i['quote'])}</li>" for i in p["items"])
     src = ""
     if lead.get("page_id"):
         src = f"<div class=\"stat-src\">{_esc(str(lead.get('source_id') or ''))} · {_esc(str(lead['page_id']))}</div>"
@@ -105,10 +108,11 @@ def _body_points(p) -> str:
     cols = 1 if n <= 3 else (2 if n <= 4 else 3)
     rows = -(-n // cols)
     cells = "".join(f'<div class="col" data-check="fit"><div class="n">{k + 1:02d}</div>'
+                    f'<div class="lb">{_esc(i["label"])}</div>'
                     f'<p>{_esc(i["quote"])}</p></div>' for k, i in enumerate(p["items"]))
     size = "20pt" if cols == 1 else ("18pt" if cols == 2 else "16pt")
     return (f'<div class="cols" style="grid-template-columns:repeat({cols},1fr);'
-            f'height:100%;align-content:center;font-size:{size}">{cells}</div>')
+            f'height:100%;align-content:safe center;font-size:{size}">{cells}</div>')
 
 
 def _body_compare(p) -> str:
@@ -118,17 +122,18 @@ def _body_compare(p) -> str:
     labels = p.get("labels") or ["", ""]
 
     def side(name: str, rows, offset: int) -> str:
-        lis = "".join(f'<p data-check="fit"><span class="n">{offset + k + 1:02d}</span>　{_esc(r["quote"])}</p>'
-                      for k, r in enumerate(rows))
+        lis = "".join(f'<p data-check="fit"><span class="n">{offset + k + 1:02d}</span>　'
+                      f'<b>{_esc(r["label"])}</b>{_esc(r["quote"])}</p>' for k, r in enumerate(rows))
         hd = f'<div class="hd">{_esc(name)}</div>' if name else ""
         return f'<div class="col">{hd}{lis}</div>'
-    return (f'<div class="cols" style="grid-template-columns:1fr 1fr;height:100%;align-content:center">'
+    return (f'<div class="cols" style="grid-template-columns:1fr 1fr;height:100%;align-content:safe center">'
             f'{side(labels[0], sides[0], 0)}{side(labels[1], sides[1], len(sides[0]))}</div>')
 
 
 def _body_steps(p) -> str:
     n = len(p["items"])
     cells = "".join(f'<div class="step" data-check="fit"><div class="dot">{k + 1}</div>'
+                    f'<div class="lb">{_esc(i["label"])}</div>'
                     f'<p>{_esc(i["quote"])}</p></div>' for k, i in enumerate(p["items"]))
     return f'<div class="steps" style="grid-template-columns:repeat({n},1fr)">{cells}</div>'
 
