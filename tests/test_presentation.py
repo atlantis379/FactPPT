@@ -261,14 +261,17 @@ def test_a_threshold_page_carries_its_gauges_and_nothing_beside_them():
         P.check(figure(items=[item("abx", "抗生素")]), FACTS)
 
 
-def test_a_page_holds_at_most_four_gauges():
-    with pytest.raises(P.PresentationError, match="最多 4 条"):
+def test_two_boundaries_can_share_a_page_and_a_third_cannot():
+    # Two divisions are a figure.  Three of different units are a list drawn as stripes: the page stops being
+    # about a boundary and becomes a table.  A list belongs in points.
+    P.check(figure(thresholds=[
+        {"indicator": "呼吸困难评分", "op": "≥", "value": "≥5", "fact": "vas"},
+        {"indicator": "激素疗程", "op": "≤", "value": "5天", "fact": "ster"}]), FACTS)
+    with pytest.raises(P.PresentationError, match="一页最多 2 根"):
         P.check(figure(thresholds=[
             {"indicator": "呼吸困难评分", "op": "≥", "value": "≥5", "fact": "vas"},
             {"indicator": "激素疗程", "op": "≤", "value": "5天", "fact": "ster"},
-            {"indicator": "成人接种", "op": "≥", "value": "50", "fact": "age"},
-            {"indicator": "未确诊患者", "op": ">", "value": "70%", "fact": "a"},
-            {"indicator": "症状恶化时长", "op": "≤", "value": "4-6周", "fact": "d"}]), FACTS)
+            {"indicator": "成人接种", "op": "≥", "value": "50", "fact": "age"}]), FACTS)
 
 
 def test_a_figure_page_does_not_also_carry_a_lead():

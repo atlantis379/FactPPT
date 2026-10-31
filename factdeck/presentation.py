@@ -363,7 +363,11 @@ def _thresholds(raw, facts: Mapping[str, dict], i: int) -> list[dict]:
     """
     _need(isinstance(raw, list) and raw,
           f"第{i}页要画阈值轴，须给出 thresholds（每条：indicator / op / value / fact）")
-    _need(len(raw) <= 4, f"第{i}页 thresholds 最多 4 条，现有 {len(raw)} 条")
+    # Two boundaries can be read as a figure.  Three or four of different units are a list drawn as stripes: the
+    # page stops being about a division and becomes a table nobody asked for.  A list belongs in points.
+    _need(len(raw) <= 2,
+          f"第{i}页有 {len(raw)} 根量规，一页最多 2 根：三根以上已经不是图，是一张表——"
+          f"把多出来的分到别的页，或改用 points 逐条列出")
 
     out, seen = [], set()
     for k, t in enumerate(raw):

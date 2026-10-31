@@ -72,11 +72,12 @@ body{margin:0;background:#E4E8ED;font-family:__FONT__;-webkit-font-smoothing:ant
 .th-ind{grid-area:ind;font-size:11.5pt;font-weight:700;letter-spacing:.1em;color:__ACCENT2__;line-height:1.3}
 .th-val{grid-area:val;align-self:center;font-weight:700;line-height:1;letter-spacing:-.03em;color:__PRIMARY__;
   font-variant-numeric:tabular-nums;white-space:nowrap}
-.th-track{grid-area:track;position:relative;display:flex;align-self:center}
-.th-half{flex:0 0 50%}
+.th-track{grid-area:track;position:relative;display:flex;align-self:center;isolation:isolate}
+.th-half{flex:0 0 50%;position:relative;z-index:1}
 .th-half.hi{background:__ACCENT__}
 .th-half.lo{background:__SOFT__}
-.th-rule{position:absolute;left:50%;top:-7px;bottom:-7px;width:4px;margin-left:-2px;background:__PRIMARY__}
+.th-rule{position:absolute;left:50%;top:-8px;bottom:-8px;width:3px;margin-left:-1.5px;background:__PRIMARY__;
+  z-index:2}
 .th-ends{grid-area:ends;display:flex;justify-content:space-between;gap:24px;margin-top:8px;font-size:10.5pt;
   line-height:1.2;color:__CAPTION__;font-variant-numeric:tabular-nums}
 .th-ends .hold{color:__PRIMARY__;font-weight:700}
@@ -170,10 +171,10 @@ def _body_steps(p) -> str:
 
 _BODIES = {"stat": _body_stat, "points": _body_points, "compare": _body_compare, "steps": _body_steps}
 
-# A page whose point is a figure names a form; the form picks the body.  One gauge gets the whole page, so its
-# number is near-full size and its band is tall; four gauges share the height, so each shrinks.  The number shrinks
-# with the row so the band below it keeps enough width to be read as a division rather than a rule.
-_TH_GEOM = {1: (96, 104, 300), 2: (64, 68, 300), 3: (44, 52, 300), 4: (32, 38, 280)}
+# A page whose point is a figure names a form; the form picks the body.  One boundary gets the whole page; two
+# share it and each keeps a band tall enough to read as a division rather than a rule.  More than two is not a
+# figure (see presentation._thresholds), so there is no third geometry.
+_TH_GEOM = {1: (96, 84, 300), 2: (64, 56, 300)}
 
 
 def _th_row(t: dict, size: int, band_h: int) -> str:
