@@ -295,3 +295,180 @@ def test_a_floor_puts_the_band_on_the_other_side():
     page = P.check(figure(), FACTS)["pages"][0]
     html = render_page(page, page_no=1, total=1, source="来源：GOLD 2026")
     assert 'justify-content:flex-end' in html and '<span class="hold">≥5</span>' in html
+
+
+# ---------------------------------------------------------------- a figure the model composes
+# A page's picture is not one of seven fixed shells: the model says which parts it is made of, in what order, and
+# each part is checked against the sentences it draws from.  Geometry stays with the code.
+
+def bars(*series, **page) -> dict:
+    base = {"id": "b1", "structure": "stat", "lead": None,
+            "figure": [{"kind": "bars", "series": [
+                {"indicator": "患病率", "value": "9.7%", "fact": "b"},
+                {"indicator": "未确诊比例", "value": "81%", "fact": "b"}]}]}
+    if series:
+        base["figure"][0]["series"] = list(series)
+    base.update(page)
+    return {"schema_version": P.SCHEMA, "pages": [base]}
+
+
+def part_bars(*series, label=None) -> dict:
+    series = list(series) or [{"indicator": "患病率", "value": "9.7%", "fact": "b"},
+                              {"indicator": "未确诊比例", "value": "81%", "fact": "b"}]
+    out = {"kind": "bars", "series": series}
+    if label:
+        out["label"] = label
+    return out
+
+
+def test_bars_are_measured_against_the_largest_so_length_means_something():
+    series = P.check(bars(), FACTS)["pages"][0]["bars"]["series"]
+    assert [x["ratio"] for x in series] == [0.1198, 1.0]
+    assert series[0]["unit"] == "%" and series[0]["numeral"] == "9.7"
+
+
+def test_bars_of_different_units_are_refused():
+    """一根 5 天的柱和一根 70% 的柱并排，长的那根并不意味着「更多」：没有共同的刻度，长度就是假的。"""
+    with pytest.raises(P.PresentationError, match="量纲不一致"):
+        P.check(bars({"indicator": "疗程", "value": "5天", "fact": "ster"},
+                     {"indicator": "未确诊比例", "value": "70%", "fact": "a"}), FACTS)
+
+
+def test_a_bar_needs_a_number_the_sentence_has_and_a_unit_to_measure_in():
+    with pytest.raises(P.PresentationError, match="不是来源句中的数字"):
+        P.check(bars({"indicator": "患病率", "value": "12%", "fact": "b"},
+                     {"indicator": "未确诊比例", "value": "81%", "fact": "b"}), FACTS)
+    with pytest.raises(P.PresentationError, match="没有单位"):
+        P.check(bars({"indicator": "协作国家", "value": "27", "fact": "b"},
+                     {"indicator": "未确诊比例", "value": "81%", "fact": "b"}), FACTS)
+
+
+def test_a_range_or_a_single_bar_is_not_a_comparison():
+    with pytest.raises(P.PresentationError, match="是一个区间"):
+        P.check(bars({"indicator": "未确诊比例", "value": "90-95%", "fact": "e"},
+                     {"indicator": "患病率", "value": "9.7%", "fact": "b"}), FACTS)
+    with pytest.raises(P.PresentationError, match="构不成比较"):
+        P.check(bars({"indicator": "患病率", "value": "9.7%", "fact": "b"}), FACTS)
+
+
+def test_bars_equal_in_length_are_not_a_comparison_either():
+    with pytest.raises(P.PresentationError, match="数值都一样"):
+        P.check(bars({"indicator": "患病率", "value": "9.7%", "fact": "b"},
+                     {"indicator": "未确诊比例", "value": "9.7%", "fact": "b"}), FACTS)
+
+
+def test_more_bars_than_a_page_can_be_read_across():
+    many = [{"indicator": f"指标{k}", "value": "9.7%", "fact": "b"} for k in range(P.MAX_BARS + 1)]
+    with pytest.raises(P.PresentationError, match="一页最多"):
+        P.check(bars(*many), FACTS)
+
+
+def test_a_page_composes_a_gauge_over_a_set_of_bars():
+    spec = {"schema_version": P.SCHEMA, "pages": [{
+        "id": "c1", "structure": "stat", "headline": "确诊的比例不到两成",
+        "figure": [{"kind": "split", "thresholds": [
+            {"indicator": "呼吸困难评分", "op": "≥", "value": "≥5", "fact": "vas"}]},
+            part_bars()]}]}
+    page = P.check(spec, FACTS)["pages"][0]
+    assert [f["kind"] for f in page["figure"]] == ["split", "bars"] and page["form"] == "composite"
+    html = render_page(page, page_no=1, total=1, source="来源：GOLD 2026")
+    assert 'class="figs"' in html and 'class="th"' in html and 'class="br-fill"' in html
+
+
+def test_two_groups_of_bars_have_to_say_which_is_which():
+    spec = {"schema_version": P.SCHEMA, "pages": [{
+        "id": "c2", "structure": "stat", "lead": None,
+        "figure": [part_bars(), part_bars()]}]}
+    with pytest.raises(P.PresentationError, match="须给出 label"):
+        P.check(spec, FACTS)
+    spec["pages"][0]["figure"] = [part_bars(label="全国"), part_bars(label="基层")]
+    P.check(spec, FACTS)
+
+
+def test_two_parts_may_not_add_up_to_a_third_gauge():
+    # The two-gauge ceiling is about the page, not the part: 2 + 1 is still a table.
+    spec = {"schema_version": P.SCHEMA, "pages": [{
+        "id": "c3", "structure": "stat", "lead": None, "figure": [
+            {"kind": "split", "thresholds": [
+                {"indicator": "呼吸困难评分", "op": "≥", "value": "≥5", "fact": "vas"},
+                {"indicator": "激素疗程", "op": "≤", "value": "5天", "fact": "ster"}]},
+            {"kind": "split", "thresholds": [
+                {"indicator": "成人接种", "op": "≥", "value": "50", "fact": "age"}]}]}]}
+    with pytest.raises(P.PresentationError, match="一页最多 2 根"):
+        P.check(spec, FACTS)
+
+
+def test_a_part_kind_must_be_one_the_renderer_knows():
+    spec = {"schema_version": P.SCHEMA, "pages": [{
+        "id": "c4", "structure": "stat", "lead": None,
+        "figure": [{"kind": "pie", "series": []}]}]}
+    with pytest.raises(P.PresentationError, match="kind 须为"):
+        P.check(spec, FACTS)
+
+
+def test_more_parts_than_a_page_can_hold_are_refused():
+    spec = {"schema_version": P.SCHEMA, "pages": [{
+        "id": "c5", "structure": "stat", "lead": None,
+        "figure": [part_bars(), part_bars(label="全国"), part_bars(label="基层"), part_bars(label="社区")]}]}
+    with pytest.raises(P.PresentationError, match="一页最多 .* 部分"):
+        P.check(spec, FACTS)
+
+
+# ------------------------------------------------------------------------ which points lead
+# A page of four equal cards says four equal things.  The model may say which of them carry the page; the code
+# owns how much bigger a core point is set.
+
+def points_page(*weights, structure="points") -> dict:
+    facts = ["a", "b", "e", "mild"][:len(weights)]
+    labels = ["总体", "多国", "中低收入", "恢复"][:len(weights)]
+    items = []
+    for k, w in enumerate(weights):
+        it = {"facts": [facts[k]], "label": labels[k]}
+        if w:
+            it["weight"] = w
+        items.append(it)
+    return {"schema_version": P.SCHEMA, "pages": [{"id": "w1", "structure": structure, "items": items}]}
+
+
+def test_a_marked_point_is_set_a_step_above_the_ones_that_support_it():
+    page = P.check(points_page("core", "support", "support"), FACTS)["pages"][0]
+    assert page["weights"] == ["core", "support", "support"]
+    html = render_page(page, page_no=1, total=1, source="来源：GOLD 2026")
+    assert '<li class="core">' in html and "font-size:24px" in html
+
+
+def test_unmarked_points_stay_equal():
+    page = P.check(points_page(None, None, None), FACTS)["pages"][0]
+    assert page["weights"] == ["support", "support", "support"]
+    assert 'class="core"' not in render_page(page, page_no=1, total=1, source="来源：GOLD 2026")
+
+
+def test_marking_only_half_the_points_leaves_the_rest_to_guesswork():
+    with pytest.raises(P.PresentationError, match="只标一半"):
+        P.check(points_page("core", None, None), FACTS)
+
+
+def test_a_page_where_everything_is_core_has_no_core():
+    with pytest.raises(P.PresentationError, match="全是 core"):
+        P.check(points_page("core", "core", "core"), FACTS)
+    with pytest.raises(P.PresentationError, match="最多 2 条"):
+        P.check(points_page("core", "core", "core", "support"), FACTS)
+
+
+def test_only_the_structure_that_needs_weight_takes_one():
+    """steps 已经有编号、compare 已经有两栏：再标主次就是第二套指令，两套会打架。"""
+    with pytest.raises(P.PresentationError, match="不标 weight"):
+        P.check(points_page("core", "support", "support", structure="steps"), FACTS)
+
+
+def test_a_weight_must_be_one_of_the_two_words():
+    with pytest.raises(P.PresentationError, match="weight 须为"):
+        P.check(points_page("main", "support", "support"), FACTS)
+
+
+# -------------------------------------------------------------------------- room to breathe
+def test_a_page_may_declare_itself_a_hero_page():
+    assert P.check(spec(role="hero"), FACTS)["pages"][0]["role"] == "hero"
+    assert P.check(spec(), FACTS)["pages"][0]["role"] == "supporting"
+    with pytest.raises(P.PresentationError, match="role 须为"):
+        P.check(spec(role="poster"), FACTS)

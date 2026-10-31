@@ -20,8 +20,8 @@ def page(**kw) -> dict:
     return base
 
 
-def rules(measured) -> list[str]:
-    return [b["rule"] for b in D.audit(measured)]
+def rules(measured, **kw) -> list[str]:
+    return [b["rule"] for b in D.audit(measured, **kw)]
 
 
 def test_a_page_that_follows_the_rules_passes():
@@ -77,3 +77,13 @@ def test_a_page_that_cannot_fill_its_area_is_reported_not_refused():
     thin["ink"][1] = {**thin["ink"][1], "top": 300, "bottom": 360}
     found = [b for b in D.audit(thin) if b["rule"] == "content-fill"]
     assert found and found[0]["level"] == "warn"
+
+
+def test_a_hero_page_may_leave_room():
+    """§4.1: 一页只说一件事时，四周的空白就是这页的内容。留白是模型的声明，不是漏排的版面。"""
+    thin = page()
+    thin["ink"][1] = {**thin["ink"][1], "top": 300, "bottom": 360}
+    assert "content-fill" not in rules(thin, role="hero")
+    # 留白可以声明，别的规则不可以：越界照样报
+    thin["ink"][1] = {**thin["ink"][1], "bottom": 700}
+    assert "content-height" in rules(thin, role="hero")

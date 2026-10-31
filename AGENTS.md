@@ -16,9 +16,10 @@
    不做网页卡片风。主题 `gold_clinical`（深蓝页眉、单一金色强调、功能灰）。不嵌入商业模板素材、药企/GOLD 原图或 logo。
 3. **版式**：封面/章节、要点卡、对照、流程、时间轴、决策算法树、评估矩阵、双路径树、试验设计、森林图、终点读出（柱/折线）、
    机制级联、数据表、研究格局泳道、证据要点。图表几何由填充数据计算，无装饰。
-4. **选版式**（`template_lib/selector.py`）：规则按逻辑关系与数据形状打分 → 数据不足沿固定链降级 → 分数接近时才由大模型在
-   合格候选中挑一个并给理由（不合格回退）→ 节奏：相邻内容页不同版式，图表页 ≥1/3。每页记录关系、信号、候选、降级、理由。
-5. **溯源不变**：实质内容只引用逐字事实；不合格就降级，**绝不为凑版式编数据**。
+4. **呈现与验收**（2026-10-31）：模型根据已确认初稿决定如何呈现（版式、分页、槽位）。代码只检查该版式的数据是否成立
+   （`requirement_gap`、事实绑定、图上数字有事实）；不成立就退回这一页并写明缺口，不降级、不按节奏或图表占比改版式。
+   未提议版式的样例仍由选择器给出参考，参考意见记在决定记录里。
+5. **溯源不变**：实质内容只引用逐字事实；**绝不为凑版式编数据**。
 6. **可观测性**：每次生成记录各阶段耗时与 token。
 
 ### 验收标准（功能项须有自动测试或可复现样例）
@@ -46,7 +47,38 @@
 ### 决策记录（2026-10-25，用户已确认）
 - **停用路线 A**（整页设计图→去字→矢量化→原生化；VISUAL_DESIGN/LAYOUT/CLEAN/VECTOR/BLIND_READ）：成本随页数线性增长且常返工
   （约 820 秒/页）。代码保留可读，不再投入，不为新项目排这些任务。
-- **不留逐页设计后门**：模板页不回退 `composed`/`free`；不合格降到要点卡或数据表；装不下就新增版式（全体复用）。
+- **不留逐页设计后门**：模板页不回退 `composed`/`free`。模型选定的版式数据不够就退回，不降到别的版式；装不下就新增版式（全体复用）。
+- **呈现与验收**（2026-10-31）：与总结阶段相同。模型决定如何呈现；代码只检查数据逻辑。`page_plan` 是讲解顺序，不是最终分页。
+- **呈现规格**（2026-10-31，`factdeck/presentation.py`，schema `presentation.v1`）：模型按初稿逐页给出
+  `structure`（stat / points / compare / steps 起步）、行动标题、主数字、要点与结论，只引用句子 id，不写展示文字。
+  代码验收：结构合法、槽位数量、句子存在、`lead.value` 是该句中的数字、标题里的数字出自本页句子、结论不与要点重复且一行放得下。
+  几何由代码按条数参数化计算（`presentation_render.py`），仍走 Playwright 测量 + 原生 PPTX（0 图片、0 嵌入 SVG）。
+  与"不留逐页设计后门"的关系：模型决定**结构与主次**，不决定坐标、图形、生图；渲染底座不变。
+- **呈现形式**（2026-10-31，`presentation.v1` 增补）：页面可选 `form`（`text / bars / trend / threshold / steps / compare / decision`）。
+  选哪种是模型对该页论点的判断，能不能画由代码对照句子验收：`materials()` 清点这页句子里的数值、时点、阈值、可比组、条件句，
+  `form_supported()` 不合格就退回并给出可改画的形式。已实现 `threshold`：`thresholds[]` 每条给指标 / 比较符 / 数值 / 来源句，
+  代码验数值必须出自该句、比较符必须与原文一致（`超过` 不能写成 `≥`）、区间不画分界、指标名须在句中出现、同页一根量规只画一次。
+  渲染为双色带（成立的一侧实色、另一侧浅底、分界处一道竖线），不同量纲各一根，量规页不列 items。
+  **一页最多 2 根**：三根以上不同量纲的分界不是图，是被画成条纹的表，改用 points 或分页。待做：bars、decision。
+  （2026-11-01 被下条「呈现形式换代」取代：`form` 降为单块图简写，`trend` / `decision` 未实现也不在菜单里，bars 已实现。）
+- **设计规则机检**（2026-10-31，`factdeck/design_audit.py`，取自 PPT 技能的 `design-principle.md`）：把文档里写成数字的
+  条款变成闸门——字号下限（标题 32 / 正文 18 / 标签 16 / 注释 14）、同页字号字重组合 ≤4、相邻层级差 ≥4px、行高 ≥1.2、
+  页脚固定 y=670、内容不得压过 y=660、内容撑满度 ≥50%。硬项不过即返工；"组合 5 种""撑不满"记 warn 并写进报告。
+  已按其规则改渲染：页脚 12→14px 且落到 670、来源/注释统一 14px、要点正文回到 18px、图上的单位取数字的 1/4–1/3 并底部对齐。
+- **呈现形式换代：图形可组合 / 主次可标 / 留白可声明**（2026-11-01，`presentation.v1`）。上一版把三件事留在了代码手里，
+  模型只能从写死的壳里挑一个，于是"这页该是什么样"仍由代码回答。这一版把三处交还给模型，代码只守可验的底线：
+  1. `figure`（列表）：模型自己组合这页的图形，块按它给的顺序纵向堆叠，一页 ≤3 块。已实现的块 `split`（量规，契约同
+     `thresholds`）、`bars`（柱形：`indicator / value / fact`，代码验数值出自该句、必须带单位、同组同量纲、2–6 根、
+     非区间、不能全等，柱长零基按组内最大值换算）。一组以上柱形必须各自给 `label`，否则读者分不清哪根属于哪组；
+     量规上限改为**页级**（跨块累计 ≤2 根），同一根量规不许在两块里各画一遍。逐块契约取代了 `form_supported()`（已删），
+     `materials()` 保留为原料清点。
+  2. `weight`（`core` / `support`）：`points` 页由模型标哪几条是主线。全标或不标一半都拒，core 最多 2 条、不能全 core。
+     渲染改成单列，core 24px / support 18px——主次是字号差异，不是排序暗示。其它结构不接 `weight`：stat 的主次在主数字，
+     steps 靠编号，compare 靠两栏，再标一遍是第二套指令。
+  3. `role`（`hero` / `supporting`）：`hero` 页免于撑满度检查（借 §4.1 的 40–50% 留白），图形页一并免（图是定尺寸物体，
+     撑不满是排布结果不是材料不足）。越界、字号、行高、页脚等硬项照旧。
+  代码仍守的不变量：图上的数字必须在本页事实中、量纲必须一致、指标名必须出自本句、图页不带 `lead` / `items`、
+  takeaway 不得复述图里的句子。样张 `tmp/fig_probe.py`（4 页 + 11 条拒绝用例 + 截图 + `figure_v5.pptx`）。
 - **视觉问题改模板**，不回到逐页设计。
 - **溯源是主线前提**：显示文字只来自事实引用或受检作者标签，图上数值都在本页事实中，代码出溯源报告。
 - 优先级：① fills 绑定事实库+溯源报告 → ② `/api/deck` 默认模板库（已完成）→ ③ 真实中文材料 20 页建耗时/token 基线 →
@@ -85,8 +117,8 @@ sources → summary → fact store → deck spec → 代码渲染原生 PPTX。�
 - DECK: substantive content is fact references only. If store facts are too coarse for a slot, carve new verbatim facts in the
   deck's `facts` (same gate, no derivations, each used on a page). Authored text (titles, leads, labels) organises only: no numbers,
   comparisons, drug/entity names or evaluative wording. Mark each content page's `focus` from the item's core or relations.
-  Template pages: `"template": {"layout": <proposal or null>, "fill": {…}}`; the selector decides the layout and refuses fills for
-  layouts it rejects. Every shown string is `{"fact": id}` or `{"text": label}`; every drawn number must appear in a fact shown in
+  Template pages: `"template": {"layout": <the model's choice>, "fill": {…}}`; code keeps that layout when its data holds and
+  refuses the page otherwise, without substituting another layout. Every shown string is `{"fact": id}` or `{"text": label}`; every drawn number must appear in a fact shown in
   the same fill; page/figure numbers, data note and source footer are written by code (`template_lib/bind.py`).
   No `composed`/`free` pages for new work; rules for those pages in existing projects are in `docs/FACTPPTV2.md`.
 - Reviews: SUMMARY_REVIEW, SEMANTIC_REVIEW, SECOND_READ need a worker identity other than the author/first reader (SUMMARY_REVIEW

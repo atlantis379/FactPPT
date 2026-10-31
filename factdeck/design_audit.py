@@ -37,6 +37,7 @@ DESIGN_JS = """(index) => {
   const S = slide.getBoundingClientRect();
   const ROLE = [
     ['.htitle', 'title'], ['.stat-num', 'figure'], ['.th-unit', 'unit'], ['.th-val', 'figure'],
+    ['.br-unit', 'unit'], ['.br-val', 'label'], ['.br-ind', 'label'], ['.br-hd', 'note'],
     ['.take', 'take'], ['.kicker', 'kicker'],
     ['.points li b', 'label'], ['.points li', 'body'], ['.col p', 'body'], ['.step p', 'body'],
     ['.th-ind', 'label'], ['.th-ends', 'label'], ['.col .lb', 'label'], ['.step .lb', 'label'],
@@ -87,8 +88,15 @@ DESIGN_JS = """(index) => {
 }"""
 
 
-def audit(measured: dict) -> list[dict]:
-    """Every rule the page breaks, with the numbers that broke it. Empty means the page may be drawn."""
+def audit(measured: dict, role: str = "supporting", figure: bool = False) -> list[dict]:
+    """Every rule the page breaks, with the numbers that broke it. Empty means the page may be drawn.
+
+    ``role`` is the page's own declaration (see ``presentation.ROLES``) and ``figure`` says whether the page is
+    drawn as a figure rather than as text.  Both bear on one rule only: a page built on one statement (§4.1) and a
+    page built on a chart are allowed to leave room, because a chart is a fixed object — it cannot be stretched
+    the way a column of text can, and the air around it is part of how it reads.  Every other rule still applies:
+    room is a decision, not an excuse for an overflow.
+    """
     if not measured:
         return [{"rule": "measure", "detail": "页面没有量到任何文字"}]
     bad: list[dict] = []
@@ -132,8 +140,10 @@ def audit(measured: dict) -> list[dict]:
 
     # §1.3: a content page has to carry its area.  Measured as how much of the band between the title and the
     # footer the content actually spans — a page whose content floats in the middle with voids above and below
-    # is a page with too little material, and the fix is to merge it, not to stretch it.
-    if top is not None and bottom is not None:
+    # is a page with too little material, and the fix is to merge it, not to stretch it.  Text is what can be
+    # stretched, so the rule governs text: a hero page states one thing, and a chart is measured by its own
+    # proportions, not by the height of the band it sits in.
+    if role != "hero" and not figure and top is not None and bottom is not None:
         span = (bottom - top) / float(CONTENT_BOTTOM - 172)
         if span < MIN_FILL:
             bad.append({"level": "warn", "rule": "content-fill", "detail":

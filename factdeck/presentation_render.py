@@ -46,6 +46,10 @@ body{margin:0;background:#E4E8ED;font-family:__FONT__;-webkit-font-smoothing:ant
 .points li{position:relative;padding-left:24px;font-size:18px;line-height:1.55;color:__INK__;margin-bottom:26px}
 .points li::before{content:"";position:absolute;left:0;top:12px;width:8px;height:8px;background:__ACCENT__;
   border-radius:50%}
+/* §4.1: when the model marks which points lead, the mark has to be visible in the type, not only in the order —
+   a core point is set a step above the ones that support it, and its bullet takes the solid colour. */
+.points li.core{font-size:24px;line-height:1.42;margin-bottom:30px}
+.points li.core::before{width:10px;height:10px;top:13px;background:__PRIMARY__}
 .cols{display:grid;gap:40px}
 .col{min-width:0}
 .col .hd{font-size:12pt;font-weight:700;letter-spacing:.1em;color:__ACCENT__;text-transform:uppercase;
@@ -84,6 +88,29 @@ body{margin:0;background:#E4E8ED;font-family:__FONT__;-webkit-font-smoothing:ant
   color:__CAPTION__;font-variant-numeric:tabular-nums}
 .th-ends .hold{color:__PRIMARY__;font-weight:700}
 .th-src{grid-area:src;margin-top:5px;font-size:10.5pt;line-height:1.45;color:__CAPTION__}
+
+/* bars — one scale per group, so length itself carries the comparison.  The longest bar stops at 72% of the track
+   to leave its own label somewhere to sit; every bar is measured against that same frame, zero-based, so the
+   proportions hold.  Few bars get the room to be read as a figure, many get the compact form. */
+.brs{display:grid;height:100%;align-content:center;--idw:300px}
+/* the heading sits on the same left edge as the labels under it — a caption pinned to the far right
+   floats away from the bars it belongs to */
+.br-hd{display:flex;justify-content:flex-start;align-items:baseline;gap:18px;font-size:14px;
+  color:__CAPTION__;margin-bottom:10px}
+.br-rows{display:grid;row-gap:var(--gap,18px)}
+.br{display:grid;grid-template-columns:var(--idw) 1fr;column-gap:28px;align-items:center;min-width:0}
+.br-ind{font-size:12pt;font-weight:700;letter-spacing:.04em;color:__ACCENT2__;line-height:1.3;
+  font-variant-numeric:tabular-nums}
+.br-track{display:flex;align-items:center;min-width:0}
+.br-fill{flex:0 0 auto;background:__ACCENT__;border-radius:2px}
+.br-val{margin-left:14px;font-weight:700;color:__PRIMARY__;line-height:1.2;white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+/* the unit rides below its number, but never below the legibility floor — at 30px a third of the size
+   would be 10px, which is unreadable, so the floor wins over the proportion here */
+.br-unit{font-size:max(.42em,14px);margin-left:3px}
+
+/* a page whose figure is composed of several parts: they share the height, in the order the model put them */
+.figs{display:grid;height:100%;align-content:center;row-gap:44px}
 """
 
 _TMPL = Template("""<!doctype html><html lang="zh-CN"><meta charset="utf-8">
@@ -123,26 +150,42 @@ def _css(theme: str) -> str:
     return css
 
 
+def _point_li(it: dict) -> str:
+    cls = ' class="core"' if it.get("weight") == "core" else ""
+    return f'<li{cls}><b>{_esc(it["label"])}</b>{_esc(_txt(it["quote"]))}</li>'
+
+
 def _body_stat(p) -> str:
-    lead = p["lead"]
-    pts = "".join(f"<li><b>{_esc(i['label'])}</b>{_esc(_txt(i['quote']))}</li>" for i in p["items"])
+    lead = p.get("lead") or {}
+    pts = "".join(_point_li(i) for i in p["items"])
     src = ""
     if lead.get("page_id"):
         src = f"<div class=\"stat-src\">{_esc(str(lead.get('source_id') or ''))} · {_esc(str(lead['page_id']))}</div>"
     return (f'<div style="display:grid;grid-template-columns:440px 1fr;gap:56px;height:100%;align-items:center">'
-            f'<div><div class="stat-num">{_esc(lead["value"])}</div>'
-            f'<div class="stat-label">{_esc(lead["label"])}</div>{src}</div>'
+            f'<div>'
+            + (f'<div class="stat-num">{_esc(lead["value"])}</div><div class="stat-label">{_esc(lead["label"])}</div>'
+               if lead.get("value") else "")
+            + f'{src}</div>'
             f'<ul class="points" data-check="fit">{pts}</ul></div>')
 
 
 def _body_points(p) -> str:
-    """Points of equal weight: a single column when there are three or fewer, so each one gets room to breathe."""
-    n = len(p["items"])
+    """Points of equal weight: a single column when there are three or fewer, so each one gets room to breathe.
+
+    Once the model marks which points lead, the equal grid is the wrong shape — four cards of the same size say
+    four equal things.  The page becomes one column where a core point is set larger than its supporting ones,
+    and the difference is in the type, not only in the order.
+    """
+    items = p["items"]
+    if any(i.get("weight") == "core" for i in items):
+        lis = "".join(_point_li(i) for i in items)
+        return (f'<ul class="points" data-check="fit" '
+                f'style="height:100%;display:flex;flex-direction:column;justify-content:center">{lis}</ul>')
+    n = len(items)
     cols = 1 if n <= 3 else (2 if n <= 4 else 3)
-    rows = -(-n // cols)
     cells = "".join(f'<div class="col" data-check="fit">'
                     f'<div class="lb">{_esc(i["label"])}</div>'
-                    f'<p>{_esc(_txt(i["quote"]))}</p></div>' for i in p["items"])
+                    f'<p>{_esc(_txt(i["quote"]))}</p></div>' for i in items)
     size = "21px" if cols == 1 else ("19px" if cols == 2 else "18px")
     return (f'<div class="cols" style="grid-template-columns:repeat({cols},1fr);'
             f'height:100%;align-content:safe center;font-size:{size}">{cells}</div>')
@@ -173,9 +216,9 @@ def _body_steps(p) -> str:
 
 _BODIES = {"stat": _body_stat, "points": _body_points, "compare": _body_compare, "steps": _body_steps}
 
-# A page whose point is a figure names a form; the form picks the body.  One boundary gets the whole page; two
-# share it and each keeps a band tall enough to read as a division rather than a rule.  More than two is not a
-# figure (see presentation._thresholds), so there is no third geometry.
+# A page whose point is a figure composes it from parts; the parts pick the bodies.  One boundary gets the whole
+# page; two share it and each keeps a band tall enough to read as a division rather than a rule.  More than two is
+# not a figure (see presentation._thresholds), so there is no third geometry.
 _TH_GEOM = {1: (96, 84, 300), 2: (64, 56, 300)}
 
 
@@ -201,24 +244,59 @@ def _th_row(t: dict, size: int, band_h: int) -> str:
             f'<div class="th-src">{_esc(_txt(t["clause"]))}</div></div>')
 
 
-def _body_threshold(p) -> str:
-    """The gauges are the page: one row per boundary, the rows sharing the height between title and footer."""
-    rows = p["thresholds"]
-    size, band_h, idw = _TH_GEOM[len(rows)]
+def _th_block(part: dict, dense: bool) -> str:
+    """The gauges are their block: one row per boundary, the rows sharing the height they are given."""
+    rows = part["thresholds"]
+    size, band_h, idw = _TH_GEOM[min(len(rows), 2)]
+    if dense:      # sharing the page: the number is no longer the page's anchor, so it gives height back
+        size, band_h = min(size, 52), min(band_h, 44)
     cells = "".join(_th_row(t, size, band_h) for t in rows)
     return (f'<div class="ths" style="grid-template-rows:repeat({len(rows)},1fr);--idw:{idw}px">'
             f'{cells}</div>')
 
 
-_FIGURES = {"threshold": _body_threshold}
+def _br_block(part: dict, dense: bool) -> str:
+    """A group of bars on one scale.  Length is the comparison, the number only confirms it.
+
+    With two or three bars each carries its own unit, the way a gauge does; with more, the unit moves up into the
+    heading once, because six repeats of the same "%" is noise over a comparison that is already visible.
+    """
+    series = part["series"]
+    unit = part["unit"]
+    inline = len(series) <= 3 and not dense
+    size = 30 if inline else 22
+    band = 44 if inline else 24
+    row_h = max(band, round(size * 1.4))       # the number's ink has to fit inside the row it centres in
+    rows = "".join(
+        f'<div class="br" data-check="fit" style="min-height:{row_h}px">'
+        f'<div class="br-ind">{_esc(x["indicator"])}</div>'
+        f'<div class="br-track">'
+        f'<div class="br-fill" style="width:{x["ratio"] * 72:.2f}%;height:{band}px"></div>'
+        f'<div class="br-val" style="font-size:{size}px">{_esc(x["numeral"])}'
+        + (f'<span class="br-unit">{_esc(unit)}</span>' if inline else "")
+        + f'</div></div></div>'
+        for x in series)
+    hd = ""
+    if part.get("label") or not inline:
+        tail = "" if inline else f"单位：{unit}"
+        hd = f'<div class="br-hd"><span>{_esc(part.get("label") or "")}</span><span>{_esc(tail)}</span></div>'
+    gap = 34 if inline else 14               # few bars get air between them; many get the compact rhythm
+    return f'<div class="brs">{hd}<div class="br-rows" style="--gap:{gap}px">{rows}</div></div>'
+
+
+def _body_figure(p) -> str:
+    """A page's figure is the parts it composed, stacked in the model's own order."""
+    parts = p["figure"]
+    dense = len(parts) > 1
+    blocks = "".join(_th_block(pt, dense) if pt["kind"] == "split" else _br_block(pt, dense) for pt in parts)
+    return blocks if not dense else f'<div class="figs">{blocks}</div>'
 
 
 def render_page(page: dict, *, page_no: int, total: int, source: str, theme: str = "gold_clinical",
                 section: str | None = None) -> str:
     """One resolved presentation page → one HTML document. Content is the sentences' own words."""
     take = page.get("takeaway")
-    form = page.get("form") or "text"
-    body = _FIGURES[form] if form in _FIGURES else _BODIES[page["structure"]]
+    body = _body_figure if page.get("figure") else _BODIES[page["structure"]]
     return _TMPL.render(
         CSS=_css(theme), PAGE=page_no, section=section, headline=page.get("headline"),
         main=body(page), takeaway=_esc(_txt(take["quote"])) if take else "",

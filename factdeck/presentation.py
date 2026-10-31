@@ -11,6 +11,11 @@ richer (200+ characters, a comparison, a number worth a whole page) were being s
 Structure is a judgement about the material, so it belongs to the model; verbatim accuracy is a fact, so it stays
 with the code.
 
+What the model decides, and what it may not: it decides the structure, the sentences, the picture (composed from
+parts, in the order it wants), which points lead, and whether a page is allowed to breathe.  It never decides
+geometry, and it never gets to assert a number, a boundary, a unit or an attribution the sentences do not carry —
+those are the three things a slide can lie about, so they are checked here and refused before anything is drawn.
+
 Four structures to start (coarse on purpose — see ``STRUCTURES``); each maps to one parametric HTML layout rendered
 to native shapes by ``factdeck.template_lib.native``.  Nothing here draws a picture or invents a coordinate.
 """
@@ -36,13 +41,21 @@ STRUCTURES: dict[str, tuple[int, int, bool]] = {
 # model's judgement (it knows what the page is arguing); meeting the requirement is a fact the code can check.
 FORMS: dict[str, str] = {
     "text": "无要求：文字版式",
-    "bars": "≥2 个可比数值，且来自 ≥2 句（同一量纲：百分比 / 倍数 / 例数）",
-    "trend": "≥3 个不同的时间量（周 / 月 / 年），可连成一条线",
+    "bars": "≥2 个可比数值，同一量纲（百分比 / 倍数 / 例数）",
     "threshold": "≥1 个带比较符或「至少 / 超过 / 不超过」的阈值",
-    "steps": "≥3 条要点，构成先后顺序",
-    "compare": "两侧各有名字，且两侧都有句子",
-    "decision": "≥1 个条件句（若…则… / 在…情况下 / 对于…）",
 }
+
+# A page's figure is a list of parts the model composes.  One part is the common case; two or three stack down the
+# page (a split over a set of bars).  Each kind has its own data contract, checked against the sentences — the
+# model decides which parts and in what order, the code decides their geometry.
+FIGURES: dict[str, str] = {"split": FORMS["threshold"], "bars": FORMS["bars"]}
+MAX_PARTS = 3
+MAX_BARS = 6
+
+# A page's role, borrowed from the design rules (§4.1): a hero page is allowed to breathe, a supporting page has
+# to carry its area.  Declaring it is the model's call; whether the page has the material to justify it is not.
+ROLES = ("hero", "supporting")
+WEIGHTS = ("core", "support")
 
 _TIME_UNITS = ("周", "个月", "月", "年", "天", "小时", "分钟")
 _OP_CHARS = ("≥", "≤", ">", "<")
@@ -67,7 +80,7 @@ _CLAUSE_MAX = 30      # one line of small print under a gauge
 # A point has to stay readable in the column it lands in: three lines at the widest, and every structure has its
 # own column width.  Checking this here means a sentence that cannot fit is refused before anything is drawn,
 # instead of being found by looking at a picture afterwards.
-_ITEM_MAX = {"stat": 74, "points": 86, "compare": 62, "steps": 40, "threshold": 58}
+_ITEM_MAX = {"stat": 74, "points": 86, "compare": 62, "steps": 40}
 
 # A sentence that opens with a pronoun needs the one before it; alone on a slide it reads as a fragment
 # ("这些国家中超过90%-95%的病例未被确诊" — which countries?).  Either the model cites the sentence before it too,
@@ -97,8 +110,9 @@ def materials(fact_ids, facts: Mapping[str, dict]) -> dict:
     """What shapes these sentences actually contain — what a page's form has to be chosen from.
 
     A model cannot judge 'this page should be a trend line' without knowing whether the sentences hold time points.
-    This is that inventory: the numbers, the ones in time units, the ones that are thresholds, the units that have two
-    or more values to compare, and the sentences that state a condition.
+    That form does not exist yet, and this inventory is how a caller can tell without guessing: it lists the numbers,
+    the ones in time units, the ones that are thresholds, the units that have two or more values to compare, and the
+    sentences that state a condition.
     """
     from collections import defaultdict
 
@@ -121,46 +135,6 @@ def materials(fact_ids, facts: Mapping[str, dict]) -> dict:
                   if any(w in facts[fid]["quote"][:14] for w in _CONDITION_WORDS)]
     return {"numbers": numbers, "timeline": timeline, "thresholds": thresholds,
             "comparable": comparable, "conditions": conditions}
-
-
-def form_supported(form: str, mat: dict, items=None, labels=None) -> tuple[bool, str]:
-    """Can the material on this page carry that form?  Returns (ok, what is missing or the nearest form that fits)."""
-    ok = _form_fits(form, mat, items, labels)
-    if ok:
-        return True, ""
-    fits = [f for f in ("compare", "bars", "threshold", "steps", "decision")
-            if f != form and _form_fits(f, mat, items, labels)]
-    why = _FORM_WHY.get(form, "未知形式")
-    if form == "trend":
-        why = f"只有 {len({x['token'] for x in mat['timeline']})} 个时间量，连不成线（需要 ≥3 个不同的时点）"
-    return False, f"{why}。按现有原料可以改画：{'、'.join(fits[:3]) or '文字'}"
-
-
-_FORM_WHY = {
-    "bars": "没有两项以上可比的同量纲数值（百分比 / 倍数 / 例数）",
-    "threshold": "没有带比较符或「至少 / 不超过」这类阈值的数值",
-    "steps": "要点少于 3 条，构不成步骤",
-    "compare": "对照需要两侧各有名字，且两侧都有句子",
-    "decision": "没有条件句（若…则… / 对于…）",
-}
-
-
-def _form_fits(form: str, mat: dict, items=None, labels=None) -> bool:
-    if form == "text":
-        return True
-    if form == "bars":
-        return bool(mat["comparable"])
-    if form == "trend":
-        return len({x["token"] for x in mat["timeline"]}) >= 3
-    if form == "threshold":
-        return bool(mat["thresholds"])
-    if form == "steps":
-        return bool(items) and len(items) >= 3
-    if form == "compare":
-        return bool(labels) and len(labels) == 2 and bool(items) and len(items) >= 2
-    if form == "decision":
-        return bool(mat["conditions"])
-    return False
 
 
 def shares_with(label: str, text: str) -> bool:
@@ -222,29 +196,45 @@ def check(spec: Mapping, facts: Mapping[str, dict]) -> dict:
         st = p.get("structure")
         _need(st in STRUCTURES, f"第{i}页 structure 须为 {' / '.join(STRUCTURES)}")
         lo, hi, needs_lead = STRUCTURES[st]
+        role = p.get("role") or "supporting"
+        _need(role in ROLES, f"第{i}页 role 须为 {' / '.join(ROLES)}")
+
+        # The page's figure: the model composes it from parts, each with its own data contract.  A single `form`
+        # is accepted as shorthand for one part, so a page can still be summed up in one word.
+        parts_raw = p.get("figure")
         form = p.get("form") or "text"
         _need(form in FORMS, f"第{i}页 form 须为 {' / '.join(FORMS)}")
+        if parts_raw is None and form != "text":
+            parts_raw = [{"kind": "split", "thresholds": p.get("thresholds")} if form == "threshold"
+                         else {"kind": "bars", "series": p.get("series")}]
+        parts_raw = parts_raw or []
+        _need(isinstance(parts_raw, list), f"第{i}页 figure 须为列表")
+        _need(len(parts_raw) <= MAX_PARTS,
+              f"第{i}页 figure 有 {len(parts_raw)} 部分，一页最多 {MAX_PARTS} 部分："
+              f"一块以上已经不是图，是没有目录的拼贴——分页，或留一块加一句 takeaway")
+        figures, fig_facts = _figure_parts(parts_raw, facts, i)
+        drawn = "、".join(f["kind"] for f in figures)
 
         items = p.get("items") or []
         _need(isinstance(items, list), f"第{i}页 items 须为列表")
-        if form == "text":
-            _need(lo <= len(items) <= hi, f"第{i}页（{st}）的 items 须为 {lo}–{hi} 条，现有 {len(items)} 条")
-        elif form == "threshold":
-            # A gauge is the page.  A point beside it competes for the same width and, at one gauge, leaves the
-            # figure smaller than the text next to it: the sentence that explains a boundary belongs in takeaway,
-            # or on a page of its own.
-            _need(not items, f"第{i}页画阈值轴，不列 items：量规本身就是这页的内容，"
+        if figures:
+            # The figure is the page.  A point beside it competes for the same width and, at one part, leaves the
+            # figure smaller than the text next to it: the sentence behind it belongs in the figure's own rows.
+            _need(not items, f"第{i}页有 figure，不列 items：图本身就是这页的内容，"
                             f"要补充的话换一句放 takeaway，或把那条要点单独做一页")
-        else:                                   # the figure carries the page; a few points may annotate it
-            _need(0 <= len(items) <= 3, f"第{i}页（{form}）的 items 最多 3 条点评，现有 {len(items)} 条")
-        max_chars = _ITEM_MAX.get(form)
-        resolved = [_item(it, facts, f"第{i}页 items[{k}]", st, max_chars) for k, it in enumerate(items)]
+        else:
+            _need(lo <= len(items) <= hi, f"第{i}页（{st}）的 items 须为 {lo}–{hi} 条，现有 {len(items)} 条")
+        resolved = [_item(it, facts, f"第{i}页 items[{k}]", st) for k, it in enumerate(items)]
         labels_seen = set()
         for k, r in enumerate(resolved):
             _need(r["label"] not in labels_seen, f"第{i}页 items[{k}] 的 label 与同页其它条重复：{r['label']}")
             labels_seen.add(r["label"])
+        _weights(resolved, i, st)
 
+        # The figure's own sentences count as cited on this page, before the headline is checked: a headline is
+        # allowed to name the boundary number, and that number comes from the gauge's sentence.
         fact_ids = [f for r in resolved for f in r["facts"]]
+        fact_ids += [f for f in fig_facts if f not in fact_ids]
         take = p.get("takeaway")
         if take is not None:
             resolved_take = _fact(take.get("fact") if isinstance(take, Mapping) else take, facts, f"第{i}页 takeaway")
@@ -256,22 +246,17 @@ def check(spec: Mapping, facts: Mapping[str, dict]) -> dict:
         else:
             resolved_take = None
 
-        # The figure's own sentences count as cited on this page, before the headline is checked: a headline is
-        # allowed to name the boundary number, and that number comes from the gauge's sentence.
-        thresholds = _thresholds(p.get("thresholds"), facts, i) if form == "threshold" else []
-        fact_ids.extend(t["fact"] for t in thresholds if t["fact"] not in fact_ids)
-        # A takeaway that cites the gauge's own sentence prints it twice on one slide: the gauge already shows it.
-        th_facts = {t["fact"] for t in thresholds}
+        # A takeaway that cites a sentence the figure already draws prints it twice on one slide.
         if resolved_take is not None:
-            _need(resolved_take["fact"] not in th_facts,
-                  f"第{i}页 takeaway 与量规是同一句，等于把量规再说一遍：换一句本页小结，或留空")
+            _need(resolved_take["fact"] not in fig_facts,
+                  f"第{i}页 takeaway 与图是同一句，等于把图再说一遍：换一句本页小结，或留空")
 
         # the lead is its own content slot, so its sentence counts as cited on this page.  A page drawn as a figure
         # already puts a number at full size; a second one would compete with it.
         lead = None
-        if form != "text":
+        if figures:
             _need(not p.get("lead"),
-                  f"第{i}页要画 {form}，主数字已经在图里：不要另给 lead，把那个数放进 thresholds / lead 二选一")
+                  f"第{i}页要画 {drawn}，主数字已经在图里：不要另给 lead，把那个数放进图里，或二选一")
         elif needs_lead:
             l = p.get("lead")
             _need(isinstance(l, Mapping), f"第{i}页（{st}）须给出 lead（本页的主数字）")
@@ -311,19 +296,143 @@ def check(spec: Mapping, facts: Mapping[str, dict]) -> dict:
                       f"第{i}页 items[{k}] 的句子没有提到「{side_labels[side]}」，放到这一栏会替它作原文没有的归属："
                       f"换到另一栏，或换一句明确说到它的")
 
-        # The form is the model's judgement; whether the material can carry it is the code's check.
+        # Where the material is thin, the page still has to hold its area; role says whether it must.
         mat = materials(fact_ids, facts)
-        ok, why = form_supported(form, mat, resolved, side_labels)
-        _need(ok, f"第{i}页要画 {form}（{FORMS[form]}），但这页的原料不支持：{why}")
 
-        out.append({"id": pid, "structure": st, "form": form, "headline": headline, "lead": lead, "items": resolved,
+        out.append({"id": pid, "structure": st, "role": role,
+                    "form": "text" if not figures else (figures[0]["kind"] if len(figures) == 1 else "composite"),
+                    "figure": figures,
+                    "headline": headline, "lead": lead, "items": resolved,
+                    "weights": [r["weight"] for r in resolved],
                     "takeaway": resolved_take,
-                    "thresholds": thresholds,
+                    # Kept flat for the renderer and for anything that only wants "the page's boundaries".
+                    "thresholds": [t for f in figures if f["kind"] == "split" for t in f["thresholds"]],
+                    "bars": next((f for f in figures if f["kind"] == "bars"), None),
                     "materials": {k: (len(v) if isinstance(v, (list, dict)) else v) for k, v in mat.items()},
                     "section": _label(p.get("section"), f"第{i}页 section", 16),
                     "labels": side_labels,
                     "span": None if p.get("span") is None else [str(x) for x in p["span"]]})
     return {"schema_version": SCHEMA, "pages": out}
+
+
+def _figure_parts(parts_raw, facts: Mapping[str, dict], i: int) -> tuple[list[dict], list[str]]:
+    """Resolve the parts a page composes, each against its own contract.
+
+    The model decides which parts a page has and in what order; the code decides what each kind may claim.  Two
+    things are page-wide rather than part-wide: the count of gauges (two is the ceiling wherever they sit — a third
+    turns the page into a table), and the naming of two groups of bars (two unnamed groups read as one mess).
+    """
+    parts, used, gauges = [], [], 0
+    for k, part in enumerate(parts_raw):
+        where = f"第{i}页 figure[{k}]"
+        _need(isinstance(part, Mapping), f"{where} 须为对象")
+        kind = part.get("kind")
+        _need(kind in FIGURES, f"{where} 的 kind 须为 {' / '.join(FIGURES)}：「{kind}」不是可组合的部分")
+        if kind == "split":
+            th = _thresholds(part.get("thresholds"), facts, i)
+            gauges += len(th)
+            _need(gauges <= 2,
+                  f"第{i}页有 {gauges} 根量规，一页最多 2 根：三根以上已经不是图，是一张表——"
+                  f"把多出来的分到别的页，或改用 points 逐条列出")
+            parts.append({"kind": "split", "thresholds": th})
+            used += [t["fact"] for t in th]
+        else:
+            series = _bars(part.get("series"), facts, i, where)
+            parts.append({"kind": "bars", "label": _label(part.get("label"), f"{where}.label", _LABEL_MAX),
+                          "unit": series[0]["unit"], "series": series})
+            used += [s["fact"] for s in series]
+    if sum(1 for p in parts if p["kind"] == "bars") > 1:
+        for k, part in enumerate(parts):
+            if part["kind"] == "bars":
+                _need(part["label"],
+                      f"第{i}页有两组柱形，figure[{k}] 须给出 label（这组柱量的是什么）："
+                      f"两组无名柱并排，读者分不清哪根属于哪组")
+    drawn = [t["indicator"] for part in parts if part["kind"] == "split" for t in part["thresholds"]]
+    twice = sorted({x for x in drawn if drawn.count(x) > 1})
+    _need(not twice,
+          f"第{i}页同一根量规画了两遍（{'、'.join(twice)}）：同一页上重复的边界不传达任何新东西")
+    return parts, used
+
+
+def _bars(raw, facts: Mapping[str, dict], i: int, where: str) -> list[dict]:
+    """A set of bars: one scale, so length means something.
+
+    Two ways a bar chart lies, both refused here: values that do not share a unit (a 5-day course drawn beside 90%
+    has no common scale, so the longer bar means nothing), and values that are not in the sentence they name (the
+    length would be drawn from nothing).  Order is the model's: it may be by size, or the order the source lists
+    them in, which itself carries meaning.
+    """
+    _need(isinstance(raw, list) and raw,
+          f"{where} 要画柱形，须给出 series（每条：indicator / value / fact）")
+    _need(len(raw) >= 2, f"{where} 只有 {len(raw)} 根柱，构不成比较：至少 2 根")
+    _need(len(raw) <= MAX_BARS,
+          f"{where} 有 {len(raw)} 根柱，一页最多 {MAX_BARS} 根：再多读不出长短，只会去读数字——那用 points")
+
+    out, seen = [], set()
+    for k, s in enumerate(raw):
+        w = f"{where} series[{k}]"
+        _need(isinstance(s, Mapping), f"{w} 须为对象")
+        fid = s.get("fact")
+        _fact(fid, facts, f"{w}.fact")
+        quote = facts[fid]["quote"]
+        ind = _label(s.get("indicator"), f"{w}.indicator", _INDICATOR_MAX)
+        _need(ind, f"{w} 须给出 indicator（这根柱量的是谁）")
+        _need(ind not in seen, f"{w} 的 indicator 与同组另一根重复：同一根柱不画两遍")
+        _need(shares_with(ind, quote),
+              f"{w} 的 indicator「{ind}」在这句里找不到：换一个句子说得出名字的指标")
+        seen.add(ind)
+        spans = {sp["token"]: sp for sp in number_spans(quote)}
+        value = str(s.get("value") or "").strip()
+        _need(value in spans, f"{w} 的 value「{value}」不是来源句中的数字（可选：{'、'.join(spans) or '无'}）")
+        token, clause = value, spans[value]["clause"]
+        _need("-" not in token and "~" not in token and "至" not in token,
+              f"{w} 的数值是一个区间（「{token}」），一根柱只能是一个数：换一个确定的值，或改用 threshold")
+        numeral = token[1:].strip() if token[:1] in _OP_CHARS else token
+        unit = _unit_of(numeral)
+        _need(unit, f"{w} 的数值「{value}」没有单位，柱长无从比较：换一个带单位的数（% / 倍 / 例 / 天）")
+        digits = numeral[: len(numeral) - len(unit)]
+        try:
+            amount = float(digits.replace(",", ""))
+        except ValueError:
+            raise PresentationError(f"{w} 的数值「{value}」不是一个可比较的数：柱长画不出来") from None
+        _need(amount > 0, f"{w} 的数值「{value}」不大于 0，柱长为零：这一项用文字说")
+        out.append({"indicator": ind, "value": token, "numeral": digits, "unit": unit,
+                    "amount": amount, "fact": fid, "clause": clause})
+
+    units = {x["unit"] for x in out}
+    _need(len(units) == 1,
+          f"{where} 的数值量纲不一致（{'、'.join(sorted(units))}）：柱长只有同一量纲才可比，"
+          f"混在一组里长的并不比短的多——拆成两页，或改用 points")
+    _need(len({x["value"] for x in out}) >= 2, f"{where} 每根柱的数值都一样，画出来是等长：这不是比较")
+    top = max(x["amount"] for x in out)
+    for x in out:                       # zero-based: a bar's length is its share of the largest, nothing more
+        x["ratio"] = round(x["amount"] / top, 4)
+    return out
+
+
+def _weights(items: list[dict], i: int, structure: str) -> None:
+    """Which points lead.  The code owns how much bigger a core point is set; the model says which ones are.
+
+    Left unmarked, every point is set equal — right when the sentences really are parallel.  Marking is
+    all-or-nothing and capped at two: one core point is a hierarchy, three cores are three headlines and no page,
+    and marking only half leaves the renderer guessing what the rest are.
+    """
+    marked = [it for it in items if it.get("weight")]
+    if not marked:
+        for it in items:
+            it["weight"] = "support"
+        return
+    _need(structure == "points",
+          f"第{i}页（{structure}）不标 weight：stat 的主次由主数字表达，steps 靠编号成序，compare 靠两栏对照——"
+          f"这些版式已经说出了谁先读，再标一遍是两套指令")
+    _need(len(items) >= 2, f"第{i}页只有 {len(items)} 条要点，标不出主次：去掉 weight")
+    _need(len(marked) == len(items),
+          f"第{i}页有 {len(marked)}/{len(items)} 条标了 weight：要么每条都标，要么都不标——"
+          f"只标一半，剩下的等于让排版猜")
+    core = [it for it in items if it["weight"] == "core"]
+    _need(core, f"第{i}页没有一条是 core：全标 support 等于没有主次，去掉 weight 就是等权版式")
+    _need(len(core) < len(items), f"第{i}页 {len(items)} 条全是 core：没有一条退后，主次无从读起")
+    _need(len(core) <= 2, f"第{i}页有 {len(core)} 条 core，最多 2 条：三条都要紧，就是都不要紧")
 
 
 def _norm_op(raw: str) -> str | None:
@@ -437,7 +546,10 @@ def _item(it, facts: Mapping[str, dict], where: str, structure: str, max_chars: 
     limit = max_chars or _ITEM_MAX[structure]
     _need(len(quote) <= limit,
           f"{where} 有 {len(quote)} 字，这页每栏最多放 {limit} 字：换短句，或改用别的结构")
-    return {"label": label, "facts": [x["fact"] for x in parts], "quote": quote,
+    weight = it.get("weight")
+    if weight is not None:
+        _need(weight in WEIGHTS, f"{where}.weight 须为 {' / '.join(WEIGHTS)}")
+    return {"label": label, "facts": [x["fact"] for x in parts], "quote": quote, "weight": weight,
             "source_id": parts[0]["source_id"], "page_id": parts[0]["page_id"],
             "units": [x["unit_id"] for x in parts]}
 
@@ -460,22 +572,34 @@ def _labels(v, structure: str, i: int) -> list[str] | None:
     return [_label(x, f"第{i}页 labels[{k}]", 14) for k, x in enumerate(v)]
 
 
-def contract(n: int = 4) -> dict:
+def contract(n: int = 6) -> dict:
     """What a model writing this needs to see: the forms it may ask for, and one page per structure.
 
-    ``forms`` is the menu with its requirement.  A model picks a form because the page's argument needs it; the
-    code then checks the requirement against the sentences.  ``materials(fact_ids, facts)`` is the other half of
-    that conversation — it lists the numbers, time points, thresholds and conditions the sentences actually hold,
-    so the model can choose a form the material can carry instead of guessing.
+    ``forms`` is the menu with its requirement; ``figures`` is what a page's picture may be made of.  A model picks
+    a form because the page's argument needs it; the code then checks the requirement against the sentences.
+    ``materials(fact_ids, facts)`` is the other half of that conversation — it lists the numbers, time points,
+    thresholds and conditions the sentences actually hold, so the model can choose a form the material can carry
+    instead of guessing.  ``roles`` and ``weights`` are the two dials for hierarchy: whether the page may breathe,
+    and which points lead.
     """
     pages = [
-        {"id": "p1", "structure": "stat", "form": "text", "headline": "",
+        {"id": "p1", "structure": "stat", "role": "hero", "headline": "",
          "lead": {"value": "", "label": "", "from": ""}, "items": [{"fact": ""}], "takeaway": {"fact": ""}},
-        {"id": "p2", "structure": "points", "form": "text", "headline": "", "items": [{"fact": ""} for _ in range(3)]},
-        {"id": "p3", "structure": "compare", "form": "text", "headline": "",
+        {"id": "p2", "structure": "points", "headline": "", "items": [{"fact": ""} for _ in range(3)]},
+        {"id": "p3", "structure": "compare", "headline": "",
          "items": [{"fact": ""} for _ in range(4)], "labels": ["", ""]},
-        {"id": "p4", "structure": "steps", "form": "text", "headline": "", "items": [{"fact": ""} for _ in range(3)]},
+        {"id": "p4", "structure": "steps", "headline": "", "items": [{"fact": ""} for _ in range(3)]},
+        # One part, shorthand: the one-word way to say "this page is a boundary".
         {"id": "p5", "structure": "stat", "form": "threshold", "headline": "",
          "thresholds": [{"indicator": "", "op": "", "value": "", "fact": ""}]},
+        # Composed: a boundary over a set of bars, each part checked on its own.
+        {"id": "p6", "structure": "stat", "headline": "", "figure": [
+            {"kind": "split", "thresholds": [{"indicator": "", "op": "", "value": "", "fact": ""}]},
+            {"kind": "bars", "label": "", "series": [{"indicator": "", "value": "", "fact": ""} for _ in range(2)]}]},
+        # Emphasis: two of four points carry the page, the rest support them.
+        {"id": "p7", "structure": "points", "headline": "",
+         "items": [{"fact": "", "weight": "core"}, {"fact": "", "weight": "support"},
+                   {"fact": "", "weight": "support"}]},
     ]
-    return {"schema_version": SCHEMA, "forms": FORMS, "pages": pages[:n]}
+    return {"schema_version": SCHEMA, "forms": FORMS, "figures": FIGURES,
+            "roles": list(ROLES), "weights": list(WEIGHTS), "pages": pages[:n]}
