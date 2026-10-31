@@ -11,6 +11,7 @@ shapes — no whole-slide bitmap, no embedded SVG.
 from __future__ import annotations
 
 import html
+import re
 from jinja2 import Template
 
 from .template_lib.themes import get_theme
@@ -61,6 +62,25 @@ body{margin:0;background:#E4E8ED;font-family:__FONT__;-webkit-font-smoothing:ant
 .step .lb{margin-top:14px;font-weight:700;color:__HEADLINE__;line-height:1.35}
 .step p{margin-top:6px;font-size:15pt;line-height:1.45;color:__INK__}
 .step .tag{margin-top:8px;font-size:10pt;color:__CAPTION__}
+
+/* threshold — one gauge per indicator.  The track is a solid band split in two at the boundary, the half the
+   sentence talks about filled in the accent and the other held back to a light tint, so the split is a shape
+   rather than a number with a line under it.  No scale is implied: the band has no ticks, only a division. */
+.ths{display:grid;height:100%}
+.th{display:grid;grid-template-columns:var(--idw) 1fr;grid-template-areas:"ind ." "val track" ". ends" ". src";
+  column-gap:48px;row-gap:4px;align-content:center;min-width:0}
+.th-ind{grid-area:ind;font-size:11.5pt;font-weight:700;letter-spacing:.1em;color:__ACCENT2__;line-height:1.3}
+.th-val{grid-area:val;align-self:center;font-weight:700;line-height:1;letter-spacing:-.03em;color:__PRIMARY__;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.th-track{grid-area:track;position:relative;display:flex;align-self:center}
+.th-half{flex:0 0 50%}
+.th-half.hi{background:__ACCENT__}
+.th-half.lo{background:__SOFT__}
+.th-rule{position:absolute;left:50%;top:-7px;bottom:-7px;width:4px;margin-left:-2px;background:__PRIMARY__}
+.th-ends{grid-area:ends;display:flex;justify-content:space-between;gap:24px;margin-top:8px;font-size:10.5pt;
+  line-height:1.2;color:__CAPTION__;font-variant-numeric:tabular-nums}
+.th-ends .hold{color:__PRIMARY__;font-weight:700}
+.th-src{grid-area:src;margin-top:5px;font-size:10pt;line-height:1.4;color:__CAPTION__}
 """
 
 _TMPL = Template("""<!doctype html><html lang="zh-CN"><meta charset="utf-8">
@@ -78,10 +98,20 @@ def _esc(s: str) -> str:
     return html.escape(s or "", quote=False)
 
 
+# PDF extraction leaves a space between characters it could not join ("呼吸困难视 觉 模拟评分").  It is an artefact
+# of the extraction, not of the sentence, so it is removed where text is drawn — the words stay the same words.
+_CJK_GAP = re.compile(r"(?<=[\u4e00-\u9fff])[ \t]+(?=[\u4e00-\u9fff])")
+
+
+def _txt(s: str) -> str:
+    return _CJK_GAP.sub("", s or "")
+
+
 def _css(theme: str) -> str:
     t = get_theme(theme)
     rep = {"__FONT__": FONT, "__CANVAS__": t["canvas"], "__INK__": t["ink"], "__PAD__": str(PAD),
-           "__CONTENTW__": str(W - 2 * PAD), "__ACCENT__": t["accent"], "__HEADLINE__": t["headline"],
+           "__CONTENTW__": str(W - 2 * PAD), "__ACCENT__": t["accent"], "__ACCENT2__": t["accent2"],
+           "__SOFT__": t["soft"], "__HEADLINE__": t["headline"],
            "__PRIMARY__": t["primary"], "__CAPTION__": t["caption"], "__TAKEBG__": t["takeaway-bg"],
            "__LINE__": t["line"]}
     css = _CSS
@@ -92,7 +122,7 @@ def _css(theme: str) -> str:
 
 def _body_stat(p) -> str:
     lead = p["lead"]
-    pts = "".join(f"<li><b>{_esc(i['label'])}</b>{_esc(i['quote'])}</li>" for i in p["items"])
+    pts = "".join(f"<li><b>{_esc(i['label'])}</b>{_esc(_txt(i['quote']))}</li>" for i in p["items"])
     src = ""
     if lead.get("page_id"):
         src = f"<div class=\"stat-src\">{_esc(str(lead.get('source_id') or ''))} · {_esc(str(lead['page_id']))}</div>"
@@ -109,7 +139,7 @@ def _body_points(p) -> str:
     rows = -(-n // cols)
     cells = "".join(f'<div class="col" data-check="fit"><div class="n">{k + 1:02d}</div>'
                     f'<div class="lb">{_esc(i["label"])}</div>'
-                    f'<p>{_esc(i["quote"])}</p></div>' for k, i in enumerate(p["items"]))
+                    f'<p>{_esc(_txt(i["quote"]))}</p></div>' for k, i in enumerate(p["items"]))
     size = "20pt" if cols == 1 else ("18pt" if cols == 2 else "16pt")
     return (f'<div class="cols" style="grid-template-columns:repeat({cols},1fr);'
             f'height:100%;align-content:safe center;font-size:{size}">{cells}</div>')
@@ -123,7 +153,7 @@ def _body_compare(p) -> str:
 
     def side(name: str, rows, offset: int) -> str:
         lis = "".join(f'<p data-check="fit"><span class="n">{offset + k + 1:02d}</span>　'
-                      f'<b>{_esc(r["label"])}</b>{_esc(r["quote"])}</p>' for k, r in enumerate(rows))
+                      f'<b>{_esc(r["label"])}</b>{_esc(_txt(r["quote"]))}</p>' for k, r in enumerate(rows))
         hd = f'<div class="hd">{_esc(name)}</div>' if name else ""
         return f'<div class="col">{hd}{lis}</div>'
     return (f'<div class="cols" style="grid-template-columns:1fr 1fr;height:100%;align-content:safe center">'
@@ -134,20 +164,60 @@ def _body_steps(p) -> str:
     n = len(p["items"])
     cells = "".join(f'<div class="step" data-check="fit"><div class="dot">{k + 1}</div>'
                     f'<div class="lb">{_esc(i["label"])}</div>'
-                    f'<p>{_esc(i["quote"])}</p></div>' for k, i in enumerate(p["items"]))
+                    f'<p>{_esc(_txt(i["quote"]))}</p></div>' for k, i in enumerate(p["items"]))
     return f'<div class="steps" style="grid-template-columns:repeat({n},1fr)">{cells}</div>'
 
 
 _BODIES = {"stat": _body_stat, "points": _body_points, "compare": _body_compare, "steps": _body_steps}
+
+# A page whose point is a figure names a form; the form picks the body.  One gauge gets the whole page, so its
+# number is near-full size and its band is tall; four gauges share the height, so each shrinks.  The number shrinks
+# with the row so the band below it keeps enough width to be read as a division rather than a rule.
+_TH_GEOM = {1: (96, 104, 300), 2: (64, 68, 300), 3: (44, 52, 300), 4: (32, 38, 280)}
+
+
+def _th_row(t: dict, size: int, band_h: int) -> str:
+    """One gauge: what it measures, the boundary value, the two sides it divides, and the sentence it came from.
+
+    Above the boundary means "on the side the sentence describes" for ≥ and >; for ≤ and < that side is below it,
+    so the filled half and the two end labels swap.  Whatever the direction, the labels only restate the boundary
+    as the two sides it divides — no number appears that the sentence does not contain.
+    """
+    floor = t["op"] in (">", "≥")
+    halves = ('<div class="th-half lo"></div><div class="th-half hi"></div>' if floor else
+              '<div class="th-half hi"></div><div class="th-half lo"></div>')
+    left, right = (t["other"], t["holds"]) if floor else (t["holds"], t["other"])
+    lcls, rcls = ("" if floor else "hold"), ("hold" if floor else "")
+    return (f'<div class="th" data-check="fit">'
+            f'<div class="th-ind">{_esc(t["indicator"])}</div>'
+            f'<div class="th-val" style="font-size:{size}pt">{_esc(t["token"])}</div>'
+            f'<div class="th-track" style="height:{band_h}px">{halves}<div class="th-rule"></div></div>'
+            f'<div class="th-ends"><span class="{lcls}">{_esc(left)}</span>'
+            f'<span class="{rcls}">{_esc(right)}</span></div>'
+            f'<div class="th-src">{_esc(_txt(t["clause"]))}</div></div>')
+
+
+def _body_threshold(p) -> str:
+    """The gauges are the page: one row per boundary, the rows sharing the height between title and footer."""
+    rows = p["thresholds"]
+    size, band_h, idw = _TH_GEOM[len(rows)]
+    cells = "".join(_th_row(t, size, band_h) for t in rows)
+    return (f'<div class="ths" style="grid-template-rows:repeat({len(rows)},1fr);--idw:{idw}px">'
+            f'{cells}</div>')
+
+
+_FIGURES = {"threshold": _body_threshold}
 
 
 def render_page(page: dict, *, page_no: int, total: int, source: str, theme: str = "gold_clinical",
                 section: str | None = None) -> str:
     """One resolved presentation page → one HTML document. Content is the sentences' own words."""
     take = page.get("takeaway")
+    form = page.get("form") or "text"
+    body = _FIGURES[form] if form in _FIGURES else _BODIES[page["structure"]]
     return _TMPL.render(
         CSS=_css(theme), PAGE=page_no, section=section, headline=page.get("headline"),
-        main=_BODIES[page["structure"]](page), takeaway=_esc(take["quote"]) if take else "",
+        main=body(page), takeaway=_esc(_txt(take["quote"])) if take else "",
         source=_esc(source), page=page_no, total=total,
     )
 

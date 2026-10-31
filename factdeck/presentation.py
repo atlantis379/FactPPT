@@ -49,15 +49,25 @@ _OP_CHARS = ("≥", "≤", ">", "<")
 _THRESHOLD_WORDS = ("至少", "超过", "不超过", "不高于", "不低于", "高于", "低于", "最多", "不少于", "以上", "以下")
 _CONDITION_WORDS = ("若", "如果", "对于", "当", "在…情况下", "一旦", "需要时")
 
+# A comparison written as a word has an exact symbol, and "超过" and "至少" are not the same boundary: one is
+# strict, the other inclusive.  Matching the model's op against words found in the sentence keeps it from
+# softening ">" into "≥" where the number would then cover cases the source excludes.
+_WORD_OP = {"至少": "≥", "不低于": "≥", "不少于": "≥", "超过": ">", "高于": ">", "大于": ">", "以上": ">",
+            "不超过": "≤", "不高于": "≤", "最多": "≤", "至多": "≤", "以内": "≤", "以下": "≤",
+            "低于": "<", "小于": "<", "少于": "<"}
+_OP_COMPLEMENT = {"≥": "<", ">": "≤", "≤": ">", "<": "≥"}
+
 _HEADLINE_MAX = 60
 _LABEL_MAX = 18
 _TAKEAWAY_MAX = 52
 _ITEM_LABEL_MAX = 14
+_INDICATOR_MAX = 14
+_CLAUSE_MAX = 30      # one line of small print under a gauge
 
 # A point has to stay readable in the column it lands in: three lines at the widest, and every structure has its
 # own column width.  Checking this here means a sentence that cannot fit is refused before anything is drawn,
 # instead of being found by looking at a picture afterwards.
-_ITEM_MAX = {"stat": 74, "points": 86, "compare": 62, "steps": 40}
+_ITEM_MAX = {"stat": 74, "points": 86, "compare": 62, "steps": 40, "threshold": 58}
 
 # A sentence that opens with a pronoun needs the one before it; alone on a slide it reads as a fragment
 # ("这些国家中超过90%-95%的病例未被确诊" — which countries?).  Either the model cites the sentence before it too,
@@ -212,11 +222,23 @@ def check(spec: Mapping, facts: Mapping[str, dict]) -> dict:
         st = p.get("structure")
         _need(st in STRUCTURES, f"第{i}页 structure 须为 {' / '.join(STRUCTURES)}")
         lo, hi, needs_lead = STRUCTURES[st]
+        form = p.get("form") or "text"
+        _need(form in FORMS, f"第{i}页 form 须为 {' / '.join(FORMS)}")
 
-        items = p.get("items")
+        items = p.get("items") or []
         _need(isinstance(items, list), f"第{i}页 items 须为列表")
-        _need(lo <= len(items) <= hi, f"第{i}页（{st}）的 items 须为 {lo}–{hi} 条，现有 {len(items)} 条")
-        resolved = [_item(it, facts, f"第{i}页 items[{k}]", st) for k, it in enumerate(items)]
+        if form == "text":
+            _need(lo <= len(items) <= hi, f"第{i}页（{st}）的 items 须为 {lo}–{hi} 条，现有 {len(items)} 条")
+        elif form == "threshold":
+            # A gauge is the page.  A point beside it competes for the same width and, at one gauge, leaves the
+            # figure smaller than the text next to it: the sentence that explains a boundary belongs in takeaway,
+            # or on a page of its own.
+            _need(not items, f"第{i}页画阈值轴，不列 items：量规本身就是这页的内容，"
+                            f"要补充的话换一句放 takeaway，或把那条要点单独做一页")
+        else:                                   # the figure carries the page; a few points may annotate it
+            _need(0 <= len(items) <= 3, f"第{i}页（{form}）的 items 最多 3 条点评，现有 {len(items)} 条")
+        max_chars = _ITEM_MAX.get(form)
+        resolved = [_item(it, facts, f"第{i}页 items[{k}]", st, max_chars) for k, it in enumerate(items)]
         labels_seen = set()
         for k, r in enumerate(resolved):
             _need(r["label"] not in labels_seen, f"第{i}页 items[{k}] 的 label 与同页其它条重复：{r['label']}")
@@ -234,9 +256,23 @@ def check(spec: Mapping, facts: Mapping[str, dict]) -> dict:
         else:
             resolved_take = None
 
-        # the lead is its own content slot, so its sentence counts as cited on this page
+        # The figure's own sentences count as cited on this page, before the headline is checked: a headline is
+        # allowed to name the boundary number, and that number comes from the gauge's sentence.
+        thresholds = _thresholds(p.get("thresholds"), facts, i) if form == "threshold" else []
+        fact_ids.extend(t["fact"] for t in thresholds if t["fact"] not in fact_ids)
+        # A takeaway that cites the gauge's own sentence prints it twice on one slide: the gauge already shows it.
+        th_facts = {t["fact"] for t in thresholds}
+        if resolved_take is not None:
+            _need(resolved_take["fact"] not in th_facts,
+                  f"第{i}页 takeaway 与量规是同一句，等于把量规再说一遍：换一句本页小结，或留空")
+
+        # the lead is its own content slot, so its sentence counts as cited on this page.  A page drawn as a figure
+        # already puts a number at full size; a second one would compete with it.
         lead = None
-        if needs_lead:
+        if form != "text":
+            _need(not p.get("lead"),
+                  f"第{i}页要画 {form}，主数字已经在图里：不要另给 lead，把那个数放进 thresholds / lead 二选一")
+        elif needs_lead:
             l = p.get("lead")
             _need(isinstance(l, Mapping), f"第{i}页（{st}）须给出 lead（本页的主数字）")
             src = _fact(l.get("from"), facts, f"第{i}页 lead.from")
@@ -276,14 +312,13 @@ def check(spec: Mapping, facts: Mapping[str, dict]) -> dict:
                       f"换到另一栏，或换一句明确说到它的")
 
         # The form is the model's judgement; whether the material can carry it is the code's check.
-        form = p.get("form") or "text"
-        _need(form in FORMS, f"第{i}页 form 须为 {' / '.join(FORMS)}")
         mat = materials(fact_ids, facts)
         ok, why = form_supported(form, mat, resolved, side_labels)
         _need(ok, f"第{i}页要画 {form}（{FORMS[form]}），但这页的原料不支持：{why}")
 
         out.append({"id": pid, "structure": st, "form": form, "headline": headline, "lead": lead, "items": resolved,
                     "takeaway": resolved_take,
+                    "thresholds": thresholds,
                     "materials": {k: (len(v) if isinstance(v, (list, dict)) else v) for k, v in mat.items()},
                     "section": _label(p.get("section"), f"第{i}页 section", 16),
                     "labels": side_labels,
@@ -291,7 +326,91 @@ def check(spec: Mapping, facts: Mapping[str, dict]) -> dict:
     return {"schema_version": SCHEMA, "pages": out}
 
 
-def _item(it, facts: Mapping[str, dict], where: str, structure: str) -> dict:
+def _norm_op(raw: str) -> str | None:
+    s = raw.strip().replace(" ", "")
+    if s in _OP_CHARS:
+        return s
+    if s in (">=", "=>", "＞="):
+        return "≥"
+    if s in ("<=", "=<", "＜="):
+        return "≤"
+    if s in ("＞",):
+        return ">"
+    if s in ("＜",):
+        return "<"
+    return _WORD_OP.get(s)
+
+
+def _ops_in(text: str) -> set[str]:
+    """Every comparison the sentence itself makes.  Longest word first, then masked, so 不超过 does not also
+    report 超过 — otherwise a page could claim the inclusive boundary the sentence never wrote."""
+    found = {c for c in text if c in _OP_CHARS}
+    take = text
+    for w in sorted(_WORD_OP, key=len, reverse=True):
+        if w in take:
+            found.add(_WORD_OP[w])
+            take = take.replace(w, "\0" * len(w))
+    return found
+
+
+def _thresholds(raw, facts: Mapping[str, dict], i: int) -> list[dict]:
+    """The page's boundaries, each resolved against the sentence that states it.
+
+    An axis asserts "this measure splits at this value", so three things have to be true and all three are checked:
+    the value is a number that sentence contains, the comparison is the one that sentence uses (a model may not
+    widen ">" into "≥"), and the indicator names something that sentence actually talks about.  A range
+    ("90%-95%") cannot be split and is refused rather than drawn as a boundary it is not.
+    """
+    _need(isinstance(raw, list) and raw,
+          f"第{i}页要画阈值轴，须给出 thresholds（每条：indicator / op / value / fact）")
+    _need(len(raw) <= 4, f"第{i}页 thresholds 最多 4 条，现有 {len(raw)} 条")
+
+    out, seen = [], set()
+    for k, t in enumerate(raw):
+        where = f"第{i}页 thresholds[{k}]"
+        _need(isinstance(t, Mapping), f"{where} 须为对象")
+        fid = t.get("fact")
+        _fact(fid, facts, f"{where}.fact")
+        quote = facts[fid]["quote"]
+        ind = _label(t.get("indicator"), f"{where}.indicator", _INDICATOR_MAX)
+        _need(ind, f"{where} 须给出 indicator（这根量规量的是什么）")
+        _need(ind not in seen, f"{where} 的 indicator 与同页另一条重复：同一根量规不画两遍")
+        _need(shares_with(ind, quote),
+              f"{where} 的 indicator「{ind}」在本页句子里找不到：换一个句子说得出名字的指标")
+        seen.add(ind)
+        spans = {sp["token"]: sp for sp in number_spans(quote)}
+        value = str(t.get("value") or "").strip()
+        _need(value in spans,
+              f"{where} 的 value「{value}」不是来源句中的数字（可选：{'、'.join(spans) or '无'}）")
+        token, clause = value, spans[value]["clause"]
+
+        op_raw = str(t.get("op") or "").strip()
+        _need(op_raw, f"{where} 须给出 op（原文的比较符：≥ / > / ≤ / <）")
+        op = _norm_op(op_raw)
+        _need(op, f"{where} 的 op「{op_raw}」无法识别：用 ≥ / > / ≤ / <，或原文的「至少 / 不超过」")
+        head = token[0]
+        if head in _OP_CHARS:                     # the sentence prints the symbol itself
+            _need(op == head, f"{where} 的 op 与原文不符：原文写的是「{head}」，方案写成「{op}」")
+        else:                                     # word form: the sentence must contain a comparison to match
+            seen_ops = _ops_in(clause)
+            _need(seen_ops, f"{where} 的来源句没有比较符（「{clause}」），画不出阈值轴：改用文字，或换一句写明的")
+            _need(op in seen_ops,
+                  f"{where} 的 op「{op}」与原文不符：这一句表达的是 {'、'.join(sorted(seen_ops))}")
+
+        numeral = token[1:].strip() if head in _OP_CHARS else token
+        _need("-" not in numeral and "~" not in numeral and "至" not in numeral,
+              f"{where} 的数值是一个区间（「{token}」），阈值轴只能画一个分界点：换一个确定的数，或改用 bars")
+        _need(any(ch.isdigit() for ch in numeral), f"{where} 的 value「{value}」不含数字")
+
+        _need(len(clause) <= _CLAUSE_MAX,
+              f"{where} 的来源分句有 {len(clause)} 字，量规下的一行小字放不下 {_CLAUSE_MAX} 字：换一句更短的")
+        out.append({"indicator": ind, "op": op, "token": token, "numeral": numeral,
+                    "unit": _unit_of(numeral), "fact": fid, "clause": clause,
+                    "holds": op + numeral, "other": _OP_COMPLEMENT[op] + numeral})
+    return out
+
+
+def _item(it, facts: Mapping[str, dict], where: str, structure: str, max_chars: int | None = None) -> dict:
     """One point: a required short label, and the sentence(s) that state it.
 
     Two things are refused here rather than after rendering: a single sentence that opens with a pronoun (it would
@@ -307,8 +426,9 @@ def _item(it, facts: Mapping[str, dict], where: str, structure: str) -> dict:
     if len(parts) == 1:
         _need(not context_dependent(quote),
               f"{where} 的句子以指代开头，单独一页读不懂（「{quote[:16]}…」）：把上一句一并引用，或换一句自带主语的")
-    _need(len(quote) <= _ITEM_MAX[structure],
-          f"{where} 有 {len(quote)} 字，{structure} 的每栏最多放 {_ITEM_MAX[structure]} 字：换短句，或改用别的结构")
+    limit = max_chars or _ITEM_MAX[structure]
+    _need(len(quote) <= limit,
+          f"{where} 有 {len(quote)} 字，这页每栏最多放 {limit} 字：换短句，或改用别的结构")
     return {"label": label, "facts": [x["fact"] for x in parts], "quote": quote,
             "source_id": parts[0]["source_id"], "page_id": parts[0]["page_id"],
             "units": [x["unit_id"] for x in parts]}
@@ -333,14 +453,21 @@ def _labels(v, structure: str, i: int) -> list[str] | None:
 
 
 def contract(n: int = 4) -> dict:
-    """What a model writing this needs to see: one page per structure, with the fields each one requires."""
-    return {
-        "schema_version": SCHEMA,
-        "pages": [
-            {"id": "p1", "structure": "stat", "headline": "", "lead": {"value": "", "label": "", "from": ""},
-             "items": [{"fact": ""}], "takeaway": {"fact": ""}},
-            {"id": "p2", "structure": "points", "headline": "", "items": [{"fact": ""} for _ in range(3)]},
-            {"id": "p3", "structure": "compare", "headline": "", "items": [{"fact": ""} for _ in range(4)]},
-            {"id": "p4", "structure": "steps", "headline": "", "items": [{"fact": ""} for _ in range(3)]},
-        ][:n],
-    }
+    """What a model writing this needs to see: the forms it may ask for, and one page per structure.
+
+    ``forms`` is the menu with its requirement.  A model picks a form because the page's argument needs it; the
+    code then checks the requirement against the sentences.  ``materials(fact_ids, facts)`` is the other half of
+    that conversation — it lists the numbers, time points, thresholds and conditions the sentences actually hold,
+    so the model can choose a form the material can carry instead of guessing.
+    """
+    pages = [
+        {"id": "p1", "structure": "stat", "form": "text", "headline": "",
+         "lead": {"value": "", "label": "", "from": ""}, "items": [{"fact": ""}], "takeaway": {"fact": ""}},
+        {"id": "p2", "structure": "points", "form": "text", "headline": "", "items": [{"fact": ""} for _ in range(3)]},
+        {"id": "p3", "structure": "compare", "form": "text", "headline": "",
+         "items": [{"fact": ""} for _ in range(4)], "labels": ["", ""]},
+        {"id": "p4", "structure": "steps", "form": "text", "headline": "", "items": [{"fact": ""} for _ in range(3)]},
+        {"id": "p5", "structure": "stat", "form": "threshold", "headline": "",
+         "thresholds": [{"indicator": "", "op": "", "value": "", "fact": ""}]},
+    ]
+    return {"schema_version": SCHEMA, "forms": FORMS, "pages": pages[:n]}

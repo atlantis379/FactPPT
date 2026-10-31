@@ -100,7 +100,7 @@ def critical_tokens(text: str, terms: tuple[str, ...] | list[str] = ()) -> set[s
 
 
 _CLAUSE_BREAK = re.compile(r"[，,；;。！？!?：:、\n（）()\[\]【】]")
-_RANGE_JOIN = re.compile(r"^[~\-－—–至到]$")
+_RANGE_JOIN = re.compile(r"^[~\-－—–‐‑至到]$")
 # A bare integer in front of these is a classification number (2型, 1级), not a quantity.
 _CLASSIFIER = "型级线"
 _YEAR = re.compile(r"^(19|20)\d{2}$")

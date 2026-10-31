@@ -29,6 +29,14 @@ FACTS = {
              "source_id": "GOLD2026", "location": "PDF 第 40 页"},
     "severe": {"quote": "重度未控制患者的急性加重更频繁，恢复也更慢。",
                "source_id": "GOLD2026", "location": "PDF 第 41 页"},
+    "vas": {"quote": "呼吸困难视觉模拟评分≥5",
+            "source_id": "GOLD2026", "location": "PDF 第 44 页"},
+    "ster": {"quote": "对于中度/重度急性加重的患者，推荐使用全身性糖皮质激素，疗程不超过5天。",
+             "source_id": "GOLD2026", "location": "PDF 第 58 页"},
+    "abx": {"quote": "对于有脓痰、既往肺部感染史等的患者，推荐抗生素治疗总疗程为5天。",
+            "source_id": "GOLD2026", "location": "PDF 第 58 页"},
+    "age": {"quote": "适用于所有≥ 50 岁及以上的成人",
+            "source_id": "GOLD2026", "location": "PDF 第 71 页"},
 }
 
 
@@ -184,3 +192,101 @@ def test_a_deck_numbers_its_pages_and_carries_its_sections():
     html = render_deck(pages, source="来源：GOLD 2026")
     assert html.count('class="slide"') == 2
     assert "疾病负担" in html and "治疗" in html and "2 / 2" in html
+
+
+# ------------------------------------------------------------------- a figure the model asks for
+# A page may declare the visual form its argument needs.  Declaring it is judgement; meeting it is a fact the
+# code checks against the sentences — so a chart is never drawn from material that cannot fill it.
+
+def figure(**page) -> dict:
+    base = {"id": "f1", "structure": "stat", "form": "threshold", "lead": None,
+            "thresholds": [{"indicator": "呼吸困难评分", "op": "≥", "value": "≥5", "fact": "vas"}]}
+    base.update(page)
+    return {"schema_version": P.SCHEMA, "pages": [base]}
+
+
+def test_a_gauge_resolves_to_the_sentence_that_states_it():
+    th = P.check(figure(), FACTS)["pages"][0]["thresholds"][0]
+    assert th["token"] == "≥5" and th["op"] == "≥" and th["fact"] == "vas"
+    assert th["holds"] == "≥5" and th["other"] == "<5"
+    assert th["clause"] == "呼吸困难视觉模拟评分≥5"
+
+
+def test_a_word_comparison_is_matched_to_its_symbol():
+    th = P.check(figure(thresholds=[{"indicator": "激素疗程", "op": "不超过", "value": "5天",
+                                     "fact": "ster"}]), FACTS)["pages"][0]["thresholds"][0]
+    assert th["op"] == "≤" and th["holds"] == "≤5天" and th["other"] == ">5天"
+
+
+def test_a_gauge_may_not_widen_the_comparison_the_sentence_makes():
+    # "≥5" in the source must not become ≤5, and "不超过5天" must not become <5天: the boundary would then
+    # include cases the source excludes.
+    with pytest.raises(P.PresentationError, match="与原文不符"):
+        P.check(figure(thresholds=[{"indicator": "激素疗程", "op": "≥", "value": "5天", "fact": "ster"}]), FACTS)
+    with pytest.raises(P.PresentationError, match="与原文不符"):
+        P.check(figure(thresholds=[{"indicator": "呼吸困难评分", "op": "≤", "value": "≥5", "fact": "vas"}]), FACTS)
+
+
+def test_a_gauge_needs_a_number_the_sentence_actually_has():
+    with pytest.raises(P.PresentationError, match="不是来源句中的数字"):
+        P.check(figure(thresholds=[{"indicator": "激素疗程", "op": "≤", "value": "7天", "fact": "ster"}]), FACTS)
+
+
+def test_a_range_cannot_be_drawn_as_one_boundary():
+    with pytest.raises(P.PresentationError, match="是一个区间"):
+        P.check(figure(thresholds=[{"indicator": "未确诊比例", "op": ">", "value": "90-95%", "fact": "e"}]), FACTS)
+
+
+def test_a_sentence_without_a_comparison_cannot_be_a_gauge():
+    with pytest.raises(P.PresentationError, match="没有比较符"):
+        P.check(figure(thresholds=[{"indicator": "未确诊患者", "op": ">", "value": "70%", "fact": "a"}]), FACTS)
+
+
+def test_the_indicator_must_be_a_name_the_sentence_supports():
+    with pytest.raises(P.PresentationError, match="在本页句子里找不到"):
+        P.check(figure(thresholds=[{"indicator": "漏诊率", "op": "≥", "value": "≥5", "fact": "vas"}]), FACTS)
+
+
+def test_one_measure_is_drawn_once():
+    with pytest.raises(P.PresentationError, match="同一根量规不画两遍"):
+        P.check(figure(thresholds=[
+            {"indicator": "呼吸困难评分", "op": "≥", "value": "≥5", "fact": "vas"},
+            {"indicator": "呼吸困难评分", "op": "<", "value": "≥5", "fact": "vas"}]), FACTS)
+
+
+def test_a_threshold_page_carries_its_gauges_and_nothing_beside_them():
+    # One gauge plus a point gives the point the wider column and the figure ends up smaller than the text
+    # next to it.  The sentence that explains a boundary goes in takeaway, or on a page of its own.
+    with pytest.raises(P.PresentationError, match="不列 items"):
+        P.check(figure(items=[item("abx", "抗生素")]), FACTS)
+
+
+def test_a_page_holds_at_most_four_gauges():
+    with pytest.raises(P.PresentationError, match="最多 4 条"):
+        P.check(figure(thresholds=[
+            {"indicator": "呼吸困难评分", "op": "≥", "value": "≥5", "fact": "vas"},
+            {"indicator": "激素疗程", "op": "≤", "value": "5天", "fact": "ster"},
+            {"indicator": "成人接种", "op": "≥", "value": "50", "fact": "age"},
+            {"indicator": "未确诊患者", "op": ">", "value": "70%", "fact": "a"},
+            {"indicator": "症状恶化时长", "op": "≤", "value": "4-6周", "fact": "d"}]), FACTS)
+
+
+def test_a_figure_page_does_not_also_carry_a_lead():
+    with pytest.raises(P.PresentationError, match="主数字已经在图里"):
+        P.check(figure(lead={"value": "5", "label": "分界", "from": "vas"}), FACTS)
+
+
+
+
+def test_a_ceiling_puts_the_band_on_the_side_the_sentence_describes():
+    page = P.check(figure(thresholds=[{"indicator": "激素疗程", "op": "≤", "value": "5天", "fact": "ster"}]),
+                   FACTS)["pages"][0]
+    html = render_page(page, page_no=1, total=1, source="来源：GOLD 2026")
+    assert '<span class="hold">≤5天</span>' in html and '<span class="">&gt;5天</span>' in html
+    assert "疗程不超过5天" in html
+
+
+def test_a_floor_puts_the_band_on_the_other_side():
+    page = P.check(figure(), FACTS)["pages"][0]
+    html = render_page(page, page_no=1, total=1, source="来源：GOLD 2026")
+    assert '<span class="">&lt;5</span>' in html and '<span class="hold">≥5</span>' in html
