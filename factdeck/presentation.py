@@ -408,8 +408,12 @@ def _thresholds(raw, facts: Mapping[str, dict], i: int) -> list[dict]:
 
         _need(len(clause) <= _CLAUSE_MAX,
               f"{where} 的来源分句有 {len(clause)} 字，量规下的一行小字放不下 {_CLAUSE_MAX} 字：换一句更短的")
-        out.append({"indicator": ind, "op": op, "token": token, "numeral": numeral,
-                    "unit": _unit_of(numeral), "fact": fid, "clause": clause,
+        # The number and its unit are one measurement but two typographic objects: the renderer sets the unit at a
+        # fraction of the figure's size, so it needs them apart ("5天" → 5 + 天) while the label keeps the whole.
+        unit = _unit_of(numeral)
+        digits = numeral[: len(numeral) - len(unit)] if unit else numeral
+        out.append({"indicator": ind, "op": op, "token": token, "numeral": digits, "unit": unit,
+                    "fact": fid, "clause": clause,
                     "holds": op + numeral, "other": _OP_COMPLEMENT[op] + numeral})
     return out
 

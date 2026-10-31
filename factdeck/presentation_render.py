@@ -24,44 +24,44 @@ _CSS = """
 *{box-sizing:border-box;margin:0;padding:0}
 body{margin:0;background:#E4E8ED;font-family:__FONT__;-webkit-font-smoothing:antialiased}
 .slide{position:relative;width:1280px;height:720px;overflow:hidden;background:__CANVAS__;color:__INK__}
-.kicker{position:absolute;left:__PAD__px;top:38px;font-size:11pt;font-weight:700;letter-spacing:.16em;
+.kicker{position:absolute;left:__PAD__px;top:38px;font-size:12pt;font-weight:700;letter-spacing:.16em;
   text-transform:uppercase;color:__ACCENT__}
 .rule{position:absolute;left:__PAD__px;top:62px;width:56px;height:3px;background:__ACCENT__}
 .htitle{position:absolute;left:__PAD__px;top:78px;width:__CONTENTW__px;font-size:30pt;font-weight:700;
   line-height:1.22;letter-spacing:-.01em;color:__HEADLINE__}
-.main{position:absolute;left:__PAD__px;top:172px;width:__CONTENTW__px;height:430px}
-.take{position:absolute;left:__PAD__px;top:622px;width:__CONTENTW__px;height:52px;background:__TAKEBG__;
-  border-left:4px solid __ACCENT__;padding:0 18px;display:flex;align-items:center;font-size:14pt;
+.main{position:absolute;left:__PAD__px;top:172px;width:__CONTENTW__px;height:428px}
+.take{position:absolute;left:__PAD__px;top:608px;width:__CONTENTW__px;height:46px;background:__TAKEBG__;
+  border-left:4px solid __ACCENT__;padding:0 18px;display:flex;align-items:center;font-size:13.5pt;
   color:__HEADLINE__;overflow:hidden}
-.foot{position:absolute;left:__PAD__px;top:686px;width:__CONTENTW__px;height:22px;font-size:9pt;color:__CAPTION__}
+.foot{position:absolute;left:__PAD__px;top:670px;width:__CONTENTW__px;height:20px;font-size:10.5pt;color:__CAPTION__}
 .foot .row{float:left;width:820px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .foot .pg{float:right;font-variant-numeric:tabular-nums}
 
 /* stat — one number carries the page */
 .stat-num{font-size:104pt;font-weight:700;line-height:1;letter-spacing:-.03em;color:__PRIMARY__}
-.stat-label{font-size:15pt;font-weight:600;color:__HEADLINE__;margin-top:14px;line-height:1.35}
-.stat-src{font-size:9.5pt;color:__CAPTION__;margin-top:10px}
+.stat-label{font-size:12pt;font-weight:700;color:__HEADLINE__;margin-top:14px;line-height:1.35}
+.stat-src{font-size:10.5pt;color:__CAPTION__;margin-top:10px}
 .points{list-style:none}
-.points li b{display:block;color:__HEADLINE__;font-weight:700;margin-bottom:3px}
-.points li{position:relative;padding-left:24px;font-size:19pt;line-height:1.55;color:__INK__;margin-bottom:26px}
+.points li b{display:block;font-size:12pt;color:__HEADLINE__;font-weight:700;margin-bottom:4px}
+.points li{position:relative;padding-left:24px;font-size:18px;line-height:1.55;color:__INK__;margin-bottom:26px}
 .points li::before{content:"";position:absolute;left:0;top:12px;width:8px;height:8px;background:__ACCENT__;
   border-radius:50%}
 .cols{display:grid;gap:40px}
 .col{min-width:0}
 .col .hd{font-size:12pt;font-weight:700;letter-spacing:.1em;color:__ACCENT__;text-transform:uppercase;
   padding-bottom:8px;border-bottom:1px solid __LINE__;margin-bottom:16px}
-.col .lb{font-weight:700;color:__HEADLINE__;line-height:1.35;margin-top:6px}
-.col .n{font-size:11pt;font-weight:700;color:__ACCENT__;font-variant-numeric:tabular-nums;margin-bottom:2px}
+.col .lb{font-size:12pt;font-weight:700;color:__HEADLINE__;line-height:1.35;margin-top:6px}
+.col .n{font-size:12pt;font-weight:700;color:__ACCENT__;font-variant-numeric:tabular-nums;margin-bottom:2px}
 .cols .col:not(:last-child){margin-bottom:34px}
 .col p{font-size:inherit;line-height:1.55;color:__INK__;margin-top:5px}
 .steps{display:grid;gap:22px;align-items:start;position:relative}
 .steps::before{content:"";position:absolute;left:0;right:0;top:19px;height:1px;background:__LINE__}
 .step{position:relative;min-width:0}
-.step .dot{width:38px;height:38px;border-radius:50%;background:__PRIMARY__;color:#fff;font-size:13pt;font-weight:700;
+.step .dot{width:38px;height:38px;border-radius:50%;background:__PRIMARY__;color:#fff;font-size:12pt;font-weight:700;
   display:flex;align-items:center;justify-content:center;position:relative;z-index:1}
 .step .lb{margin-top:14px;font-weight:700;color:__HEADLINE__;line-height:1.35}
-.step p{margin-top:6px;font-size:15pt;line-height:1.45;color:__INK__}
-.step .tag{margin-top:8px;font-size:10pt;color:__CAPTION__}
+.step p{margin-top:6px;font-size:18px;line-height:1.5;color:__INK__}
+.step .tag{margin-top:8px;font-size:10.5pt;color:__CAPTION__}
 
 /* threshold — one gauge per indicator.  The track is a solid band split in two at the boundary, the half the
    sentence talks about filled in the accent and the other held back to a light tint, so the split is a shape
@@ -69,19 +69,21 @@ body{margin:0;background:#E4E8ED;font-family:__FONT__;-webkit-font-smoothing:ant
 .ths{display:grid;height:100%}
 .th{display:grid;grid-template-columns:var(--idw) 1fr;grid-template-areas:"ind ." "val track" ". ends" ". src";
   column-gap:48px;row-gap:4px;align-content:center;min-width:0}
-.th-ind{grid-area:ind;font-size:11.5pt;font-weight:700;letter-spacing:.1em;color:__ACCENT2__;line-height:1.3}
+.th-ind{grid-area:ind;font-size:12pt;font-weight:700;letter-spacing:.1em;color:__ACCENT2__;line-height:1.3}
 .th-val{grid-area:val;align-self:center;font-weight:700;line-height:1;letter-spacing:-.03em;color:__PRIMARY__;
   font-variant-numeric:tabular-nums;white-space:nowrap}
+/* §1.6: the unit rides at 1/4-1/3 of the number's size, on the same baseline — never at the number's size. */
+.th-unit{font-size:.32em;font-weight:700;letter-spacing:0;margin-left:4px}
 .th-track{grid-area:track;position:relative;display:flex;align-self:center;isolation:isolate}
 .th-half{flex:0 0 50%;position:relative;z-index:1}
 .th-half.hi{background:__ACCENT__}
 .th-half.lo{background:__SOFT__}
 .th-rule{position:absolute;left:50%;top:-8px;bottom:-8px;width:3px;margin-left:-1.5px;background:__PRIMARY__;
   z-index:2}
-.th-ends{grid-area:ends;display:flex;justify-content:space-between;gap:24px;margin-top:8px;font-size:10.5pt;
-  line-height:1.2;color:__CAPTION__;font-variant-numeric:tabular-nums}
+.th-ends{grid-area:ends;display:flex;margin-top:8px;font-size:12pt;line-height:1.2;
+  color:__CAPTION__;font-variant-numeric:tabular-nums}
 .th-ends .hold{color:__PRIMARY__;font-weight:700}
-.th-src{grid-area:src;margin-top:5px;font-size:10pt;line-height:1.4;color:__CAPTION__}
+.th-src{grid-area:src;margin-top:5px;font-size:10.5pt;line-height:1.45;color:__CAPTION__}
 """
 
 _TMPL = Template("""<!doctype html><html lang="zh-CN"><meta charset="utf-8">
@@ -138,10 +140,10 @@ def _body_points(p) -> str:
     n = len(p["items"])
     cols = 1 if n <= 3 else (2 if n <= 4 else 3)
     rows = -(-n // cols)
-    cells = "".join(f'<div class="col" data-check="fit"><div class="n">{k + 1:02d}</div>'
+    cells = "".join(f'<div class="col" data-check="fit">'
                     f'<div class="lb">{_esc(i["label"])}</div>'
-                    f'<p>{_esc(_txt(i["quote"]))}</p></div>' for k, i in enumerate(p["items"]))
-    size = "20pt" if cols == 1 else ("18pt" if cols == 2 else "16pt")
+                    f'<p>{_esc(_txt(i["quote"]))}</p></div>' for i in p["items"])
+    size = "21px" if cols == 1 else ("19px" if cols == 2 else "18px")
     return (f'<div class="cols" style="grid-template-columns:repeat({cols},1fr);'
             f'height:100%;align-content:safe center;font-size:{size}">{cells}</div>')
 
@@ -152,13 +154,13 @@ def _body_compare(p) -> str:
     sides = (items[:half], items[half:])
     labels = p.get("labels") or ["", ""]
 
-    def side(name: str, rows, offset: int) -> str:
-        lis = "".join(f'<p data-check="fit"><span class="n">{offset + k + 1:02d}</span>　'
-                      f'<b>{_esc(r["label"])}</b>{_esc(_txt(r["quote"]))}</p>' for k, r in enumerate(rows))
+    def side(name: str, rows) -> str:
+        lis = "".join(f'<p data-check="fit"><b>{_esc(r["label"])}</b>{_esc(_txt(r["quote"]))}</p>'
+                      for r in rows)
         hd = f'<div class="hd">{_esc(name)}</div>' if name else ""
         return f'<div class="col">{hd}{lis}</div>'
     return (f'<div class="cols" style="grid-template-columns:1fr 1fr;height:100%;align-content:safe center">'
-            f'{side(labels[0], sides[0], 0)}{side(labels[1], sides[1], len(sides[0]))}</div>')
+            f'{side(labels[0], sides[0])}{side(labels[1], sides[1])}</div>')
 
 
 def _body_steps(p) -> str:
@@ -187,14 +189,15 @@ def _th_row(t: dict, size: int, band_h: int) -> str:
     floor = t["op"] in (">", "≥")
     halves = ('<div class="th-half lo"></div><div class="th-half hi"></div>' if floor else
               '<div class="th-half hi"></div><div class="th-half lo"></div>')
-    left, right = (t["other"], t["holds"]) if floor else (t["holds"], t["other"])
-    lcls, rcls = ("" if floor else "hold"), ("hold" if floor else "")
+    align = "flex-end" if floor else "flex-start"
     return (f'<div class="th" data-check="fit">'
             f'<div class="th-ind">{_esc(t["indicator"])}</div>'
-            f'<div class="th-val" style="font-size:{size}pt">{_esc(t["token"])}</div>'
+            f'<div class="th-val" style="font-size:{size}pt">{_esc(t["numeral"])}'
+            + (f'<span class="th-unit">{_esc(t["unit"])}</span>' if t["unit"] else "")
+            + f'</div>'
             f'<div class="th-track" style="height:{band_h}px">{halves}<div class="th-rule"></div></div>'
-            f'<div class="th-ends"><span class="{lcls}">{_esc(left)}</span>'
-            f'<span class="{rcls}">{_esc(right)}</span></div>'
+            f'<div class="th-ends" style="justify-content:{align}">'
+            f'<span class="hold">{_esc(t["holds"])}</span></div>'
             f'<div class="th-src">{_esc(_txt(t["clause"]))}</div></div>')
 
 

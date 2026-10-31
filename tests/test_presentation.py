@@ -282,14 +282,16 @@ def test_a_figure_page_does_not_also_carry_a_lead():
 
 
 def test_a_ceiling_puts_the_band_on_the_side_the_sentence_describes():
+    # ≤ holds below the boundary, so the filled half and its label sit on the left.
     page = P.check(figure(thresholds=[{"indicator": "激素疗程", "op": "≤", "value": "5天", "fact": "ster"}]),
                    FACTS)["pages"][0]
     html = render_page(page, page_no=1, total=1, source="来源：GOLD 2026")
-    assert '<span class="hold">≤5天</span>' in html and '<span class="">&gt;5天</span>' in html
+    assert 'justify-content:flex-start' in html and '<span class="hold">≤5天</span>' in html
     assert "疗程不超过5天" in html
 
 
 def test_a_floor_puts_the_band_on_the_other_side():
+    # ≥ holds above the boundary: filled half on the right, and its label with it.
     page = P.check(figure(), FACTS)["pages"][0]
     html = render_page(page, page_no=1, total=1, source="来源：GOLD 2026")
-    assert '<span class="">&lt;5</span>' in html and '<span class="hold">≥5</span>' in html
+    assert 'justify-content:flex-end' in html and '<span class="hold">≥5</span>' in html
