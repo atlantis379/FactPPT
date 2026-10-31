@@ -49,6 +49,8 @@ FORMS: dict[str, str] = {
 # page (a split over a set of bars).  Each kind has its own data contract, checked against the sentences — the
 # model decides which parts and in what order, the code decides their geometry.
 FIGURES: dict[str, str] = {"split": FORMS["threshold"], "bars": FORMS["bars"]}
+# A single part is reported under the shorthand the model is told about, so the answer and the menu share words.
+_FORM_OF = {"split": "threshold", "bars": "bars"}
 MAX_PARTS = 3
 MAX_BARS = 6
 
@@ -300,7 +302,8 @@ def check(spec: Mapping, facts: Mapping[str, dict]) -> dict:
         mat = materials(fact_ids, facts)
 
         out.append({"id": pid, "structure": st, "role": role,
-                    "form": "text" if not figures else (figures[0]["kind"] if len(figures) == 1 else "composite"),
+                    "form": "text" if not figures else (
+                        _FORM_OF[figures[0]["kind"]] if len(figures) == 1 else "composite"),
                     "figure": figures,
                     "headline": headline, "lead": lead, "items": resolved,
                     "weights": [r["weight"] for r in resolved],
