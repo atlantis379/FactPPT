@@ -99,6 +99,65 @@ def critical_tokens(text: str, terms: tuple[str, ...] | list[str] = ()) -> set[s
     return tokens
 
 
+_CLAUSE_BREAK = re.compile(r"[，,；;。！？!?：:、\n（）()\[\]【】]")
+_RANGE_JOIN = re.compile(r"^[~\-－—–至到]$")
+# A bare integer in front of these is a classification number (2型, 1级), not a quantity.
+_CLASSIFIER = "型级线"
+_YEAR = re.compile(r"^(19|20)\d{2}$")
+
+
+def _token_of(m: re.Match) -> str:
+    """The same normalised form ``critical_tokens`` produces, for one match of ``_num_re``."""
+    op, a, sep, b, unit = m.group(1) or "", m.group(2).replace(",", ""), m.group(3), m.group(4), m.group(5) or ""
+    op = {">=": "≥", "<=": "≤"}.get(op, op)
+    return f"{op}{a}" + (f"-{b.replace(',', '')}" if b else "") + unit.lower()
+
+
+def number_spans(text: str) -> list[dict]:
+    """Every quantity in `text` with the smallest complete clause around it, verbatim, plus its offsets.
+
+    A page needs one number to carry its visual weight; the clause is what makes that number readable on its own
+    (``70%`` alone means nothing, ``其中约70%为2型炎症`` does).  Nothing here is authored: the clause is a slice of the
+    source sentence, so a caller can show the number and still trace it to one place in the document.
+
+    Adjacent values joined by a range mark (``5%~10%``) are one span, not two.  Classification numbers (``2型``),
+    years and anything the cut already flagged as a chart dump are not quantities and are left out.
+    """
+    hits = []
+    for m in _num_re().finditer(text):
+        token = _token_of(m)
+        plain = re.fullmatch(r"(\d+)([^\d]*)", token)
+        if plain and _YEAR.match(plain.group(1)):                       # 2024年 is a date, not a measure
+            continue
+        if plain and not plain.group(2) and text[m.end():m.end() + 1] in _CLASSIFIER:
+            continue                                                    # 2型炎症 / 1级推荐
+        hits.append({"token": token, "m": m})
+    merged = []
+    for h in hits:                                                      # 5% + ~ + 10% → one span
+        if merged and _RANGE_JOIN.match(text[merged[-1]["end_m"].end():h["m"].start()].strip() or ""):
+            prev = merged[-1]
+            a, b = prev["m"].group(2).replace(",", ""), h["m"].group(2).replace(",", "")
+            unit = (h["m"].group(5) or prev["m"].group(5) or "").lower()
+            prev["token"], prev["end_m"] = f"{a}-{b}{unit}", h["m"]
+            continue
+        merged.append({**h, "end_m": h["m"]})
+    out, seen = [], set()
+    for item in merged:
+        m, last = item["m"], item["end_m"]
+        start = 0
+        for br in _CLAUSE_BREAK.finditer(text, 0, m.start()):
+            start = br.end()
+        nxt = _CLAUSE_BREAK.search(text, last.end())
+        end = nxt.start() if nxt else len(text)
+        lead = len(text[start:end]) - len(text[start:end].lstrip())
+        clause = text[start:end].strip()
+        if not clause or clause in seen:                                # one anchor per clause
+            continue
+        seen.add(clause)
+        out.append({"token": item["token"], "clause": clause, "start": start + lead, "end": end})
+    return out
+
+
 def split_fragments(display: str) -> list[str]:
     return [p for p in re.split(r"[,;、…/():\s·]+|\.{3}", canon(display)) if p]
 
