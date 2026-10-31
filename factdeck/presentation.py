@@ -31,6 +31,24 @@ STRUCTURES: dict[str, tuple[int, int, bool]] = {
     "steps": (3, 5, False),      # an ordered chain
 }
 
+# The visual form a page asks for, and what the material must contain before the code lets it be drawn that way.
+# A page may always fall back to text; it may not claim a chart its sentences cannot fill.  Declaring the form is the
+# model's judgement (it knows what the page is arguing); meeting the requirement is a fact the code can check.
+FORMS: dict[str, str] = {
+    "text": "无要求：文字版式",
+    "bars": "≥2 个可比数值，且来自 ≥2 句（同一量纲：百分比 / 倍数 / 例数）",
+    "trend": "≥3 个不同的时间量（周 / 月 / 年），可连成一条线",
+    "threshold": "≥1 个带比较符或「至少 / 超过 / 不超过」的阈值",
+    "steps": "≥3 条要点，构成先后顺序",
+    "compare": "两侧各有名字，且两侧都有句子",
+    "decision": "≥1 个条件句（若…则… / 在…情况下 / 对于…）",
+}
+
+_TIME_UNITS = ("周", "个月", "月", "年", "天", "小时", "分钟")
+_OP_CHARS = ("≥", "≤", ">", "<")
+_THRESHOLD_WORDS = ("至少", "超过", "不超过", "不高于", "不低于", "高于", "低于", "最多", "不少于", "以上", "以下")
+_CONDITION_WORDS = ("若", "如果", "对于", "当", "在…情况下", "一旦", "需要时")
+
 _HEADLINE_MAX = 60
 _LABEL_MAX = 18
 _TAKEAWAY_MAX = 52
@@ -52,6 +70,87 @@ def context_dependent(text: str) -> bool:
     """Does this sentence only make sense with the one before it?"""
     t = text.strip()
     return bool(_CTX_OPEN.match(t)) or any(p in t for p in _CTX_PHRASE)
+
+
+_UNIT_SUFFIX = tuple(sorted({"%", "倍", "例", "人", "次", "天", "周", "个月", "月", "年", "小时", "分钟", "分",
+                             "级", "岁", "mg/L", "细胞/微升", "μL", "mL", "/分"}, key=len, reverse=True))
+
+
+def _unit_of(token: str) -> str:
+    for u in _UNIT_SUFFIX:
+        if token.endswith(u):
+            return u
+    return ""
+
+
+def materials(fact_ids, facts: Mapping[str, dict]) -> dict:
+    """What shapes these sentences actually contain — what a page's form has to be chosen from.
+
+    A model cannot judge 'this page should be a trend line' without knowing whether the sentences hold time points.
+    This is that inventory: the numbers, the ones in time units, the ones that are thresholds, the units that have two
+    or more values to compare, and the sentences that state a condition.
+    """
+    from collections import defaultdict
+
+    numbers, timeline, thresholds, by_unit = [], [], [], defaultdict(list)
+    for fid in fact_ids:
+        q = facts[fid]["quote"]
+        for sp in number_spans(q):
+            item = {"token": sp["token"], "clause": sp["clause"], "fact": fid}
+            numbers.append(item)
+            unit = _unit_of(sp["token"])
+            if unit in _TIME_UNITS:
+                timeline.append(item)
+            if sp["token"][:1] in _OP_CHARS or any(w in sp["clause"] for w in _THRESHOLD_WORDS):
+                thresholds.append(item)
+            if unit:
+                by_unit[unit].append(item)
+    comparable = {u: v for u, v in by_unit.items()
+                  if len({x["token"] for x in v}) >= 2 and len({x["fact"] for x in v}) >= 2}
+    conditions = [fid for fid in fact_ids
+                  if any(w in facts[fid]["quote"][:14] for w in _CONDITION_WORDS)]
+    return {"numbers": numbers, "timeline": timeline, "thresholds": thresholds,
+            "comparable": comparable, "conditions": conditions}
+
+
+def form_supported(form: str, mat: dict, items=None, labels=None) -> tuple[bool, str]:
+    """Can the material on this page carry that form?  Returns (ok, what is missing or the nearest form that fits)."""
+    ok = _form_fits(form, mat, items, labels)
+    if ok:
+        return True, ""
+    fits = [f for f in ("compare", "bars", "threshold", "steps", "decision")
+            if f != form and _form_fits(f, mat, items, labels)]
+    why = _FORM_WHY.get(form, "未知形式")
+    if form == "trend":
+        why = f"只有 {len({x['token'] for x in mat['timeline']})} 个时间量，连不成线（需要 ≥3 个不同的时点）"
+    return False, f"{why}。按现有原料可以改画：{'、'.join(fits[:3]) or '文字'}"
+
+
+_FORM_WHY = {
+    "bars": "没有两项以上可比的同量纲数值（百分比 / 倍数 / 例数）",
+    "threshold": "没有带比较符或「至少 / 不超过」这类阈值的数值",
+    "steps": "要点少于 3 条，构不成步骤",
+    "compare": "对照需要两侧各有名字，且两侧都有句子",
+    "decision": "没有条件句（若…则… / 对于…）",
+}
+
+
+def _form_fits(form: str, mat: dict, items=None, labels=None) -> bool:
+    if form == "text":
+        return True
+    if form == "bars":
+        return bool(mat["comparable"])
+    if form == "trend":
+        return len({x["token"] for x in mat["timeline"]}) >= 3
+    if form == "threshold":
+        return bool(mat["thresholds"])
+    if form == "steps":
+        return bool(items) and len(items) >= 3
+    if form == "compare":
+        return bool(labels) and len(labels) == 2 and bool(items) and len(items) >= 2
+    if form == "decision":
+        return bool(mat["conditions"])
+    return False
 
 
 def shares_with(label: str, text: str) -> bool:
@@ -176,8 +275,16 @@ def check(spec: Mapping, facts: Mapping[str, dict]) -> dict:
                       f"第{i}页 items[{k}] 的句子没有提到「{side_labels[side]}」，放到这一栏会替它作原文没有的归属："
                       f"换到另一栏，或换一句明确说到它的")
 
-        out.append({"id": pid, "structure": st, "headline": headline, "lead": lead, "items": resolved,
+        # The form is the model's judgement; whether the material can carry it is the code's check.
+        form = p.get("form") or "text"
+        _need(form in FORMS, f"第{i}页 form 须为 {' / '.join(FORMS)}")
+        mat = materials(fact_ids, facts)
+        ok, why = form_supported(form, mat, resolved, side_labels)
+        _need(ok, f"第{i}页要画 {form}（{FORMS[form]}），但这页的原料不支持：{why}")
+
+        out.append({"id": pid, "structure": st, "form": form, "headline": headline, "lead": lead, "items": resolved,
                     "takeaway": resolved_take,
+                    "materials": {k: (len(v) if isinstance(v, (list, dict)) else v) for k, v in mat.items()},
                     "section": _label(p.get("section"), f"第{i}页 section", 16),
                     "labels": side_labels,
                     "span": None if p.get("span") is None else [str(x) for x in p["span"]]})
