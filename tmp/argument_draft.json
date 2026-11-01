@@ -1,0 +1,28 @@
+{
+ "schema_version": "argument.v1",
+ "draft": "第一稿：模型读完 83 条事实后按自然写法提出，未刻意回避会被拒绝的句子",
+ "claims": [
+  {"id": "c1", "grade": "L3", "text": "全球高达 70% 的成人患者未被确诊", "evidence": ["ud-70"]},
+  {"id": "c2", "grade": "L3", "text": "27 国研究中 81% 的病例未被确诊", "evidence": ["ud-81"]},
+  {"id": "c3", "grade": "L3", "text": "这些国家中超过 90-95% 的病例未被确诊", "evidence": ["ud-lmic"]},
+  {"id": "c4", "grade": "L3", "text": "相对同龄人，急性加重风险高出 15.5 倍", "evidence": ["ud-exac"]},
+  {"id": "c5", "grade": "L3", "text": "呼吸系统死亡风险高出 4.3 倍", "evidence": ["ud-death"]},
+  {"id": "c6", "grade": "L3", "text": "支气管扩张后 FEV1/FVC 低于 0.7 即可确诊", "evidence": ["dx-criteria"]},
+  {"id": "c7", "grade": "L3", "text": "mMRC 达到 2 是轻与重呼吸困难的分界", "evidence": ["as-mmrc"]},
+  {"id": "c8", "grade": "L3", "text": "CAAT 的等效临界值为 10 分", "evidence": ["as-cat"]},
+  {"id": "c9", "grade": "L3", "text": "一次中度急性加重即可作为升级阈值", "evidence": ["hl-abe"]},
+  {"id": "c10", "grade": "L3", "text": "C 组与 D 组合并为 E 组", "evidence": ["as-abe"]},
+  {"id": "c11", "grade": "L3", "text": "A 组患者都应接受支气管扩张剂", "evidence": ["tx-a"]},
+  {"id": "c12", "grade": "L3", "text": "LABA+LAMA 是 E 组的初始治疗首选", "evidence": ["tx-e"]},
+  {"id": "c13", "grade": "L3", "text": "不鼓励 COPD 使用 LABA+ICS", "evidence": ["tx-ics"]},
+  {"id": "c14", "grade": "L4", "text": "推荐全身激素，疗程不超过 5 天", "evidence": ["ex-steroid"],
+   "boundary": "适用于中度或重度急性加重"},
+  {"id": "c15", "grade": "L4", "text": "推荐抗生素疗程 5 天", "evidence": ["ex-abx"],
+   "boundary": "适用于有脓痰或既往肺部感染史的患者"},
+  {"id": "c16", "grade": "L3", "text": "嗜酸性粒细胞达到 100 细胞/微升时可加用 ICS", "evidence": ["fu-eos"]},
+  {"id": "c17", "grade": "L3", "text": "嗜酸性粒细胞达到 300 细胞/微升时降级更易加重", "evidence": ["fu-down"]},
+  {"id": "c18", "grade": "L3", "text": "急性加重恢复最长可达 4-6 周", "evidence": ["ex-recover"]},
+  {"id": "c19", "grade": "L3", "text": "肺康复改善所有严重程度患者的运动能力", "evidence": ["np-rehab"]},
+  {"id": "c20", "grade": "L3", "text": "RSV 每年导致约 60,000-160,000 例老年住院", "evidence": ["pv-rsv"]}
+ ]
+}
