@@ -21,7 +21,7 @@
   display:grid;grid-template-rows:auto 1fr auto;gap:8px
 }
 .L-tl-algo .takeaway{
-  font-size:11.5pt;font-weight:600;color:var(--primary);padding:2px 0 4px;
+  font-size:14pt;font-weight:600;color:var(--primary);padding:2px 0 4px;
   border-bottom:1px solid var(--line)
 }
 .L-tl-algo .diagram{
@@ -32,10 +32,10 @@
 }
 .L-tl-algo .node{
   background:var(--node-fill,#F2F2F2);border:1px solid var(--line);
-  border-radius:2px;padding:10px 12px;text-align:center
+  border-radius:2px;padding:16px 20px;text-align:center
 }
-.L-tl-algo .node .h{font-size:12.5pt;font-weight:700;color:var(--ink);line-height:1.25}
-.L-tl-algo .node .b{font-size:10pt;font-weight:400;color:var(--muted);margin-top:4px;line-height:1.35}
+.L-tl-algo .node .h{font-size:16pt;font-weight:700;color:var(--ink);line-height:1.25}
+.L-tl-algo .node .b{font-size:13pt;font-weight:400;color:var(--muted);margin-top:6px;line-height:1.4}
 .L-tl-algo .node.is-start{background:var(--primary);border-color:var(--primary)}
 .L-tl-algo .node.is-start .h,.L-tl-algo .node.is-start .b{color:#fff}
 .L-tl-algo .node.is-start .b{color:rgba(255,255,255,0.85)}
@@ -44,17 +44,17 @@
   box-shadow:inset 0 0 0 1px var(--accent)
 }
 .L-tl-algo .node.is-decision .thr{
-  margin-top:6px;display:inline-block;font-size:11pt;font-weight:700;
-  color:var(--primary);background:var(--takeaway-bg);padding:3px 10px;border-radius:2px;
+  margin-top:8px;display:inline-block;font-size:14pt;font-weight:700;
+  color:var(--primary);background:var(--takeaway-bg);padding:4px 12px;border-radius:2px;
   border-left:3px solid var(--accent)
 }
 .L-tl-algo .node.is-yes{background:var(--node-alt,#E8EEF2);border-color:#B8C9D6}
 .L-tl-algo .node.is-no{background:var(--surface2,#E6E6E6);border-style:dashed}
 .L-tl-algo .node.is-follow{text-align:left;background:var(--paper)}
 .L-tl-algo .start-wrap{grid-column:1 / -1;display:flex;justify-content:center}
-.L-tl-algo .start-wrap .node{min-width:420px;max-width:560px}
+.L-tl-algo .start-wrap .node{min-width:480px;max-width:720px}
 .L-tl-algo .dec-wrap{grid-column:1 / -1;display:flex;justify-content:center}
-.L-tl-algo .dec-wrap .node{min-width:480px;max-width:640px}
+.L-tl-algo .dec-wrap .node{min-width:560px;max-width:800px}
 .L-tl-algo .branch-row{grid-column:1 / -1;display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
 .L-tl-algo .branch{
   display:flex;flex-direction:column;align-items:center;gap:6px
@@ -63,18 +63,18 @@
   display:flex;flex-direction:column;align-items:center;gap:2px;width:100%
 }
 .L-tl-algo .edge .line{
-  width:0;height:18px;border-left:2px solid var(--branch-yes,var(--primary))
+  width:0;height:26px;border-left:2px solid var(--branch-yes,var(--primary))
 }
 .L-tl-algo .edge.is-dashed .line{
-  border-left:2px dashed var(--branch-no,#888);height:18px
+  border-left:2px dashed var(--branch-no,#888);height:26px
 }
 .L-tl-algo .edge .lab{
-  font-size:9.5pt;font-weight:700;color:var(--primary);letter-spacing:0.02em;
+  font-size:12pt;font-weight:700;color:var(--primary);letter-spacing:0.02em;
   background:var(--canvas);padding:0 6px;white-space:nowrap
 }
 .L-tl-algo .edge.is-dashed .lab{color:var(--branch-no,#888);font-weight:600}
 .L-tl-algo .no-list{
-  margin-top:6px;text-align:left;font-size:10pt;color:var(--muted);line-height:1.45;
+  margin-top:8px;text-align:left;font-size:13pt;color:var(--muted);line-height:1.5;
   columns:2;column-gap:12px
 }
 .L-tl-algo .no-list li{list-style:none;padding-left:10px;position:relative;break-inside:avoid}
@@ -86,7 +86,7 @@
 }
 .L-tl-algo .follow-row .node{flex:1;min-width:0}
 .L-tl-algo .vconn{
-  grid-column:1 / -1;display:flex;justify-content:center;height:16px
+  grid-column:1 / -1;display:flex;justify-content:center;height:24px
 }
 .L-tl-algo .vconn span{
   display:block;width:0;height:100%;border-left:2px solid var(--primary)
@@ -106,7 +106,7 @@
     {% if page.figure %}<div class="gfig" data-slot="figure">{{ page.figure }}</div>{% endif %}
   </div>
   <div class="gaccent" data-shape="gold-accent"></div>
-  <div class="body">
+  <div class="body" data-check="fit">
     {% if page.takeaway %}<div class="takeaway" data-slot="takeaway">{{ page.takeaway }}</div>{% endif %}
     <div class="diagram" data-slot="diagram">
       <div class="start-wrap">
@@ -153,7 +153,7 @@
       {% if page.follow_nodes %}
       <div class="follow-row" style="align-items:stretch">
         <div style="flex:0 0 48%;display:flex;flex-direction:column;align-items:center;gap:4px">
-          <div class="vconn" style="height:14px"><span></span></div>
+          <div class="vconn" style="height:24px"><span></span></div>
           <div style="display:flex;gap:10px;width:100%;align-items:stretch">
           {% for n in page.follow_nodes %}
             <div class="node is-follow" data-shape="follow-node" style="flex:1">
@@ -161,7 +161,7 @@
               {% if n.body %}<div class="b" data-slot="body">{{ n.body }}</div>{% endif %}
             </div>
             {% if not loop.last %}
-            <div style="flex:0 0 18px;display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:14pt;font-weight:700">→</div>
+            <div style="flex:0 0 22px;display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:16pt;font-weight:700">→</div>
             {% endif %}
           {% endfor %}
           </div>

@@ -818,10 +818,10 @@ TEMPLATE_DECK_RULES = [
     "本项目走模板库主线：每页写成 {\"id\", \"layout\": \"template\", \"title\": 引用, \"template\": {\"layout\": 版式编号, \"fill\": 填充}} "
     "（封面、章节页另写 template.kind 为 \"cover\" / \"section\"，版式编号同为 cover / section）。不写 composed / free / bullets 等旧版式；"
     "旧版式的构图规则不适用。版式编号与槽位见 template_library。",
-    "选版式按内容的逻辑关系与数据形状（template_library 中每个版式的 relation_zh）：条件/阈值判断用 algorithm_tree，多行效应量用 forest_plot，"
+    "版式由你决定，按内容怎么讲来选（template_library 中每个版式的 relation_zh 供参考）：条件/阈值判断用 algorithm_tree，多行效应量用 forest_plot，"
     "两组终点用 endpoint_readout，步骤用 flow，时间先后用 timeline，A vs B 对照用 comparison，多行多列用 data_table_highlight，并列要点才用 key_points。"
-    "程序的选版式器最终决定：写的版式数据不够时会降级（downgrades_to）；没有可用填充的页面被拒。拿不准时可在 template.fills 里为降级目标再写一份填充。"
-    "相邻内容页尽量不同版式；内容支持时图表页（is_chart）不少于三分之一。",
+    "代码只检查你选的版式：数据不够（见各版式的 requires）就退回这一页并写明缺什么，不会改成另一个版式，也不会为了节奏或图表占比换版式。"
+    "相邻页是否换版式、这一页是不是图表，由你安排。选择器的参考意见记在结果里，不覆盖你的选择。",
     "slots 的写法：\"*≤16\" 表示必填、至多 16 字，\"≤16\" 为选填；\"name[≤4]\" 是至多 4 项的列表，值为每项的槽位；\"object\" 为对象（如 axis 刻度）；空串表示没有字数限制，多为图上画的数值（直接写数字）。"
     "填充按版式的 slots 写：每个显示文字是 {\"fact\": id} 或 {\"text\": 作者标签}（作者标签只组织和命名，不带数字、药名、比较）；"
     "不得写原样字符串。title 由页面 title 填入，填充中不写。图上画的数值（柱高、点估计、CI 上下限、周数、年份）直接写数字，"

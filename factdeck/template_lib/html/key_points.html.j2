@@ -1,8 +1,13 @@
 {% if page.variant == "evidence_takeaways" %}{% include "evidence_takeaways.html.j2" %}{% else %}
-{# Key-points — tonal cards with accent rail + watermark index; NOT identical outline boxes. #}
+{# Key-points — tonal cards with accent rail + small index; cards and type are sized to the content
+   (fill._kp_scale), so a light page is a centred band of cards, not tall empty boxes. #}
 {% set items = page["items"] %}
+{% set sc = page.scale or {"body_pt": 14.5, "head_pt": 22, "sub_pt": 14, "card_h": 500} %}
 {% set n = items|length %}
 {% set cols = n if n <= 6 else 6 %}
+{# spare height goes 30 % above the cards, 70 % below: anchored under the title, not floating mid-page #}
+{% set spare = page.zones_px.body_card.h - 12 - sc.card_h - (90 if page.takeaway else 0) %}
+{% set lift = (8 + (spare * 0.3 if spare > 0 else 0))|round|int %}
 <style>
 .L-tl-kp{background:var(--canvas)}
 .L-tl-kp .section{
@@ -20,11 +25,11 @@
 .L-tl-kp .body-card{
   position:absolute;left:{{ page.zones_px.body_card.x }}px;top:{{ page.zones_px.body_card.y }}px;
   width:{{ page.zones_px.body_card.w }}px;height:{{ page.zones_px.body_card.h }}px;
-  background:transparent;border:none;border-radius:0;padding:8px 4px 4px;
-  display:flex;flex-direction:column;gap:20px
+  background:transparent;border:none;border-radius:0;padding:{{ lift }}px 4px 4px;
+  display:flex;flex-direction:column;justify-content:flex-start;gap:20px
 }
 .L-tl-kp .pillars{
-  flex:1;display:grid;grid-template-columns:repeat({{ cols }},1fr);gap:20px;min-height:0
+  display:grid;grid-template-columns:repeat({{ cols }},1fr);grid-template-rows:{{ sc.card_h }}px;gap:20px;min-height:0
 }
 .L-tl-kp .pillar{
   position:relative;border:none;border-radius:14px;background:var(--paper);
@@ -40,31 +45,29 @@
   box-shadow:0 12px 32px var(--shadow);color:var(--on-accent)
 }
 .L-tl-kp .pillar.is-lead::before{background:rgba(255,255,255,0.35)}
-.L-tl-kp .pillar .wm{
-  position:absolute;right:10px;top:4px;font-size:64pt;font-weight:700;line-height:1;
-  color:var(--accent);opacity:0.10;letter-spacing:-0.04em;pointer-events:none;user-select:none
-}
-.L-tl-kp .pillar.is-lead .wm{color:#fff;opacity:0.18}
+.L-tl-kp .pillar .top{display:flex;align-items:baseline;gap:12px;margin-bottom:10px;max-width:100%}
+.L-tl-kp .pillar .idx{font-size:13pt;font-weight:700;line-height:1.2;color:var(--accent);letter-spacing:0.06em;white-space:nowrap}
+.L-tl-kp .pillar.is-lead .idx{color:var(--accent-on-dark)}
 .L-tl-kp .pillar .tag{
   font-size:11pt;font-weight:700;color:var(--accent);border:none;border-radius:0;
-  padding:0;margin-bottom:14px;letter-spacing:0.14em;text-transform:uppercase;
+  padding:0;letter-spacing:0.14em;text-transform:uppercase;
   white-space:nowrap;overflow:hidden;max-width:100%;background:transparent
 }
 .L-tl-kp .pillar.is-lead .tag{color:var(--accent-on-dark)}
 .L-tl-kp .pillar .heading{
-  font-size:{% if cols >= 6 %}18pt{% elif cols == 4 %}22pt{% else %}26pt{% endif %};
-  font-weight:700;color:var(--headline);line-height:1.15;margin-bottom:8px;
+  font-size:{{ sc.head_pt }}pt;
+  font-weight:700;color:var(--headline);line-height:1.18;margin-bottom:10px;
   overflow:hidden;max-width:100%;letter-spacing:-0.015em;position:relative;z-index:1
 }
 .L-tl-kp .pillar.is-lead .heading{color:#fff}
 .L-tl-kp .pillar .sub{
-  font-size:14pt;font-weight:600;color:var(--accent);margin-bottom:10px;overflow:hidden;max-width:100%;
+  font-size:{{ sc.sub_pt }}pt;font-weight:600;color:var(--accent);margin-bottom:10px;overflow:hidden;max-width:100%;
   position:relative;z-index:1
 }
 .L-tl-kp .pillar.is-lead .sub{color:var(--accent-on-dark)}
 .L-tl-kp .pillar .body{
-  font-size:{% if cols >= 6 %}12.5pt{% else %}14.5pt{% endif %};font-weight:400;color:var(--muted);
-  line-height:1.45;overflow:hidden;max-width:100%;position:relative;z-index:1
+  font-size:{{ sc.body_pt }}pt;font-weight:400;color:var(--muted);
+  line-height:1.5;overflow:hidden;max-width:100%;position:relative;z-index:1
 }
 .L-tl-kp .pillar.is-lead .body{color:rgba(255,255,255,0.88)}
 .L-tl-kp .takeaway{
@@ -92,9 +95,9 @@
   <div class="body-card" data-shape="body-card">
     <div class="pillars" data-slot="items" data-count="{{ n }}">
       {% for it in items %}
-      <div class="pillar{% if loop.first and n <= 4 %} is-lead{% endif %}" data-item="{{ it.index }}">
-        <div class="wm" aria-hidden="true">{% if it.index < 10 %}0{% endif %}{{ it.index }}</div>
-        {% if it.tag %}<div class="tag" data-slot="tag">{{ it.tag }}</div>{% endif %}
+      <div class="pillar{% if loop.first and n <= 4 %} is-lead{% endif %}" data-item="{{ it.index }}" data-check="fit">
+        <div class="top"><div class="idx" aria-hidden="true">{% if it.index < 10 %}0{% endif %}{{ it.index }}</div>
+        {% if it.tag %}<div class="tag" data-slot="tag">{{ it.tag }}</div>{% endif %}</div>
         <div class="heading" data-slot="heading">{{ it.heading }}</div>
         {% if it.sub %}<div class="sub" data-slot="sub">{{ it.sub }}</div>{% endif %}
         {% if it.body %}<div class="body" data-slot="body">{{ it.body }}</div>{% endif %}

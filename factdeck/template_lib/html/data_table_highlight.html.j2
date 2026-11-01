@@ -1,5 +1,11 @@
 {# Data table — 2–4 data columns, zebra greys, at most one highlighted row, footnotes; optional takeaway rail (without it the table spans the body and wording cells wrap). Native-table ready. #}
 {% import "_pharma_macros.html.j2" as ph %}
+{# few rows: number rows grow (up to 64 px; cells long enough to wrap keep 13 pt and their own height) so the table fills about 80 % of the body instead of its top third #}
+{% set nrows = page.rows|length %}
+{% set ns = namespace(longest=0) %}
+{% for r in page.rows %}{% for v in (r.cells or []) %}{% set ns.longest = [ns.longest, (v|string)|length]|max %}{% endfor %}{% endfor %}
+{% set wraps = page.text_cells and ns.longest > 16 %}
+{% set few_h = [64, [46, ((512 * 0.8 - 44 - (60 if page.footnotes else 0)) / (nrows or 1))|int]|max]|min %}
 <style>
 {% include "_pharma.css.j2" %}
 .L-ph-table table{width:896px;border-collapse:collapse;table-layout:fixed;font-variant-numeric:tabular-nums}
@@ -23,8 +29,10 @@
 .L-ph-table table.text-cells tbody td{white-space:normal;text-align:left;height:auto;min-height:26.5px;padding:5px 12px;line-height:1.35}
 .L-ph-table table.text-cells thead th{text-align:left}
 .L-ph-table .main.full table.text-cells col.stub{width:300px}
-.L-ph-table table.few thead th{font-size:13pt;padding:9px 14px 8px}
-.L-ph-table table.few tbody td{font-size:13pt;height:46px;padding:8px 14px}
+.L-ph-table table.few thead th{font-size:14pt;padding:10px 14px 9px}
+.L-ph-table table.few tbody td{font-size:14pt;height:{{ few_h }}px;padding:8px 14px}
+{% if wraps %}.L-ph-table table.few.text-cells thead th{font-size:13pt}
+.L-ph-table table.few.text-cells tbody td{font-size:13pt;height:{{ few_h }}px}{% endif %}
 .L-ph-table .tfn{margin-top:7px;font-size:9pt;line-height:1.45;color:var(--muted)}
 .L-ph-table .tfn sup{font-size:7pt;font-weight:700;color:var(--primary);margin-right:3px}
 </style>

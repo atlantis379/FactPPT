@@ -41,16 +41,19 @@ def test_proposal_kept_when_qualified_but_not_first_choice():
     assert d["proposal"]["selector_choice"] == "flow"
     assert "key_points" in d["proposal"]["qualified_candidates"]
     assert d["chosen"]["layout"] == "key_points" and d["proposal"]["status"] == "kept"
-    assert "合格候选" in d["reason_zh"]
+    assert "模型的呈现" in d["reason_zh"] and "选择器参考" in d["reason_zh"]
 
 
-def test_unqualified_proposal_is_overridden_with_reason():
+def test_unqualified_proposal_is_refused_and_not_replaced():
     res = I.decide([page("a", "endpoint_readout/bar"), page("b", "no_such_layout")])
     a, b = res["decisions"]
-    assert a["proposal"]["status"] == "overridden" and a["chosen"]["layout"] != "endpoint_readout/bar"
-    assert "最低数据要求" in a["proposal"]["reason_zh"]
-    assert b["proposal"]["status"] == "overridden" and "未知版式" in b["proposal"]["reason_zh"]
-    assert res["stats"]["proposals"]["overridden"] == ["a", "b"]
+    assert a["proposal"]["status"] == "refused" and a["chosen"]["layout"] == "endpoint_readout/bar"
+    assert "不更换版式" in a["proposal"]["reason_zh"] and "最低数据要求" in a["proposal"]["reason_zh"]
+    assert b["proposal"]["status"] == "refused" and "未知版式" in b["proposal"]["reason_zh"]
+    assert a["chosen"]["layout"] != a["proposal"]["selector_choice"]
+    assert res["stats"]["proposals"]["refused"] == ["a", "b"]
+    lay, fill, why = I.resolve_fill({"fills": {"key_points": {"x": 1}, "flow": {"x": 2}}}, a)
+    assert fill is None and "不更换版式" in why and lay == "endpoint_readout/bar"
 
 
 def test_alias_and_exempt_pages():
@@ -106,8 +109,9 @@ def test_deck_check_records_template_decisions():
     res = check(deck, fs)
     tl = res["template_layouts"]
     assert set(tl["pages"]) == {"fl", "fl2"}                       # only opted-in pages
-    assert tl["pages"]["fl2"]["proposal"]["status"] == "overridden"
-    assert any("fl2" in w and "forest_plot" in w for w in res["warnings"])
+    assert tl["pages"]["fl2"]["proposal"]["status"] == "refused"
+    assert tl["pages"]["fl2"]["layout"] == "forest_plot"
+    assert any("fl2" in e and "不更换版式" in e for e in res["deck_errors"])
     assert check({"pages": [dict(flow, template="flow")]}, fs)["deck_errors"]
 
 

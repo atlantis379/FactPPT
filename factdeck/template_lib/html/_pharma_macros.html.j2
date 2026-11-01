@@ -30,7 +30,7 @@
     {% if page.footnote %}<div class="row" data-slot="footnote"><b>注</b>{{ page.footnote }}</div>{% endif %}
     {% if page.refs %}<div class="row" data-slot="refs"><b>参考</b>{% for r in page.refs %}<span data-ref="{{ r.id }}"><sup class="ev">{{ r.id }}</sup>{{ r.text }}</span>{% if not loop.last %}；{% endif %}{% endfor %}</div>{% endif %}
     <div class="row last">
-      <span><span class="dn" data-slot="data_note">{{ page.data_note }}</span> · <span data-slot="source">{{ page.source }}</span></span>
+      <span><span class="dn" data-slot="data_note">{{ page.data_note }}</span>{% if page.source %} · <span data-slot="source">{{ page.source }}</span>{% endif %}</span>
       {% if page.page %}<span class="pg" data-slot="page">{{ page.page }}</span>{% endif %}
     </div>
   </div>

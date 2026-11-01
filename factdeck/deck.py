@@ -442,10 +442,9 @@ def context_errors(used, facts: dict) -> list[str]:
 
 
 def _template_layouts(pages: list[dict], deck: dict, facts: dict, result: dict, err) -> None:
-    """Template-library pages: the layout selector decides (factdeck/template_lib/integrate.py). A page opts in with
-    `"template": {"layout": <proposal or null>}`; the proposal is kept only when it is one of the selector's qualified
-    candidates for the page's own facts, otherwise the selector's choice replaces it (warning + recorded reason).
-    The decision (relation, signals, candidates, downgrades, Chinese reason) is returned in `template_layouts`."""
+    """Template-library pages. The model chooses the layout; code refuses it when that layout's own data does not
+    hold (factdeck/template_lib/integrate.py) and does not substitute another layout. The selector's preference is
+    recorded beside the decision. `template_layouts` carries the relation, signals, candidates, downgrades and reason."""
     flagged = [p for p in pages if isinstance(p, dict) and "template" in p]
     if not flagged:
         return
@@ -467,17 +466,19 @@ def _template_layouts(pages: list[dict], deck: dict, facts: dict, result: dict, 
     res = deck_template_decisions({"pages": flagged}, facts, extra_signals=deck.get("layout_signals"))
     result["template_layouts"] = res
     for pid, rec in res["pages"].items():
+        prop = rec.get("proposal") or {}
+        if prop.get("status") == "refused":
+            err(f"{pid}：{prop['reason_zh']}")
+            continue
         if "rendered_layout" in rec and rec["rendered_layout"] is None:
-            err(f"{pid}：选择器为本页选了{rec['name_zh']}（{rec['reason_zh']}），"
-                f"但没有可用的填充：{rec['fill_fallback']}。请按{rec['name_zh']}补写 template.fills，内容仍只引用事实")
+            err(f"{pid}：版式{rec['name_zh']}（{rec['reason_zh']}）没有可用的填充：{rec['fill_fallback']}。"
+                "请为该版式补写填充，内容仍只引用事实")
         elif rec.get("fill_fallback"):
             result["warnings"].append(f"{pid}：{rec['fill_fallback']}")
         page = next(p for p in flagged if p.get("id") == pid)
         items = ((page.get("template") or {}).get("fill") or {}).get("items") if page.get("layout") == "template" else None
         if rec.get("rendered_layout") == "key_points" and isinstance(items, list) and len(items) == 1:
             result["warnings"].append(f"{pid}：要点卡片只有 1 条，整页会显得空：并入相邻页，或把这一条拆成 2–4 个要点")
-        if (rec.get("proposal") or {}).get("status") == "overridden":
-            result["warnings"].append(f"{pid}：{rec['proposal']['reason_zh']}")
 
 
 RELATION_LAYOUTS = {"sequence": {"flow", "timeline"}, "branch": {"flow"}, "any_of": {"cards", "grid"}, "all_of": {"cards", "grid"},

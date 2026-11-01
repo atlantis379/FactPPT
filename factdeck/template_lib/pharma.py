@@ -125,7 +125,7 @@ def common(fill: dict) -> dict[str, Any]:
         "abbrev": _s(fill.get("abbrev")),
         "footnote": _s(fill.get("footnote")),
         "data_note": _s(fill.get("data_note")) or DEMO_NOTE,
-        "source": _s(fill.get("source")) or STRUCT_NOTE,
+        "source": _s(fill.get("source")),  # STRUCT_NOTE is for the sample fixtures only, never a default on real decks
         "page": _s(fill.get("page")),
         "refs": _refs(fill),
         "takeaways": _takeaways(fill.get("takeaways")),

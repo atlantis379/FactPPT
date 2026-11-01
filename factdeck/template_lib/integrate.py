@@ -1,13 +1,13 @@
-"""The layout selector as the decider for template-library pages.
+"""Presentation is the model's; this module checks that the chosen layout's data holds.
 
-`decide()` runs `selector.select_deck` on every page's content (title, text, structured data) and returns one
-inspectable decision per page.  A layout proposed by a worker / page plan (`proposed_layout`, or `layout` when a
-plan carries one) is kept only when it is among the selector's *qualified* candidates for that page; otherwise the
-selector's choice replaces it and the record says why.  Cover / section pages follow their page kind.
+`decide()` still runs `selector.select_deck` and records what the rules would have picked (relation, signals,
+candidates, downgrades, rhythm).  A layout the model proposed (`proposed_layout`, or `layout` on a plan) is the
+layout that renders when that layout's own minimum data is present (`selector.requirement_gap` is empty).  A
+proposal that fails the data check is refused: the page is not rendered as some other layout, and nothing is
+invented to make the proposal fit.  Pages with no proposal keep the selector's result (sample plans).  Cover /
+section pages follow their page kind.
 
-Nothing here edits page content: a layout whose minimum data is missing is never "filled in"; it is downgraded by
-the selector (see selector.DOWNGRADE) or the proposal is overridden.  The LLM tie-break stays off unless a
-tie-breaker is passed in.
+The LLM tie-break stays off unless a tie-breaker is passed in.  It only affects pages nobody proposed a layout for.
 """
 from __future__ import annotations
 
@@ -52,12 +52,28 @@ def _chosen(layout: str) -> dict:
     return {"layout": layout, "family": fam, "variant": var, "name_zh": name, "is_chart": chart}
 
 
+def _data_holds(page: dict, proposal: str) -> tuple[str | None, str]:
+    """The proposed layout when its own data is sufficient; otherwise a reason to refuse the page.
+
+    An alias that names two variants (柱/折线) resolves to the variant whose data holds.  The selector's
+    preferred layout is not consulted: a passing proposal is the presentation.
+    """
+    want = normalize_layout(proposal)
+    if not want:
+        return None, f"未知版式 {proposal}"
+    passing = [w for w in want if S.requirement_gap(w, page) is None]
+    if passing:
+        return passing[0], ""
+    gap = next(g for g in (S.requirement_gap(w, page) for w in want) if g)
+    return None, f"{S.LAYOUTS[want[0]][2]}不满足最低数据要求：{gap}"
+
+
 def decide(pages: list[dict], *, tiebreaker: S.TieBreaker | None = None, extra_signals: dict | None = None,
            chart_ratio: float = 1 / 3) -> dict:
-    """Selector decision per page + proposal keep/override.  Returns {"decisions": [...], "stats": {...}}."""
+    """Per page: the model's layout when its data holds, otherwise a refusal.  Returns {"decisions", "stats"}."""
     sel = S.select_deck(pages, tiebreaker=tiebreaker, extra_signals=extra_signals, chart_ratio=chart_ratio)
     out = []
-    kept, overridden, unproposed = [], [], []
+    kept, refused, unproposed = [], [], []
     for page, d in zip(pages, sel["decisions"]):
         d = dict(d)
         proposal = proposal_of(page)
@@ -74,35 +90,28 @@ def decide(pages: list[dict], *, tiebreaker: S.TieBreaker | None = None, extra_s
             unproposed.append(d["page_id"])
             rec["reason_zh"] = "页面规划未提议版式，采用选择器结果"
         else:
-            want = normalize_layout(proposal)
-            ok = [w for w in want if w in qualified]
-            if ok:
-                keep = selector_choice if selector_choice in ok else ok[0]
+            keep, why = _data_holds(page, proposal)
+            if keep:
                 kept.append(d["page_id"])
                 rec["status"] = "kept"
-                score = next(c["score"] for c in d["candidates"] if c["layout"] == keep)
                 if keep == selector_choice:
-                    rec["reason_zh"] = f"提议版式 {proposal} 即选择器首选，保留"
+                    rec["reason_zh"] = f"提议版式 {proposal} 的数据要求成立，保留"
                 else:
-                    rec["reason_zh"] = (f"提议版式 {proposal} 在合格候选中（分数 {score}），保留；"
-                                        f"选择器首选为{S.LAYOUTS[selector_choice][2]}")
-                    d["chosen"] = _chosen(keep)
-                    d["reason_zh"] = f"按页面规划保留{S.LAYOUTS[keep][2]}（合格候选，分数 {score}）；选择器理由：{d['reason_zh']}"
+                    rec["reason_zh"] = (f"提议版式 {proposal} 的数据要求成立，按模型的呈现保留；"
+                                        f"选择器参考为{S.LAYOUTS[selector_choice][2]}")
+                d["chosen"] = _chosen(keep)
+                d["reason_zh"] = rec["reason_zh"]
             else:
-                overridden.append(d["page_id"])
-                rec["status"] = "overridden"
-                if not want:
-                    why = f"未知版式 {proposal}"
-                else:
-                    gaps = [S.requirement_gap(w, page) for w in want]
-                    gap = next((g for g in gaps if g), None)
-                    why = (f"{S.LAYOUTS[want[0]][2]}不满足最低数据要求：{gap}" if gap
-                           else f"{S.LAYOUTS[want[0]][2]}不在本页合格候选中（内容未体现该关系）")
-                rec["reason_zh"] = f"提议版式 {proposal} 被替换为{S.LAYOUTS[selector_choice][2]}：{why}"
+                refused.append(d["page_id"])
+                rec["status"] = "refused"
+                rec["reason_zh"] = f"提议版式 {proposal} 未通过数据检查，不更换版式：{why}"
+                if normalize_layout(proposal):
+                    d["chosen"] = _chosen(normalize_layout(proposal)[0])
+                d["reason_zh"] = rec["reason_zh"]
         d["proposal"] = rec
         out.append(d)
     return {"decisions": out, "stats": final_stats(out, chart_ratio, sel["stats"],
-                                                   kept=kept, overridden=overridden, unproposed=unproposed)}
+                                                   kept=kept, refused=refused, unproposed=unproposed)}
 
 
 def final_stats(decisions: list[dict], chart_ratio: float, selector_stats: dict, **proposals) -> dict:
@@ -135,12 +144,18 @@ def page_record(decision: dict) -> dict:
 
 
 def resolve_fill(page: dict, decision: dict) -> tuple[str, dict | None, str | None]:
-    """The fill for the decided layout.  When the plan has no fill for it, fall back to the best *qualified*
-    candidate that has one (recorded); never invent a fill."""
+    """The fill for the decided layout.  A refused proposal is not rendered as another layout.  A kept proposal
+    uses only its own fill.  A page nobody proposed a layout for may fall back to a qualified candidate's fill
+    (recorded); a fill is never invented."""
     fills = page.get("fills") or {}
     lay = decision["chosen"]["layout"]
+    status = (decision.get("proposal") or {}).get("status")
+    if status == "refused":
+        return lay, None, decision["proposal"]["reason_zh"]
     if lay in fills:
         return lay, fills[lay], None
+    if status == "kept":
+        return lay, None, f"计划中没有{S.LAYOUTS[lay][2]}的填充，未渲染"
     for c in decision["candidates"]:
         if c.get("qualified") and c["layout"] in fills:
             return c["layout"], fills[c["layout"]], (f"计划中没有{S.LAYOUTS[lay][2]}的填充，改用合格候选"

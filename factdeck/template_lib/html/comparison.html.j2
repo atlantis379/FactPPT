@@ -2,6 +2,10 @@
 {% set left = page["left_items"] %}
 {% set right = page["right_items"] %}
 {% set rows = page["rows"] %}
+{# bullet panels are sized to the fuller side (fill._cmp_scale); spare height goes 30 % above, 70 % below #}
+{% set sc = page.scale or {"item_pt": 15, "col_h": 520} %}
+{% set spare = page.zones_px.body_card.h - 12 - sc.col_h - (90 if page.takeaway else 0) %}
+{% set lift = 8 if page.variant == "table_2n" else (8 + (spare * 0.3 if spare > 0 else 0))|round|int %}
 <style>
 .L-tl-cmp{background:var(--canvas)}
 .L-tl-cmp .section{
@@ -19,11 +23,11 @@
 .L-tl-cmp .body-card{
   position:absolute;left:{{ page.zones_px.body_card.x }}px;top:{{ page.zones_px.body_card.y }}px;
   width:{{ page.zones_px.body_card.w }}px;height:{{ page.zones_px.body_card.h }}px;
-  background:transparent;border:none;border-radius:0;padding:8px 4px 4px;
+  background:transparent;border:none;border-radius:0;padding:{{ lift }}px 4px 4px;
   display:flex;flex-direction:column;gap:18px
 }
 .L-tl-cmp .cols{
-  flex:1;display:grid;grid-template-columns:1fr 48px 1fr;gap:0;min-height:0;align-items:stretch
+  flex:0 0 {{ sc.col_h }}px;display:grid;grid-template-columns:1fr 48px 1fr;gap:0;min-height:0;align-items:stretch
 }
 .L-tl-cmp .col{
   display:flex;flex-direction:column;min-width:0;overflow:hidden;
@@ -54,7 +58,7 @@
   padding:20px 22px 22px;overflow:hidden;flex:1
 }
 .L-tl-cmp .bullets li{
-  position:relative;padding-left:20px;font-size:15pt;font-weight:400;color:var(--ink);
+  position:relative;padding-left:20px;font-size:{{ sc.item_pt }}pt;font-weight:400;color:var(--ink);
   line-height:1.4;overflow:hidden
 }
 .L-tl-cmp .bullets li::before{
@@ -125,7 +129,7 @@
     <div class="cols" data-slot="columns">
       <div class="col is-left" data-side="left">
         <div class="col-label" data-slot="left_label">{{ page.left_label }}</div>
-        <ul class="bullets" data-slot="left_items" data-count="{{ left|length }}">
+        <ul class="bullets" data-check="fit" data-slot="left_items" data-count="{{ left|length }}">
           {% for it in left %}
           <li data-item="{{ it.index }}" data-slot="text">{{ it.text }}</li>
           {% endfor %}
@@ -134,7 +138,7 @@
       <div class="vdiv" data-shape="column-divider" aria-hidden="true"></div>
       <div class="col is-right" data-side="right">
         <div class="col-label is-right" data-slot="right_label">{{ page.right_label }}</div>
-        <ul class="bullets" data-slot="right_items" data-count="{{ right|length }}">
+        <ul class="bullets" data-check="fit" data-slot="right_items" data-count="{{ right|length }}">
           {% for it in right %}
           <li data-item="{{ it.index }}" data-slot="text">{{ it.text }}</li>
           {% endfor %}

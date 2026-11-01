@@ -22,6 +22,62 @@ def _as_text_items(raw: list | None) -> list[dict[str, Any]]:
     return out
 
 
+def _text_em(text: str) -> float:
+    """Width of a string in ems: CJK/full-width glyphs are 1 em, the rest about 0.56 em."""
+    return sum(1.0 if ord(c) > 0x2E7F else 0.56 for c in text)
+
+
+def _lines(text: str, width_px: float, pt: float) -> int:
+    if not text:
+        return 0
+    per_line = max(1.0, width_px / (pt * 4 / 3))
+    return max(1, -int(-_text_em(text) // per_line))
+
+
+# Key-point type scale: the largest step whose tallest card fits the body zone.  Caps per column
+# count keep narrow columns from breaking every few characters.
+_KP_BODY_CAP = {1: 22, 2: 22, 3: 20, 4: 18, 5: 16, 6: 15}
+_KP_HEAD_CAP = {1: 30, 2: 30, 3: 28, 4: 24, 5: 21, 6: 19}
+_KP_STEPS = (22, 20, 18, 16, 15, 14, 13, 12)
+
+
+def _kp_scale(items: list[dict[str, Any]], cols: int, body_h: float) -> dict[str, float]:
+    """Font sizes and card height sized to the content, so light pages are not tall empty cards."""
+    inner_w = (1228 - 8 - 20 * (cols - 1)) / cols - 48
+    for body_pt in _KP_STEPS:
+        if body_pt > _KP_BODY_CAP[cols]:
+            continue
+        head_pt = min(_KP_HEAD_CAP[cols], round(body_pt * 1.4))
+        sub_pt = max(12, round(body_pt * 0.9))
+        tallest = 0.0
+        for it in items:
+            h = 52.0 + 13 * 4 / 3 * 1.2 + 10  # padding + index/tag row
+            h += _lines(it["heading"], inner_w, head_pt) * head_pt * 4 / 3 * 1.18 + 10
+            if it["sub"]:
+                h += _lines(it["sub"], inner_w, sub_pt) * sub_pt * 4 / 3 * 1.3 + 10
+            if it["body"]:
+                h += _lines(it["body"], inner_w, body_pt) * body_pt * 4 / 3 * 1.5
+            tallest = max(tallest, h)
+        if tallest <= body_h * 0.9 or body_pt == _KP_STEPS[-1]:
+            card_h = min(body_h, max(tallest + 24, min(260.0, body_h)))
+            return {"body_pt": body_pt, "head_pt": head_pt, "sub_pt": sub_pt, "card_h": round(card_h)}
+    raise AssertionError("unreachable")
+
+
+_CMP_STEPS = (20, 18, 16, 15, 14)
+
+
+def _cmp_scale(left: list[dict[str, Any]], right: list[dict[str, Any]], body_h: float) -> dict[str, float]:
+    """Bullet size and panel height for the two-column comparison, sized to the fuller side."""
+    inner_w = (1228 - 8 - 48) / 2 - 44 - 20
+    for pt in _CMP_STEPS:
+        tallest = max(56 + 42 + sum(_lines(it["text"], inner_w, pt) * pt * 4 / 3 * 1.4 for it in side)
+                      + 14 * max(len(side) - 1, 0) for side in (left, right))
+        if tallest <= body_h * 0.9 or pt == _CMP_STEPS[-1]:
+            return {"item_pt": pt, "col_h": round(min(body_h, max(tallest + 24, min(300.0, body_h))))}
+    raise AssertionError("unreachable")
+
+
 def normalize_fill(family: str, fill: dict, *, variant: str | None = None,
                    theme: str = "journal") -> dict[str, Any]:
     """Validate and normalize a fill into a page model ready for HTML render.
@@ -78,10 +134,13 @@ def normalize_fill(family: str, fill: dict, *, variant: str | None = None,
                 "body": (it.get("body") or "").strip(),
                 "index": i + 1,
             })
+        takeaway = (fill.get("takeaway") or "").strip()
+        body_h = zones["body_card"]["h"] - 12 - (70 if takeaway else 0)
         page.update({
             "section": (fill.get("section") or "").strip(),
             "title": (fill.get("title") or "").strip(),
             "items": items,
+            "scale": _kp_scale(items, min(max(len(items), 1), 6), body_h),
             "takeaway": (fill.get("takeaway") or "").strip(),
             "source": (fill.get("source") or "").strip(),
             "page": str(fill.get("page") or "").strip(),
@@ -102,6 +161,8 @@ def normalize_fill(family: str, fill: dict, *, variant: str | None = None,
             "left_label": (fill.get("left_label") or "").strip(),
             "right_label": (fill.get("right_label") or "").strip(),
             "left_items": _as_text_items(fill.get("left_items")),
+            "scale": _cmp_scale(_as_text_items(fill.get("left_items")), _as_text_items(fill.get("right_items")),
+                                zones["body_card"]["h"] - 12 - (70 if (fill.get("takeaway") or "").strip() else 0)),
             "right_items": _as_text_items(fill.get("right_items")),
             "rows": rows,
             "takeaway": (fill.get("takeaway") or "").strip(),
@@ -195,6 +256,8 @@ def normalize_fill(family: str, fill: dict, *, variant: str | None = None,
             "b_label": (fill.get("b_label") or "").strip(),
             "b_rx": (fill.get("b_rx") or "").strip(),
             "b_note": (fill.get("b_note") or "").strip(),
+            "x_hint": (fill.get("x_hint") or "").strip(),
+            "y_hint": (fill.get("y_hint") or "").strip(),
             "footnote": (fill.get("footnote") or "").strip(),
             "capacity": slotmod.family_spec(family).get("capacity", {}).get(chosen),
         })

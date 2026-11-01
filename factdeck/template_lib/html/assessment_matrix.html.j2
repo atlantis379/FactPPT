@@ -114,10 +114,12 @@
         {% if page.b_note %}<div class="gnote" data-slot="b_note">{{ page.b_note }}</div>{% endif %}
       </div>
     </div>
+    {% if page.x_hint or page.y_hint %}
     <div class="axis-hint">
-      <div><strong>横轴</strong> 症状负担（mMRC / CAT）</div>
-      <div><strong>纵轴</strong> 急性加重史（过去 1 年）</div>
+      {% if page.x_hint %}<div><strong>横轴</strong> <span data-slot="x_hint">{{ page.x_hint }}</span></div>{% endif %}
+      {% if page.y_hint %}<div><strong>纵轴</strong> <span data-slot="y_hint">{{ page.y_hint }}</span></div>{% endif %}
     </div>
+    {% endif %}
     {% if page.footnote %}<div class="fn" data-slot="footnote">{{ page.footnote }}</div>{% endif %}
   </div>
   <div class="foot">

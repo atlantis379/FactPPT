@@ -363,7 +363,8 @@ def topic_brief(w: dict, node_id: str) -> dict:
                       "列入 checks 并写明哪里拿不准，交审查核对。需要别的主题的句子时可以引用其 id，代码会标为借用。",
                       "relations：type 取 sequence / contrast / condition / evidence；from 为一条信息 id，to 为信息 id 列表；"
                       "basis 为直接表达这一关系的句子 id。没有依据句或依据句不来自两端信息的资料时，代码会标为作者组织，交审查。",
-                      "page_plan：把每条 core / support / limit 信息恰好放到一页，按讲解顺序；reserve 不进 page_plan。topic.pages 只是参考。",
+                      "page_plan 是讲解顺序，不是最终分页：按讲述顺序列出要讲的信息，每条 core / support / limit 在这份顺序里出现一次，"
+                      "可以几条同组表示建议放在一起；reserve 不进 page_plan。拆页、并页留到设计 PPT 时再定。topic.pages 只是参考。",
                       "每个 sentence 和每个表格行（cell 按行计）要么被某条信息引用，要么列入 checks，要么列入 left_out。gloss、data、label、heading、header 不必交代。",
                       "left_out 只用于确实不用的内容，逐条判断：每条写 why（取自 why_kinds）和 note（具体原因），并用 ids、from/to（同一单元内的句子 id 范围）"
                       "或 row（表格行，如 \"S01:s15:t1r5\"）指明句子；duplicate 写 same_as（已引用的那句 id），other_topic 写 topic（主题 id），"
@@ -467,10 +468,13 @@ def deck_brief(w: dict, b: dict) -> None:
                                        "label": k["label"], "facts": k["claim_ids"]} for k in sec["key_points"]],
                          "relations": sec["message"]["relations"]}
                         for sec in w["summary"]["sections"]]
-    b["rules"].insert(0, "本项目的内容已由模型梳理、客户确认（topic_draft）：每个主题的 page_plan 是建议的分页，每页讲其中列出的信息；"
-                         "页面的 key_point_ids 写该页讲的信息（key_point_id），内容只引用该信息的 facts（事实 id 即原句 id），"
+    b["rules"].insert(0, "本项目的内容已由模型梳理、客户确认（topic_draft）。page_plan 只是讲解顺序：你可以按槽位容量重排、拆开或合并，"
+                         "不必照抄当时的分页。页面的 key_point_ids 写该页讲的信息（key_point_id），内容只引用该信息的 facts（事实 id 即原句 id），"
                          "原句太长或要放进图表格子时，按原文切出更细的逐字事实（deck facts，同一核对）。"
-                         "core 与 limit 信息每条至少上一页；reserve 信息写进讲稿备注，不必上页；relations 决定版式（先后→流程/时间轴，对照→对照/表格，条件→决策树，证据→证据要点）。"
+                         "版式和槽位由你决定如何呈现。代码检查数据是否成立：显示文字须是事实或受检的作者标签，图上的数字须出现在本页事实中，"
+                         "所选版式的最低数据不够就退回这一页，不改成别的版式。"
+                         "core 与 limit 信息每条至少上一页；reserve 信息写进讲稿备注，不必上页。"
+                         "relations 供你选版式时参考（先后→流程/时间轴，对照→对照/表格，条件→决策树，证据→证据要点）。"
                          "pages 为 0 的主题不上页，在 omissions 中写明原因。"
                          "facts 中省略 display 的事实，显示文字即 quote；units 只列事实所在的单元（切分只能从这些单元切）。")
     # topic_draft + facts carry the confirmed draft: the summary view and its key-point texts repeat the same quotes,

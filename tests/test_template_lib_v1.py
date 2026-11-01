@@ -546,6 +546,13 @@ def test_assessment_matrix_abe_thresholds():
     assert "组别 E" in html and "组别 A" in html and "组别 B" in html
     assert "eos ≥ 300" in html or "eos" in html
     assert "pillar" not in html.lower()
+    # 版式本身不得携带任何主题内容：轴提示只能由填充提供
+    assert 'class="axis-hint"' not in html
+    hint_html = tl.render_page_html(
+        "assessment_matrix", {**ABE_ZH, "x_hint": "症状负担", "y_hint": "加重史"},
+        theme="gold_clinical",
+    )
+    assert 'class="axis-hint"' in hint_html and "症状负担" in hint_html and "加重史" in hint_html
 
 
 def test_dual_path_tree_escalation_splits():

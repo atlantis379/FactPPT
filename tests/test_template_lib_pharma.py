@@ -65,7 +65,8 @@ def test_footer_defaults_honesty_note_when_omitted():
     fill = copy.deepcopy(fx.FOREST)
     fill.pop("data_note"), fill.pop("source")
     html = _render("forest_plot", fill)
-    assert pharma.DEMO_NOTE in html and pharma.STRUCT_NOTE in html
+    # the honesty note defaults; the layout-reference note is the fixtures' own and is not put on real decks
+    assert pharma.DEMO_NOTE in html and pharma.STRUCT_NOTE not in html
 
 
 def test_pharma_templates_use_one_accent_plus_greys_and_no_web_cards():

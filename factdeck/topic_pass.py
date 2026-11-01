@@ -8,7 +8,7 @@ The model reads every code-cut sentence of the topic (``factdeck.auto_claims``) 
   for reference, not on a page) — an authored one-line ``label`` that organises but carries no numbers, and the
   sentence ids that state it;
 - ``relations`` between messages (sequence / contrast / condition / evidence) with the sentence ids they rest on;
-- ``page_plan``: the taught messages on each page, in speaking order (the page budget is applied later, in DECK);
+- ``page_plan``: speaking order of the taught messages (grouping is a suggestion; pagination is decided at DECK);
 - ``checks``: sentences whose data the model could not verify or read with confidence — kept for review, never
   silently dropped;
 - ``left_out``: sentences not used at all, each entry a typed reason (``why``) and a note;
