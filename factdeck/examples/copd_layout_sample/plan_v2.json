@@ -1,0 +1,378 @@
+{
+ "source": "GOLD 2026 报告",
+ "note": "21 个判断。5 页标题是原句节选（整句，≤56 字），16 页必须跨句综合。截断到分句是不可行的：被砍掉的从句里常有「或 / 应 / 可能」，闸门会拒。",
+ "pages": [
+  {
+   "id": "p01",
+   "say": {
+    "derived": "全球70%至95%的慢阻肺患者未被确诊",
+    "from": [
+     "ud-70",
+     "ud-lmic"
+    ]
+   },
+   "points": [
+    {
+     "fact": "ud-70"
+    },
+    {
+     "fact": "ud-81"
+    },
+    {
+     "fact": "ud-lmic"
+    }
+   ]
+  },
+  {
+   "id": "p02",
+   "say": {
+    "derived": "漏诊使急性加重风险高15.5倍、死亡风险高4.3倍",
+    "from": [
+     "ud-exac",
+     "ud-death"
+    ]
+   },
+   "points": [
+    {
+     "fact": "ud-exac"
+    },
+    {
+     "fact": "ud-death"
+    }
+   ]
+  },
+  {
+   "id": "p03",
+   "say": {
+    "fact": "dx-spiro"
+   },
+   "points": [
+    {
+     "fact": "dx-pre"
+    },
+    {
+     "fact": "dx-criteria"
+    }
+   ]
+  },
+  {
+   "id": "p04",
+   "say": {
+    "derived": "有呼吸困难、咳嗽咳痰或暴露史者均应考虑慢阻肺诊断",
+    "from": [
+     "dx-symptoms"
+    ]
+   },
+   "points": [
+    {
+     "fact": "dx-followup"
+    },
+    {
+     "fact": "dx-goal"
+    }
+   ]
+  },
+  {
+   "id": "p05",
+   "say": {
+    "derived": "mMRC达到2与CAT达到10分各自界定症状负担",
+    "from": [
+     "as-mmrc",
+     "as-cat"
+    ]
+   },
+   "points": [
+    {
+     "fact": "as-mmrc"
+    },
+    {
+     "fact": "as-cat"
+    }
+   ]
+  },
+  {
+   "id": "p06",
+   "say": {
+    "fact": "as-abe"
+   },
+   "points": [
+    {
+     "fact": "as-e-new"
+    },
+    {
+     "fact": "as-once"
+    }
+   ]
+  },
+  {
+   "id": "p07",
+   "say": {
+    "derived": "治疗分初始与随访两条路径，按ABE与嗜酸粒细胞个体化",
+    "from": [
+     "hl-cycle",
+     "tx-init-personal"
+    ]
+   },
+   "points": [
+    {
+     "fact": "tx-init-personal"
+    },
+    {
+     "fact": "tx-long"
+    }
+   ]
+  },
+  {
+   "id": "p08",
+   "say": {
+    "derived": "A组用支扩剂，B与E组起始LABA+LAMA",
+    "from": [
+     "tx-a",
+     "tx-b",
+     "tx-e"
+    ]
+   },
+   "points": [
+    {
+     "fact": "tx-a"
+    },
+    {
+     "fact": "tx-b"
+    },
+    {
+     "fact": "tx-e"
+    },
+    {
+     "fact": "tx-ics"
+    }
+   ]
+  },
+  {
+   "id": "p09",
+   "say": {
+    "derived": "单药失败升LABA+LAMA，仍加重升三联",
+    "from": [
+     "fu-dys",
+     "fu-exac",
+     "fu-triple"
+    ]
+   },
+   "points": [
+    {
+     "fact": "fu-dys"
+    },
+    {
+     "fact": "fu-exac"
+    },
+    {
+     "fact": "fu-triple"
+    }
+   ]
+  },
+  {
+   "id": "p10",
+   "say": {
+    "derived": "eos≥100加ICS有效，≥300降级更易加重",
+    "from": [
+     "fu-eos",
+     "fu-down"
+    ]
+   },
+   "points": [
+    {
+     "fact": "fu-eos"
+    },
+    {
+     "fact": "fu-down"
+    }
+   ]
+  },
+  {
+   "id": "p11",
+   "role": "hero",
+   "say": {
+    "fact": "fu-az"
+   },
+   "points": []
+  },
+  {
+   "id": "p12",
+   "say": {
+    "derived": "加重是14天内的急性恶化，按临床特征分轻中重",
+    "from": [
+     "ex-def",
+     "ex-sev"
+    ]
+   },
+   "points": [
+    {
+     "fact": "ex-sev"
+    },
+    {
+     "fact": "sv-mod-rr"
+    },
+    {
+     "fact": "sv-mod-hr"
+    }
+   ]
+  },
+  {
+   "id": "p13",
+   "say": {
+    "derived": "加重最常见于感染或环境污染物",
+    "from": [
+     "ex-cause"
+    ]
+   },
+   "points": [
+    {
+     "fact": "ex-impact"
+    }
+   ],
+   "role": "hero"
+  },
+  {
+   "id": "p14",
+   "say": {
+    "derived": "加重加剧气流阻塞，恢复最长4-6周",
+    "from": [
+     "ex-impact",
+     "ex-recover"
+    ]
+   },
+   "points": [
+    {
+     "fact": "ex-impact"
+    },
+    {
+     "fact": "ex-recover"
+    }
+   ]
+  },
+  {
+   "id": "p15",
+   "say": {
+    "derived": "激素与抗生素疗程各5天，必要时无创通气",
+    "from": [
+     "ex-steroid",
+     "ex-abx",
+     "ex-niv"
+    ]
+   },
+   "points": [
+    {
+     "fact": "ex-steroid"
+    },
+    {
+     "fact": "ex-abx"
+    },
+    {
+     "fact": "ex-saba"
+    }
+   ]
+  },
+  {
+   "id": "p16",
+   "say": {
+    "fact": "ex-reassess"
+   },
+   "points": [
+    {
+     "fact": "ex-maint"
+    },
+    {
+     "fact": "ex-start"
+    }
+   ]
+  },
+  {
+   "id": "p17",
+   "say": {
+    "derived": "应接种流感、肺炎球菌与RSV疫苗",
+    "from": [
+     "pv-flu",
+     "pv-pcv",
+     "pv-rsv"
+    ]
+   },
+   "points": [
+    {
+     "fact": "pv-flu"
+    },
+    {
+     "fact": "pv-pcv"
+    },
+    {
+     "fact": "pv-rsv"
+    },
+    {
+     "fact": "pv-combo"
+    }
+   ]
+  },
+  {
+   "id": "p18",
+   "say": {
+    "derived": "肺康复含运动训练与疾病特异性教育，改善症状与生活质量",
+    "from": [
+     "np-rehab"
+    ]
+   },
+   "points": [
+    {
+     "fact": "np-rehab"
+    }
+   ],
+   "role": "hero"
+  },
+  {
+   "id": "p19",
+   "say": {
+    "derived": "长期氧疗不常规用于中度低氧，NIV用于高碳酸血症",
+    "from": [
+     "np-ltot",
+     "np-niv"
+    ]
+   },
+   "points": [
+    {
+     "fact": "np-ltot"
+    },
+    {
+     "fact": "np-niv"
+    }
+   ]
+  },
+  {
+   "id": "p20",
+   "say": {
+    "fact": "np-supplement"
+   },
+   "points": [
+    {
+     "fact": "np-smoke"
+    },
+    {
+     "fact": "np-ltot"
+    }
+   ]
+  },
+  {
+   "id": "p21",
+   "say": {
+    "derived": "COPD是异质性肺部疾病，引起持续进行性气流阻塞",
+    "from": [
+     "def-core"
+    ]
+   },
+   "points": [
+    {
+     "fact": "def-common"
+    },
+    {
+     "fact": "def-core"
+    }
+   ]
+  }
+ ]
+}
