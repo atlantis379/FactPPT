@@ -1,4 +1,4 @@
-"""Render a ``presentation.v1`` spec to HTML (one .slide per page), then to native PPTX via the template writer.
+"""Render a ``presentation.v2`` spec to HTML (one .slide per page), then to native PPTX via the template writer.
 
 The model's decisions arrive as structure + which sentence leads + which number carries the page.  Everything a
 reader sees as substance is the sentence's own words (``presentation.check`` resolved them).  Geometry is code's
@@ -14,10 +14,15 @@ import html
 import re
 from jinja2 import Template
 
+from .presentation import emphasis_spans
 from .template_lib.themes import get_theme
 
 W, H = 1280, 720
 PAD = 64
+TITLE_TOP, TITLE_LINE = 78, 42.3     # the title's first line, and one more line of it at 26pt × 1.22
+TITLE_EMS = 33                       # characters of full-width type across the content width
+TITLE_GAP = 28                       # the body starts this far under the title, however many lines the title took
+BODY_BOTTOM, BODY_BOTTOM_TAKE = 656, 596
 FONT = '"Noto Sans CJK SC","Noto Sans SC","Source Han Sans SC","PingFang SC","Microsoft YaHei",sans-serif'
 
 _CSS = """
@@ -25,22 +30,35 @@ _CSS = """
 body{margin:0;background:#E4E8ED;font-family:__FONT__;-webkit-font-smoothing:antialiased}
 .slide{position:relative;width:1280px;height:720px;overflow:hidden;background:__CANVAS__;color:__INK__}
 .kicker{position:absolute;left:__PAD__px;top:38px;font-size:12pt;font-weight:700;letter-spacing:.16em;
-  text-transform:uppercase;color:__ACCENT__}
+  text-transform:uppercase;color:__HEADLINE__}
 .rule{position:absolute;left:__PAD__px;top:62px;width:56px;height:3px;background:__ACCENT__}
-.htitle{position:absolute;left:__PAD__px;top:78px;width:__CONTENTW__px;font-size:30pt;font-weight:700;
+.htitle{position:absolute;left:__PAD__px;top:78px;width:__CONTENTW__px;font-size:26pt;font-weight:700;
   line-height:1.22;letter-spacing:-.01em;color:__HEADLINE__}
-.main{position:absolute;left:__PAD__px;top:172px;width:__CONTENTW__px;height:428px}
+.htitle .em{color:__ACCENT2__}
+.num{font-weight:700;color:__PRIMARY__}
+.main{position:absolute;left:__PAD__px;width:__CONTENTW__px}
 .take{position:absolute;left:__PAD__px;top:608px;width:__CONTENTW__px;height:46px;background:__TAKEBG__;
   border-left:4px solid __ACCENT__;padding:0 18px;display:flex;align-items:center;font-size:13.5pt;
   color:__HEADLINE__;overflow:hidden}
 .foot{position:absolute;left:__PAD__px;top:670px;width:__CONTENTW__px;height:20px;font-size:10.5pt;color:__CAPTION__}
-.foot .row{float:left;width:820px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.foot .row{float:left;width:820px;white-space:nowrap}
 .foot .pg{float:right;font-variant-numeric:tabular-nums}
 
 /* stat — one number carries the page */
-.stat-num{font-size:104pt;font-weight:700;line-height:1;letter-spacing:-.03em;color:__PRIMARY__}
-.stat-label{font-size:12pt;font-weight:700;color:__HEADLINE__;margin-top:14px;line-height:1.35}
-.stat-src{font-size:10.5pt;color:__CAPTION__;margin-top:10px}
+.stat{display:flex;flex-direction:column;justify-content:space-evenly;height:100%}
+.stat-num{font-size:104pt;font-weight:700;line-height:1;letter-spacing:-.03em;color:__PRIMARY__;white-space:nowrap}
+.stat-pre{font-size:28px;letter-spacing:0;margin-right:10px}
+.stat-unit{font-size:.32em;letter-spacing:0;margin-left:6px}
+.stat-label{font-size:24px;font-weight:700;color:__HEADLINE__;margin-top:12px;line-height:1.35}
+.stat-src{font-size:10.5pt;color:__CAPTION__;margin-top:6px}
+.stat-items{display:grid;gap:40px;border-top:1px solid __LINE__;padding-top:18px}
+.stat-item .lb{font-size:12pt;font-weight:700;color:__HEADLINE__;line-height:1.35}
+.stat-item p{font-size:18px;line-height:1.5;color:__INK__;margin-top:4px}
+/* points: a table of what each sentence is about and what it says, so parallel sentences read as parallel */
+.rows{display:grid;height:100%}
+.row2{display:grid;grid-template-columns:240px 1fr;column-gap:32px;align-items:center;border-top:1px solid __LINE__}
+.row2 .lb{font-size:18px;font-weight:700;color:__HEADLINE__;line-height:1.35}
+.row2 p{font-size:20px;line-height:1.5;color:__INK__}
 .points{list-style:none}
 .points li b{display:block;font-size:12pt;color:__HEADLINE__;font-weight:700;margin-bottom:4px}
 .points li{position:relative;padding-left:24px;font-size:18px;line-height:1.55;color:__INK__;margin-bottom:26px}
@@ -52,10 +70,10 @@ body{margin:0;background:#E4E8ED;font-family:__FONT__;-webkit-font-smoothing:ant
 .points li.core::before{width:10px;height:10px;top:13px;background:__PRIMARY__}
 .cols{display:grid;gap:40px}
 .col{min-width:0}
-.col .hd{font-size:12pt;font-weight:700;letter-spacing:.1em;color:__ACCENT__;text-transform:uppercase;
+.col .hd{font-size:12pt;font-weight:700;letter-spacing:.1em;color:__HEADLINE__;text-transform:uppercase;
   padding-bottom:8px;border-bottom:1px solid __LINE__;margin-bottom:16px}
 .col .lb{font-size:12pt;font-weight:700;color:__HEADLINE__;line-height:1.35;margin-top:6px}
-.col .n{font-size:12pt;font-weight:700;color:__ACCENT__;font-variant-numeric:tabular-nums;margin-bottom:2px}
+.col .n{font-size:12pt;font-weight:700;color:__HEADLINE__;font-variant-numeric:tabular-nums;margin-bottom:2px}
 .cols .col:not(:last-child){margin-bottom:34px}
 .col p{font-size:inherit;line-height:1.55;color:__INK__;margin-top:5px}
 .steps{display:grid;gap:22px;align-items:start;position:relative}
@@ -73,7 +91,7 @@ body{margin:0;background:#E4E8ED;font-family:__FONT__;-webkit-font-smoothing:ant
 .ths{display:grid;height:100%}
 .th{display:grid;grid-template-columns:var(--idw) 1fr;grid-template-areas:"ind ." "val track" ". ends" ". src";
   column-gap:48px;row-gap:4px;align-content:center;min-width:0}
-.th-ind{grid-area:ind;font-size:12pt;font-weight:700;letter-spacing:.1em;color:__ACCENT2__;line-height:1.3}
+.th-ind{grid-area:ind;font-size:12pt;font-weight:700;letter-spacing:.1em;color:__HEADLINE__;line-height:1.3}
 .th-val{grid-area:val;align-self:center;font-weight:700;line-height:1;letter-spacing:-.03em;color:__PRIMARY__;
   font-variant-numeric:tabular-nums;white-space:nowrap}
 /* §1.6: the unit rides at 1/4-1/3 of the number's size, on the same baseline — never at the number's size. */
@@ -99,7 +117,7 @@ body{margin:0;background:#E4E8ED;font-family:__FONT__;-webkit-font-smoothing:ant
   color:__CAPTION__;margin-bottom:10px}
 .br-rows{display:grid;row-gap:var(--gap,18px)}
 .br{display:grid;grid-template-columns:var(--idw) 1fr;column-gap:28px;align-items:center;min-width:0}
-.br-ind{font-size:12pt;font-weight:700;letter-spacing:.04em;color:__ACCENT2__;line-height:1.3;
+.br-ind{font-size:12pt;font-weight:700;letter-spacing:.04em;color:__HEADLINE__;line-height:1.3;
   font-variant-numeric:tabular-nums}
 .br-track{display:flex;align-items:center;min-width:0}
 .br-fill{flex:0 0 auto;background:__ACCENT__;border-radius:2px}
@@ -117,8 +135,8 @@ _TMPL = Template("""<!doctype html><html lang="zh-CN"><meta charset="utf-8">
 <style>{{ CSS }}</style>
 <body><div class="slide" data-page="{{ PAGE }}">
   {% if section %}<div class="kicker">{{ section }}</div><div class="rule"></div>{% endif %}
-  {% if headline %}<h1 class="htitle">{{ headline }}</h1>{% endif %}
-  <div class="main">{{ main|safe }}</div>
+  {% if headline %}<h1 class="htitle">{{ headline|safe }}</h1>{% endif %}
+  <div class="main" style="top:{{ top }}px;height:{{ height }}px">{{ main|safe }}</div>
   {% if takeaway %}<div class="take">{{ takeaway }}</div>{% endif %}
   <div class="foot"><div class="row">{{ source }}</div><div class="pg">{{ page }} / {{ total }}</div></div>
 </div></body></html>""")
@@ -137,6 +155,52 @@ def _txt(s: str) -> str:
     return _CJK_GAP.sub("", s or "")
 
 
+def _marked(text: str, spans, cls: str = "num") -> str:
+    """Sentence text with these stretches marked.  The words are untouched; only their weight changes."""
+    out, at = [], 0
+    for a, b in sorted(spans):
+        if a < at:
+            continue
+        out += [_esc(text[at:a]), f'<span class="{cls}">{_esc(text[a:b])}</span>']
+        at = b
+    return "".join(out) + _esc(text[at:])
+
+
+def _said(text: str) -> str:
+    t = _txt(text)
+    return _marked(t, emphasis_spans(t))
+
+
+def _width(s: str) -> float:
+    return sum(1.0 if ord(c) > 0x2E7F else 0.56 for c in s)
+
+
+def _title_lines(text: str) -> list[str]:
+    """Where a title breaks: at a clause mark when one balances the lines, because a break the browser picks is one
+    PowerPoint will not repeat.  Each line becomes its own paragraph, so both show the same two lines."""
+    if _width(text) <= TITLE_EMS:
+        return [text]
+    fits = [i for i in range(1, len(text)) if _width(text[:i]) <= TITLE_EMS and _width(text[i:]) <= TITLE_EMS]
+    marks = [i for i in fits if text[i - 1] in "，,、；;：:"]
+    pool = marks or [i for i in fits if not (text[i - 1].isascii() and text[i].isascii())]
+    if not pool:
+        return [text]
+    i = min(pool, key=lambda k: abs(_width(text[:k]) - _width(text[k:])))
+    return [text[:i], text[i:]]
+
+
+def _title_html(lines: list[str], em: list[str]) -> str:
+    done = []
+    for line in lines:
+        spans = emphasis_spans(line)
+        for piece in em:
+            at = line.find(piece)
+            if at >= 0:
+                spans.append((at, at + len(piece)))
+        done.append(_marked(line, spans, "em"))
+    return "<br>".join(done)
+
+
 def _css(theme: str) -> str:
     t = get_theme(theme)
     rep = {"__FONT__": FONT, "__CANVAS__": t["canvas"], "__INK__": t["ink"], "__PAD__": str(PAD),
@@ -152,43 +216,47 @@ def _css(theme: str) -> str:
 
 def _point_li(it: dict) -> str:
     cls = ' class="core"' if it.get("weight") == "core" else ""
-    return f'<li{cls}><b>{_esc(it["label"])}</b>{_esc(_txt(it["quote"]))}</li>'
+    return f'<li{cls}><b>{_esc(it["label"])}</b>{_said(it["quote"])}</li>'
+
+
+def _lead_html(lead: dict) -> str:
+    """The number at full size, its qualifier and unit small beside it: all three are what the source said."""
+    m = re.fullmatch(r"(.*?\d)(\D*)", lead["bare"])
+    number, unit = (m.group(1), m.group(2)) if m else (lead["bare"], "")
+    pre = f'<span class="stat-pre">{_esc(lead["word"])}</span>' if lead.get("word") else ""
+    tail = f'<span class="stat-unit">{_esc(unit)}</span>' if unit else ""
+    return f'<div class="stat-num">{pre}{_esc(number)}{tail}</div><div class="stat-label">{_esc(lead["label"])}</div>'
 
 
 def _body_stat(p) -> str:
+    """The number first, what explains it under a rule.  The space is shared out evenly, not left at the bottom."""
     lead = p.get("lead") or {}
-    pts = "".join(_point_li(i) for i in p["items"])
-    src = ""
+    head = _lead_html(lead) if lead.get("value") else ""
     if lead.get("page_id"):
-        src = f"<div class=\"stat-src\">{_esc(str(lead.get('source_id') or ''))} · {_esc(str(lead['page_id']))}</div>"
-    return (f'<div style="display:grid;grid-template-columns:440px 1fr;gap:56px;height:100%;align-items:center">'
-            f'<div>'
-            + (f'<div class="stat-num">{_esc(lead["value"])}</div><div class="stat-label">{_esc(lead["label"])}</div>'
-               if lead.get("value") else "")
-            + f'{src}</div>'
-            f'<ul class="points" data-check="fit">{pts}</ul></div>')
+        head += f"<div class=\"stat-src\">{_esc(str(lead.get('source_id') or ''))} · {_esc(str(lead['page_id']))}</div>"
+    items = p["items"]
+    if not items:
+        return f'<div class="stat"><div>{head}</div></div>'
+    cells = "".join(f'<div class="stat-item" data-check="fit"><div class="lb">{_esc(i["label"])}</div>'
+                    f'<p>{_said(i["quote"])}</p></div>' for i in items)
+    return (f'<div class="stat"><div>{head}</div>'
+            f'<div class="stat-items" style="grid-template-columns:repeat({len(items)},1fr)">{cells}</div></div>')
 
 
 def _body_points(p) -> str:
-    """Points of equal weight: a single column when there are three or fewer, so each one gets room to breathe.
+    """Parallel sentences as rows: what each is about on the left, what it says on the right, rows sharing the height.
 
-    Once the model marks which points lead, the equal grid is the wrong shape — four cards of the same size say
-    four equal things.  The page becomes one column where a core point is set larger than its supporting ones,
-    and the difference is in the type, not only in the order.
+    Once the model marks which points lead, a table of equals is the wrong shape: the page becomes one column where
+    a core point is set larger than its supporting ones, and the difference is in the type, not only in the order.
     """
     items = p["items"]
     if any(i.get("weight") == "core" for i in items):
         lis = "".join(_point_li(i) for i in items)
         return (f'<ul class="points" data-check="fit" '
                 f'style="height:100%;display:flex;flex-direction:column;justify-content:center">{lis}</ul>')
-    n = len(items)
-    cols = 1 if n <= 3 else (2 if n <= 4 else 3)
-    cells = "".join(f'<div class="col" data-check="fit">'
-                    f'<div class="lb">{_esc(i["label"])}</div>'
-                    f'<p>{_esc(_txt(i["quote"]))}</p></div>' for i in items)
-    size = "21px" if cols == 1 else ("19px" if cols == 2 else "18px")
-    return (f'<div class="cols" style="grid-template-columns:repeat({cols},1fr);'
-            f'height:100%;align-content:safe center;font-size:{size}">{cells}</div>')
+    rows = "".join(f'<div class="row2" data-check="fit"><div class="lb">{_esc(i["label"])}</div>'
+                   f'<p>{_said(i["quote"])}</p></div>' for i in items)
+    return f'<div class="rows" style="grid-template-rows:repeat({len(items)},1fr)">{rows}</div>'
 
 
 def _body_compare(p) -> str:
@@ -198,7 +266,7 @@ def _body_compare(p) -> str:
     labels = p.get("labels") or ["", ""]
 
     def side(name: str, rows) -> str:
-        lis = "".join(f'<p data-check="fit"><b>{_esc(r["label"])}</b>{_esc(_txt(r["quote"]))}</p>'
+        lis = "".join(f'<p data-check="fit"><b>{_esc(r["label"])}</b>{_said(r["quote"])}</p>'
                       for r in rows)
         hd = f'<div class="hd">{_esc(name)}</div>' if name else ""
         return f'<div class="col">{hd}{lis}</div>'
@@ -210,7 +278,7 @@ def _body_steps(p) -> str:
     n = len(p["items"])
     cells = "".join(f'<div class="step" data-check="fit"><div class="dot">{k + 1}</div>'
                     f'<div class="lb">{_esc(i["label"])}</div>'
-                    f'<p>{_esc(_txt(i["quote"]))}</p></div>' for k, i in enumerate(p["items"]))
+                    f'<p>{_said(i["quote"])}</p></div>' for k, i in enumerate(p["items"]))
     return f'<div class="steps" style="grid-template-columns:repeat({n},1fr)">{cells}</div>'
 
 
@@ -265,7 +333,7 @@ def _br_block(part: dict, dense: bool) -> str:
     unit = part["unit"]
     inline = len(series) <= 3 and not dense
     size = 30 if inline else 22
-    band = 44 if inline else 24
+    band = 64 if inline else 28
     row_h = max(band, round(size * 1.4))       # the number's ink has to fit inside the row it centres in
     rows = "".join(
         f'<div class="br" data-check="fit" style="min-height:{row_h}px">'
@@ -277,10 +345,13 @@ def _br_block(part: dict, dense: bool) -> str:
         + f'</div></div></div>'
         for x in series)
     hd = ""
-    if part.get("label") or not inline:
+    base = part.get("base")
+    if part.get("label") or base or not inline:
         tail = "" if inline else f"单位：{unit}"
+        if base:
+            tail = f"{tail}（占{base}）" if tail else f"占{base}"
         hd = f'<div class="br-hd"><span>{_esc(part.get("label") or "")}</span><span>{_esc(tail)}</span></div>'
-    gap = 34 if inline else 14               # few bars get air between them; many get the compact rhythm
+    gap = 44 if inline else 18               # few bars get air between them; many get the compact rhythm
     return f'<div class="brs">{hd}<div class="br-rows" style="--gap:{gap}px">{rows}</div></div>'
 
 
@@ -295,10 +366,18 @@ def _body_figure(p) -> str:
 def render_page(page: dict, *, page_no: int, total: int, source: str, theme: str = "gold_clinical",
                 section: str | None = None) -> str:
     """One resolved presentation page → one HTML document. Content is the sentences' own words."""
+    if page.get("pending"):
+        raise ValueError(f'{page["id"]} 的标题是待确认的综合句，确认前不能上页：{page["headline"]}')
     take = page.get("takeaway")
     body = _body_figure if page.get("figure") else _BODIES[page["structure"]]
+    # A full stop belongs to a sentence, not to a title; the body starts where the title ends, not at a fixed line.
+    title = _txt(page.get("headline")).rstrip("。；;.")
+    lines = _title_lines(title) if title else []
+    top = round(TITLE_TOP + TITLE_LINE * max(len(lines), 1) + TITLE_GAP)
     return _TMPL.render(
-        CSS=_css(theme), PAGE=page_no, section=section, headline=page.get("headline"),
+        CSS=_css(theme), PAGE=page_no, section=section,
+        headline=_title_html(lines, page.get("headline_em") or []) or None,
+        top=top, height=(BODY_BOTTOM_TAKE if take else BODY_BOTTOM) - top,
         main=body(page), takeaway=_esc(_txt(take["quote"])) if take else "",
         source=_esc(source), page=page_no, total=total,
     )

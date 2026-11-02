@@ -30,6 +30,11 @@ FOOTER_TOP = 670         # §1.1: the footer band starts at y=670 on a 720-high 
 FOOTER_TOLERANCE = 3
 CONTENT_BOTTOM = 660     # §1.1: the content area ends here; the footer band is 670-700
 MIN_FILL = 0.5           # §1.3: below this the page is too thin to stand on its own
+MAX_BLANK = 0.35         # the largest empty band across the body, as a share of it
+MIN_CONTRAST = 4.5       # WCAG AA for text
+MIN_CONTRAST_LARGE = 3.0 # WCAG AA for large text (24px, or 18.66px bold)
+MAX_TITLE_LINES = 2
+REPEAT_MIN_CHARS = 6     # shorter stretches are names, which a page may say twice
 
 DESIGN_JS = """(index) => {
   const slide = document.querySelectorAll('.slide')[index || 0];
@@ -45,12 +50,27 @@ DESIGN_JS = """(index) => {
     ['.foot', 'note'], ['.stat-src', 'note'], ['.th-src', 'note'],
   ];
   const roleOf = (el) => {
+    const tier = el.closest('[data-tier]');
+    if (tier) return tier.dataset.tier;
     for (const [sel, role] of ROLE) {
       const hit = el.closest(sel);
       if (hit && slide.contains(hit)) return role;
     }
     return 'body';
   };
+  const rgb = (c) => { const m = (c || '').match(/[\\d.]+/g); return m ? m.map(Number) : null; };
+  const lum = (c) => { const f = c.slice(0, 3).map((v) => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; });
+    return .2126 * f[0] + .7152 * f[1] + .0722 * f[2]; };
+  // what text sits on: a gradient is every one of its stops, and the contrast is the worst of them
+  const backdrops = (el) => { for (let e = el; e; e = e.parentElement) { const st = getComputedStyle(e);
+    const stops = (st.backgroundImage.match(/rgba?\\([^)]*\\)/g) || []).map(rgb);
+    if (stops.length) return stops;
+    const c = rgb(st.backgroundColor);
+    if (c && (c.length < 4 || c[3] > .5)) return [c]; } return [[255, 255, 255]]; };
+  const ratio = (a, b) => (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
+  const contrast = (el, cs) => Math.min(...backdrops(el).map((c) => ratio(lum(rgb(cs.color)), lum(c))));
+  const plates = [...slide.querySelectorAll('img[data-role="illustration"]')].map((i) => i.getBoundingClientRect());
+  const onPlate = (r) => plates.some((p) => r.left < p.right && p.left < r.right && r.top < p.bottom && p.top < r.bottom);
   const out = [];
   const seen = new Set();
   for (const el of slide.querySelectorAll('*')) {
@@ -66,18 +86,38 @@ DESIGN_JS = """(index) => {
     out.push({
       role: roleOf(el),
       text: el.textContent.trim().slice(0, 24),
+      full: el.textContent.trim(),
+      contrast: contrast(el, cs),
       size: parseFloat(cs.fontSize),
       weight: parseInt(cs.fontWeight) >= 600 ? 'bold' : 'normal',
       lineHeight: parseFloat(cs.lineHeight) / parseFloat(cs.fontSize),
-      inMain: !!el.closest('.main'),
+      inMain: !!el.closest('.main, .body'),
+      onPlate: onPlate(r),
       top: Math.round(r.top - S.top),
       bottom: Math.round(r.bottom - S.top),
     });
   }
   const foot = slide.querySelector('.foot');
-  const main = slide.querySelector('.main');
+  const main = slide.querySelector('.main, .body');
+  const title = slide.querySelector('.htitle, [data-tier="title"]');
+  // everything that shows on the page, text or painted, as vertical extents
+  const marks = [];
+  if (main) for (const el of main.querySelectorAll('*')) {
+    const cs = getComputedStyle(el);
+    const bg = rgb(cs.backgroundColor);
+    const painted = (bg && (bg.length < 4 || bg[3] > .1)) || parseFloat(cs.borderTopWidth) > 0;
+    const worded = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
+    const picture = el.tagName === 'IMG' && el.dataset.role !== 'backdrop';
+    if (el.dataset.role === 'backdrop' || (!painted && !worded && !picture)) continue;
+    const r = el.getBoundingClientRect();
+    if (r.height >= 1) marks.push([Math.round(r.top - S.top), Math.round(r.bottom - S.top)]);
+  }
+  const lines = title ? Math.round(title.getBoundingClientRect().height / parseFloat(getComputedStyle(title).lineHeight)) : 0;
   return {
     ink: out,
+    marks,
+    titleLines: lines,
+    titleBottom: title ? Math.round(title.getBoundingClientRect().bottom - S.top) : null,
     footerTop: foot ? Math.round(foot.getBoundingClientRect().top - S.top) : null,
     contentTop: main ? Math.min(...[...main.querySelectorAll('*')]
       .map((e) => e.getBoundingClientRect().top - S.top).concat([1e9])) : null,
@@ -88,14 +128,29 @@ DESIGN_JS = """(index) => {
 }"""
 
 
-def audit(measured: dict, role: str = "supporting", figure: bool = False) -> list[dict]:
+def _blank(marks: list, top: int, bottom: int) -> float:
+    """The tallest empty band between `top` and `bottom`, as a share of that height."""
+    at, widest = top, 0
+    for a, b in sorted(marks):
+        widest = max(widest, a - at)
+        at = max(at, b)
+    return max(widest, bottom - at) / float(bottom - top)
+
+
+def _repeats(ink: list[dict]) -> list[str]:
+    """Text said twice on one page, whole inside another element.  A page that repeats itself has nothing to add."""
+    said = [t for t in ink if t["role"] not in ("note", "kicker", "label") and t.get("full")]
+    keys = ["".join(c for c in t["full"] if c.isalnum() or c == "%") for t in said]
+    return [said[a]["text"] for a, x in enumerate(keys) for b, y in enumerate(keys)
+            if a != b and len(x) >= REPEAT_MIN_CHARS and x in y and (x != y or a < b)]
+
+
+def audit(measured: dict, role: str = "supporting") -> list[dict]:
     """Every rule the page breaks, with the numbers that broke it. Empty means the page may be drawn.
 
-    ``role`` is the page's own declaration (see ``presentation.ROLES``) and ``figure`` says whether the page is
-    drawn as a figure rather than as text.  Both bear on one rule only: a page built on one statement (§4.1) and a
-    page built on a chart are allowed to leave room, because a chart is a fixed object — it cannot be stretched
-    the way a column of text can, and the air around it is part of how it reads.  Every other rule still applies:
-    room is a decision, not an excuse for an overflow.
+    ``role`` is the page's own declaration (see ``presentation.ROLES``), and it bears on room only: a page built on
+    one statement (§4.1) may leave space.  Room is a decision, not an excuse: every other rule still applies, and
+    a chart gets no exemption, because the shell sizes it and a void around it is the shell's failure.
     """
     if not measured:
         return [{"rule": "measure", "detail": "页面没有量到任何文字"}]
@@ -112,6 +167,14 @@ def audit(measured: dict, role: str = "supporting", figure: bool = False) -> lis
         if t["role"] not in ("figure", "unit") and t["lineHeight"] and t["lineHeight"] < MIN_LINE_HEIGHT - 0.02:
             bad.append({"rule": "line-height", "detail":
                         f'「{t["text"]}」行高 {t["lineHeight"]:.2f}，下限 {MIN_LINE_HEIGHT}'})
+        if t.get("onPlate"):
+            bad.append({"rule": "text-on-image", "detail": f'「{t["text"]}」压在插图上：文字放到图外，插图上只用引线标注'})
+        if t.get("contrast"):
+            large = t["size"] >= 24 or (t["weight"] == "bold" and t["size"] >= 18.66)
+            floor_c = MIN_CONTRAST_LARGE if large else MIN_CONTRAST
+            if t["contrast"] < floor_c:
+                bad.append({"rule": "contrast", "detail":
+                            f'「{t["text"]}」对比度 {t["contrast"]:.1f}，下限 {floor_c}'})
 
     # A unit is part of its number, not a level of its own (§1.6), so it does not spend one of the four styles.
     styles = sorted({(round(t["size"], 1), t["weight"]) for t in ink if t["role"] != "unit"}, reverse=True)
@@ -143,11 +206,20 @@ def audit(measured: dict, role: str = "supporting", figure: bool = False) -> lis
     # is a page with too little material, and the fix is to merge it, not to stretch it.  Text is what can be
     # stretched, so the rule governs text: a hero page states one thing, and a chart is measured by its own
     # proportions, not by the height of the band it sits in.
-    if role != "hero" and not figure and top is not None and bottom is not None:
+    if role != "hero" and top is not None and bottom is not None:
         span = (bottom - top) / float(CONTENT_BOTTOM - 172)
         if span < MIN_FILL:
             bad.append({"level": "warn", "rule": "content-fill", "detail":
                         f"内容只占内容区高度的 {span:.0%}（下限 {MIN_FILL:.0%}）：这页材料撑不满，考虑合并或补内容"})
+
+    if measured.get("titleLines", 0) > MAX_TITLE_LINES:
+        bad.append({"rule": "title-lines", "detail": f'标题 {measured["titleLines"]} 行，上限 {MAX_TITLE_LINES} 行'})
+    if measured.get("marks") and measured.get("titleBottom") is not None and role != "hero":
+        share = _blank(measured["marks"], measured["titleBottom"], CONTENT_BOTTOM)
+        if share > MAX_BLANK:
+            bad.append({"rule": "blank", "detail": f"正文区最大空白占 {share:.0%}（上限 {MAX_BLANK:.0%}）"})
+    for text in _repeats(ink):
+        bad.append({"rule": "repeat", "detail": f"「{text}」在同一页说了两遍"})
 
     if measured.get("footerTop") is not None and abs(measured["footerTop"] - FOOTER_TOP) > FOOTER_TOLERANCE:
         bad.append({"rule": "footer", "detail": f'页脚顶边在 y={measured["footerTop"]}，应固定为 {FOOTER_TOP}'})

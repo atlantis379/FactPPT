@@ -19,3 +19,6 @@ runtime.env
 app/.codex_build/
 tests/.acceptance/
 verification_reports/
+
+# WorkBuddy 本地草稿（工具自己写的目录，不入库；根目录 .workbuddy/memory 是项目日志，保留跟踪）
+/factdeck/.workbuddy/

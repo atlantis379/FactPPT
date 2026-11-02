@@ -25,7 +25,7 @@ from factdeck.template_lib import selector as S  # noqa: E402
 
 DEMO = "示例数据，教学示意，非诊疗建议"
 THEME = "gold_clinical"
-V1_THEME = "premium_clinical"
+V1_THEME = "gold_clinical"
 V1_FAMILIES = {"cover", "section", "key_points", "comparison", "flow", "timeline"}
 
 

@@ -193,8 +193,8 @@ def test_deck_template_page_without_a_fill_for_the_selected_layout_is_refused():
          "template": {"layout": "trial_design", "fills": {"trial_design": forest_fill()}}}
     res = D.check(deck_with(p), FACTS)
     rec = res["template_layouts"]["pages"]["p5"]
-    assert rec["layout"] != "trial_design"
-    assert any("没有可用的填充" in e for e in res["deck_errors"])
+    assert rec["layout"] == "trial_design" and rec["rendered_layout"] is None
+    assert any("不更换版式" in e for e in res["deck_errors"])
 
 
 def test_deck_plan_feeds_the_pipeline():

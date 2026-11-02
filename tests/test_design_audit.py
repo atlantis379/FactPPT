@@ -87,3 +87,40 @@ def test_a_hero_page_may_leave_room():
     # 留白可以声明，别的规则不可以：越界照样报
     thin["ink"][1] = {**thin["ink"][1], "bottom": 700}
     assert "content-height" in rules(thin, role="hero")
+
+
+# ---------------------------------------------------------------- measured on any page, whatever it says
+
+def test_small_text_needs_contrast_and_large_text_needs_less():
+    low = page()
+    low["ink"][1] = {**low["ink"][1], "contrast": 3.1}
+    assert "contrast" in rules(low)
+    large = page()
+    large["ink"][0] = {**large["ink"][0], "contrast": 3.1}
+    assert "contrast" not in rules(large)
+
+
+def test_a_tall_empty_band_is_refused_unless_the_page_declared_room():
+    void = page(marks=[[150, 200], [500, 650]], titleBottom=120)
+    assert "blank" in rules(void)
+    assert "blank" not in rules(void, role="hero")
+    assert "blank" not in rules(page(marks=[[140, 300], [320, 650]], titleBottom=120))
+
+
+def test_a_void_under_the_last_block_counts_too():
+    assert "blank" in rules(page(marks=[[130, 300]], titleBottom=120))
+
+
+def test_a_title_may_not_run_past_two_lines():
+    assert "title-lines" in rules(page(titleLines=3))
+
+
+def test_a_page_may_not_say_the_same_thing_twice():
+    twice = page()
+    twice["ink"][0] = {**twice["ink"][0], "full": "对象在什么条件下使用，疗程不超过某个数"}
+    twice["ink"][1] = {**twice["ink"][1], "full": "疗程不超过某个数"}
+    assert "repeat" in rules(twice)
+    short = page()
+    short["ink"][0] = {**short["ink"][0], "full": "短名称出现在标题里"}
+    short["ink"][1] = {**short["ink"][1], "full": "短名称"}
+    assert "repeat" not in rules(short)

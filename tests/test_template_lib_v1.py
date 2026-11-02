@@ -118,7 +118,7 @@ def test_premium_clinical_theme_tokens_and_list_order():
     for key in ("surface", "rail", "shadow", "takeaway-bg", "on-accent"):
         assert key in t
     themes = tl.list_themes()
-    assert themes[0]["id"] == "premium_clinical"
+    assert themes[0]["id"] == "gold_clinical" and themes[-1]["id"] == "premium_clinical"
     assert {x["id"] for x in themes} >= {"premium_clinical", "journal", "steel"}
     html = tl.render_page_html("cover", COVER_ZH, theme="premium_clinical")
     assert "data-theme=\"premium_clinical\"" in html
