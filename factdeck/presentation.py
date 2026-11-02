@@ -1,10 +1,9 @@
-"""Presentation spec (``presentation.v1``): the model decides how a page is shown, code only checks the data.
+"""Presentation spec (``presentation.v2``): the model decides how a page is shown, code only checks the data.
 
 The model reads the draft (each topic's messages and the verbatim sentences behind them) and answers, page by page:
 what is this page's structure, which sentence leads, which number carries the page, what is the takeaway.  It never
 writes displayed text: every content slot points at a sentence id and the code puts that sentence's own words there.
-What the model may write is organising text — the headline and short labels — and those are checked against the
-sentences on the page, so a number in a headline has to exist in the material.
+What the model may write is organising text only — short labels that name things and state nothing.
 
 Why this exists: a fixed template with fixed slots can only show what fits its slots.  Pages whose material is
 richer (200+ characters, a comparison, a number worth a whole page) were being squeezed into four equal cards.
@@ -13,8 +12,8 @@ with the code.
 
 What the model decides, and what it may not: it decides the structure, the sentences, the picture (composed from
 parts, in the order it wants), which points lead, and whether a page is allowed to breathe.  It never decides
-geometry, and it never gets to assert a number, a boundary, a unit or an attribution the sentences do not carry —
-those are the three things a slide can lie about, so they are checked here and refused before anything is drawn.
+geometry, and it does not write what the page asserts: a headline is a reference (``factdeck.shown``), and a figure
+takes each number from where it stands in the sentence, so what a number belongs to is read off the source.
 
 Four structures to start (coarse on purpose — see ``STRUCTURES``); each maps to one parametric HTML layout rendered
 to native shapes by ``factdeck.template_lib.native``.  Nothing here draws a picture or invents a coordinate.
@@ -24,9 +23,10 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 
-from .lexicon import critical_tokens, number_spans
+from .lexicon import lexicon, lint_text, number_occurrences, number_spans
+from .shown import ShownError, resolve
 
-SCHEMA = "presentation.v1"
+SCHEMA = "presentation.v2"
 
 # structure → (min items, max items, needs a lead value)
 STRUCTURES: dict[str, tuple[int, int, bool]] = {
@@ -72,7 +72,7 @@ _WORD_OP = {"至少": "≥", "不低于": "≥", "不少于": "≥", "超过": "
             "低于": "<", "小于": "<", "少于": "<"}
 _OP_COMPLEMENT = {"≥": "<", ">": "≤", "≤": ">", "<": "≥"}
 
-_HEADLINE_MAX = 60
+_HEADLINE_MAX = 56    # two lines of the title
 _LABEL_MAX = 18
 _TAKEAWAY_MAX = 52
 _ITEM_LABEL_MAX = 14
@@ -97,15 +97,28 @@ def context_dependent(text: str) -> bool:
     return bool(_CTX_OPEN.match(t)) or any(p in t for p in _CTX_PHRASE)
 
 
-_UNIT_SUFFIX = tuple(sorted({"%", "倍", "例", "人", "次", "天", "周", "个月", "月", "年", "小时", "分钟", "分",
-                             "级", "岁", "mg/L", "细胞/微升", "μL", "mL", "/分"}, key=len, reverse=True))
-
-
 def _unit_of(token: str) -> str:
-    for u in _UNIT_SUFFIX:
-        if token.endswith(u):
-            return u
+    """The unit a token ends in, from the same list that cut the token.  Units are project vocabulary, not code."""
+    for u in sorted(lexicon()["units"], key=len, reverse=True):
+        if token.endswith(u.lower()):
+            return u.lower()
     return ""
+
+
+def _qualifier(quote: str, hit: dict) -> str:
+    """The word that qualifies this number where it stands, if any: part of what the source said about it."""
+    before = quote[:hit["start"]].rstrip()
+    return next((w for w in sorted(lexicon()["claim_qualifiers"], key=len, reverse=True) if before.endswith(w)), "")
+
+
+def emphasis_spans(text: str) -> list[tuple[int, int]]:
+    """Where the eye should land in a sentence: its numbers, each with the word that qualifies it.  Code marks these
+    on every sentence alike, so emphasis needs no authored rewriting and can never emphasise something else."""
+    out = []
+    for h in number_occurrences(text):
+        word = _qualifier(text, h)
+        out.append((h["start"] - len(word) if text[:h["start"]].endswith(word) else h["start"], h["end"]))
+    return out
 
 
 def materials(fact_ids, facts: Mapping[str, dict]) -> dict:
@@ -139,34 +152,22 @@ def materials(fact_ids, facts: Mapping[str, dict]) -> dict:
             "comparable": comparable, "conditions": conditions}
 
 
-def shares_with(label: str, text: str) -> bool:
-    """Does `text` name the thing `label` names?  Two-character overlap on a short label is enough evidence that a
-    point belongs to that side of a comparison; no overlap at all means the page would assert an attribution the
-    sentence does not make."""
-    grams = {label[i:i + 2] for i in range(len(label) - 1)}
-    return any(g in text for g in grams)
+def _squash(text: str) -> str:
+    return re.sub(r"\s+", "", text or "")
 
 
-class PresentationError(ValueError):
+def names(name: str, text: str) -> bool:
+    """Does `text` say this name, word for word?  Anything looser is a guess at what a sentence is about."""
+    return _squash(name) in _squash(text)
+
+
+class PresentationError(ShownError):
     """The spec would show something the material does not support."""
 
 
 def _need(cond, msg: str) -> None:
     if not cond:
         raise PresentationError(msg)
-
-
-def _digits(text: str) -> set[str]:
-    """Digits a reader would take as data (70%, 5-10%, 1.5倍) — Chinese numerals are prose, not data."""
-    return {t for t in critical_tokens(text) if re.search(r"\d", t)}
-
-
-def _page_tokens(fact_ids, facts: Mapping[str, dict]) -> set[str]:
-    out: set[str] = set()
-    for fid in fact_ids:
-        for sp in number_spans(facts[fid]["quote"]):
-            out.add(sp["token"])
-    return out
 
 
 def _fact(fid, facts: Mapping[str, dict], where: str) -> dict:
@@ -176,20 +177,21 @@ def _fact(fid, facts: Mapping[str, dict], where: str) -> dict:
             "page_id": f.get("page_id") or f.get("location"), "unit_id": f.get("unit_id") or f.get("unit")}
 
 
-def check(spec: Mapping, facts: Mapping[str, dict]) -> dict:
+def check(spec: Mapping, facts: Mapping[str, dict], confirmed=()) -> dict:
     """Validate a presentation against the draft's sentences. Returns the normalised spec with sentences resolved.
 
     Refused: an unknown structure; a page whose slot counts fall outside the structure; a sentence that is not in the
-    draft; a lead value that is not one of the numbers in the sentence it names; a headline carrying a number the
-    page's own sentences do not contain.  Nothing is corrected — a page that cannot be supported has to be re-decided
-    by the model.
+    draft; a lead value that is not one of the numbers in the sentence it names; a headline that is not a reference
+    (``shown.resolve``).  Nothing is corrected — a page that cannot be supported has to be re-decided by the model.
+    A headline that synthesises several sentences comes back in ``pending`` until a person confirms its digest
+    (`confirmed`), and such a page cannot be rendered.
     """
     _need(isinstance(spec, Mapping), "呈现方案须为对象")
     _need(spec.get("schema_version") == SCHEMA, f"schema_version 须为 {SCHEMA}")
     pages = spec.get("pages")
     _need(isinstance(pages, list) and pages, "pages 不能为空")
 
-    out, seen = [], set()
+    out, seen, pending = [], set(), []
     for i, p in enumerate(pages, 1):
         _need(isinstance(p, Mapping), f"第{i}页须为对象")
         pid = p.get("id") or f"p{i}"
@@ -266,23 +268,39 @@ def check(spec: Mapping, facts: Mapping[str, dict]) -> dict:
             fact_ids.append(src["fact"])
             value = l.get("value")
             _need(isinstance(value, str) and value.strip(), f"第{i}页 lead.value 须为文字")
-            tokens = {sp["token"] for sp in number_spans(src["quote"])}
-            _need(value.strip() in tokens,
-                  f"第{i}页 lead.value「{value}」不是该句中的数字（可选：{'、'.join(sorted(tokens)) or '无'}）")
-            label = (l.get("label") or "").strip()
-            _need(label and "\n" not in label, f"第{i}页 lead.label 须为一行文字")
-            _need(len(label) <= _LABEL_MAX, f"第{i}页 lead.label 超过 {_LABEL_MAX} 字")
-            _need(not _digits(label), f"第{i}页 lead.label 是组织文字，数字写进 lead.value：{label}")
-            lead = {"value": value.strip(), "label": label, "fact": src["fact"], "quote": src["quote"]}
+            hits = {h["token"]: h for h in number_occurrences(src["quote"])}
+            word = next((w for w in sorted(lexicon()["claim_qualifiers"], key=len, reverse=True)
+                         if value.strip().startswith(w)), "")
+            bare = value.strip()[len(word):].strip()
+            _need(bare in hits and (not word or names(value, src["quote"])),
+                  f"第{i}页 lead.value「{value}」不是该句中的数字（可选：{'、'.join(sorted(hits)) or '无'}）")
+            # A number shown alone states an exact figure.  The sentence's qualifier stays with it, at any size.
+            kept = _qualifier(src["quote"], hits[bare])
+            _need(word == kept, f"第{i}页 lead.value「{value}」丢了原文的限定词「{kept}」：写成「{kept}{bare}」")
+            label = _label(l.get("label"), f"第{i}页 lead.label", _LABEL_MAX)
+            _need(label, f"第{i}页 lead.label 须为一行文字")
+            lead = {"value": value.strip(), "word": word, "bare": bare, "label": label,
+                    "fact": src["fact"], "quote": src["quote"]}
 
-        headline = p.get("headline")
-        if headline is not None:
-            _need(isinstance(headline, str) and headline.strip() and "\n" not in headline, f"第{i}页 headline 须为一行文字")
-            headline = headline.strip()
-            _need(len(headline) <= _HEADLINE_MAX, f"第{i}页 headline 超过 {_HEADLINE_MAX} 字")
-            allowed = _page_tokens(fact_ids, facts)
-            extra = sorted(_digits(headline) - allowed)
-            _need(not extra, f"第{i}页 headline 的数字在本页句子中找不到：{'、'.join(extra)}")
+        # The largest words on the page, so they are the ones that may not be written: see factdeck.shown.
+        headline, waiting, headline_em = None, False, []
+        if p.get("headline") is not None:
+            said = resolve(p["headline"], facts, f"第{i}页 headline", confirmed, PresentationError)
+            headline, waiting = said["text"], said["pending"]
+            _need(len(headline) <= _HEADLINE_MAX,
+                  f"第{i}页 headline 有 {len(headline)} 字，标题最多两行 {_HEADLINE_MAX} 字：用 show 取节选，或换一句")
+            _need(said["kind"] == "derivation" or not context_dependent(headline),
+                  f"第{i}页 headline 以指代开头，单独读不懂（「{headline[:16]}…」）：换一句自带主语的")
+            _need(not (resolved_take and resolved_take["fact"] in said["facts"]),
+                  f"第{i}页 takeaway 与标题是同一句：换一句本页小结，或留空")
+            em = p["headline"].get("em") or []
+            em = [em] if isinstance(em, str) else em
+            for piece in em:
+                _need(isinstance(piece, str) and piece and piece in headline,
+                      f"第{i}页 headline.em「{piece}」不是标题里的连续片段")
+            headline_em = list(em)
+            if waiting:
+                pending.append({"page": pid, "text": headline, "from": said["facts"], "digest": said["digest"]})
 
         # A takeaway that repeats the number the page is already built around says nothing new either.
         _need(not (lead and resolved_take and lead["fact"] == resolved_take["fact"]),
@@ -294,7 +312,7 @@ def check(spec: Mapping, facts: Mapping[str, dict]) -> dict:
             half = (len(resolved) + 1) // 2
             for k, r in enumerate(resolved):
                 side = 0 if k < half else 1
-                _need(shares_with(side_labels[side], r["quote"]),
+                _need(names(side_labels[side], r["quote"]),
                       f"第{i}页 items[{k}] 的句子没有提到「{side_labels[side]}」，放到这一栏会替它作原文没有的归属："
                       f"换到另一栏，或换一句明确说到它的")
 
@@ -305,7 +323,7 @@ def check(spec: Mapping, facts: Mapping[str, dict]) -> dict:
                     "form": "text" if not figures else (
                         _FORM_OF[figures[0]["kind"]] if len(figures) == 1 else "composite"),
                     "figure": figures,
-                    "headline": headline, "lead": lead, "items": resolved,
+                    "headline": headline, "headline_em": headline_em, "pending": waiting, "lead": lead, "items": resolved,
                     "weights": [r["weight"] for r in resolved],
                     "takeaway": resolved_take,
                     # Kept flat for the renderer and for anything that only wants "the page's boundaries".
@@ -315,7 +333,7 @@ def check(spec: Mapping, facts: Mapping[str, dict]) -> dict:
                     "section": _label(p.get("section"), f"第{i}页 section", 16),
                     "labels": side_labels,
                     "span": None if p.get("span") is None else [str(x) for x in p["span"]]})
-    return {"schema_version": SCHEMA, "pages": out}
+    return {"schema_version": SCHEMA, "pages": out, "pending": pending}
 
 
 def _figure_parts(parts_raw, facts: Mapping[str, dict], i: int) -> tuple[list[dict], list[str]]:
@@ -342,7 +360,7 @@ def _figure_parts(parts_raw, facts: Mapping[str, dict], i: int) -> tuple[list[di
         else:
             series = _bars(part.get("series"), facts, i, where)
             parts.append({"kind": "bars", "label": _label(part.get("label"), f"{where}.label", _LABEL_MAX),
-                          "unit": series[0]["unit"], "series": series})
+                          "unit": series[0]["unit"], "base": series[0]["base"], "series": series})
             used += [s["fact"] for s in series]
     if sum(1 for p in parts if p["kind"] == "bars") > 1:
         for k, part in enumerate(parts):
@@ -378,39 +396,87 @@ def _bars(raw, facts: Mapping[str, dict], i: int, where: str) -> list[dict]:
         fid = s.get("fact")
         _fact(fid, facts, f"{w}.fact")
         quote = facts[fid]["quote"]
-        ind = _label(s.get("indicator"), f"{w}.indicator", _INDICATOR_MAX)
-        _need(ind, f"{w} 须给出 indicator（这根柱量的是谁）")
+        ind = _name(s.get("indicator"), f"{w}.indicator")
+        _need(ind, f"{w} 须给出 indicator（这根柱量的是谁，取原句里的词）")
         _need(ind not in seen, f"{w} 的 indicator 与同组另一根重复：同一根柱不画两遍")
-        _need(shares_with(ind, quote),
-              f"{w} 的 indicator「{ind}」在这句里找不到：换一个句子说得出名字的指标")
+        _need(names(ind, quote), f"{w} 的 indicator「{ind}」在这句里找不到：取原句里的词")
         seen.add(ind)
-        spans = {sp["token"]: sp for sp in number_spans(quote)}
         value = str(s.get("value") or "").strip()
-        _need(value in spans, f"{w} 的 value「{value}」不是来源句中的数字（可选：{'、'.join(spans) or '无'}）")
-        token, clause = value, spans[value]["clause"]
-        _need("-" not in token and "~" not in token and "至" not in token,
-              f"{w} 的数值是一个区间（「{token}」），一根柱只能是一个数：换一个确定的值，或改用 threshold")
-        numeral = token[1:].strip() if token[:1] in _OP_CHARS else token
-        unit = _unit_of(numeral)
+        hit = _hit(quote, value, ind)
+        _need(hit, f"{w} 的 value「{value}」不是来源句中的数字"
+                   f"（可选：{'、'.join(h['token'] for h in number_occurrences(quote)) or '无'}）")
+        _need("-" not in value and "~" not in value and "至" not in value,
+              f"{w} 的数值是一个区间（「{value}」），一根柱只能是一个数：换一个确定的值，或改用 threshold")
+        # 「超过10%」is a bound.  A bar has one length, so drawing it would state an exact 10%.
+        _need(not _bound(quote, hit), f"{w} 的「{value}」在原句里是一个界值，柱长只能画确定的数：改用 threshold")
+        unit = _unit_of(value)
         _need(unit, f"{w} 的数值「{value}」没有单位，柱长无从比较：换一个带单位的数（% / 倍 / 例 / 天）")
-        digits = numeral[: len(numeral) - len(unit)]
+        digits = value[: len(value) - len(unit)]
         try:
             amount = float(digits.replace(",", ""))
         except ValueError:
             raise PresentationError(f"{w} 的数值「{value}」不是一个可比较的数：柱长画不出来") from None
         _need(amount > 0, f"{w} 的数值「{value}」不大于 0，柱长为零：这一项用文字说")
-        out.append({"indicator": ind, "value": token, "numeral": digits, "unit": unit,
-                    "amount": amount, "fact": fid, "clause": clause})
+        base = None
+        if unit == "%":
+            # Two percentages compare only over one denominator; the sentences have to name it in the same words.
+            base = _name(s.get("base"), f"{w}.base")
+            _need(base and names(base, quote), f"{w} 是百分比，须用 base 给出原句里的分母（占谁的百分之几）")
+        out.append({"indicator": ind, "value": value, "numeral": digits, "unit": unit, "base": base,
+                    "amount": amount, "fact": fid, "clause": hit["clause"], "at": hit["start"]})
 
     units = {x["unit"] for x in out}
     _need(len(units) == 1,
           f"{where} 的数值量纲不一致（{'、'.join(sorted(units))}）：柱长只有同一量纲才可比，"
           f"混在一组里长的并不比短的多——拆成两页，或改用 points")
     _need(len({x["value"] for x in out}) >= 2, f"{where} 每根柱的数值都一样，画出来是等长：这不是比较")
+    bases = {_squash(x["base"] or "") for x in out}
+    _need(len(bases) == 1, f"{where} 的分母不同（{'、'.join(sorted(bases))}）：比例不能画在一个刻度上——拆开，或改用 points")
+    _belongs(out, facts, where)
     top = max(x["amount"] for x in out)
     for x in out:                       # zero-based: a bar's length is its share of the largest, nothing more
         x["ratio"] = round(x["amount"] / top, 4)
     return out
+
+
+def _hit(quote: str, value: str, name: str) -> dict | None:
+    """Where this value stands in the sentence, preferring the place next to its name."""
+    hits = [h for h in number_occurrences(quote) if h["token"] == value]
+    return next((h for h in hits if names(name, h["clause"])), hits[0] if hits else None)
+
+
+def _bound(quote: str, hit: dict) -> bool:
+    """Is this number one side of a comparison?  This can only refuse a bar, so an unlisted word costs a refusal
+    that never comes, not a false pass of anything else."""
+    before, after = quote[:hit["start"]].rstrip(), quote[hit["end"]:].lstrip()
+    if hit["token"][:1] in _OP_CHARS or before[-1:] in _OP_CHARS:
+        return True
+    return any(before.endswith(w) for w in _WORD_OP) or after.startswith(("以上", "以下", "以内"))
+
+
+def _belongs(bars: list[dict], facts: Mapping[str, dict], where: str) -> None:
+    """Is each number the one its label's sentence gives it?  Read from positions, so no vocabulary is involved.
+
+    A number belongs to a name in its own clause, when it is the only number there.  「分别高出15.5倍和2.8倍」has
+    two, and there the only link is order: every number has to be drawn, in the order the names stand.  Anything
+    else is a number lifted from a sentence that gives it to someone else.
+    """
+    by_fact: dict[str, list[dict]] = {}
+    for x in bars:
+        by_fact.setdefault(x["fact"], []).append(x)
+    for fid, group in by_fact.items():
+        quote = _squash(facts[fid]["quote"])
+        order = sorted(group, key=lambda x: quote.find(_squash(x["indicator"])))
+        _need([x["at"] for x in order] == sorted(x["at"] for x in order),
+              f"{where} 的柱与原句的先后不符：「{'、'.join(x['indicator'] for x in order)}」"
+              f"配的数是 {'、'.join(x['value'] for x in order)}，与它们在句中的顺序相反")
+        hits = number_occurrences(facts[fid]["quote"])
+        shared = [h["clause"] for h in hits]
+        apart = [x for x in group if not names(x["indicator"], x["clause"]) or shared.count(x["clause"]) > 1]
+        total = len(hits)
+        _need(not apart or len(group) == total,
+              f"{where} 的「{apart[0]['indicator'] if apart else ''}」与它的数不在一个分句，"
+              f"这句有 {total} 个数只画了 {len(group)} 个，无从确定对应关系：取同一分句里的词")
 
 
 def _weights(items: list[dict], i: int, structure: str) -> None:
@@ -488,17 +554,17 @@ def _thresholds(raw, facts: Mapping[str, dict], i: int) -> list[dict]:
         fid = t.get("fact")
         _fact(fid, facts, f"{where}.fact")
         quote = facts[fid]["quote"]
-        ind = _label(t.get("indicator"), f"{where}.indicator", _INDICATOR_MAX)
-        _need(ind, f"{where} 须给出 indicator（这根量规量的是什么）")
+        ind = _name(t.get("indicator"), f"{where}.indicator")
+        _need(ind, f"{where} 须给出 indicator（这根量规量的是什么，取原句里的词）")
         _need(ind not in seen, f"{where} 的 indicator 与同页另一条重复：同一根量规不画两遍")
-        _need(shares_with(ind, quote),
-              f"{where} 的 indicator「{ind}」在本页句子里找不到：换一个句子说得出名字的指标")
+        _need(names(ind, quote), f"{where} 的 indicator「{ind}」在本页句子里找不到：取原句里的词")
         seen.add(ind)
-        spans = {sp["token"]: sp for sp in number_spans(quote)}
         value = str(t.get("value") or "").strip()
-        _need(value in spans,
-              f"{where} 的 value「{value}」不是来源句中的数字（可选：{'、'.join(spans) or '无'}）")
-        token, clause = value, spans[value]["clause"]
+        hit = _hit(quote, value, ind)
+        _need(hit, f"{where} 的 value「{value}」不是来源句中的数字"
+                   f"（可选：{'、'.join(h['token'] for h in number_occurrences(quote)) or '无'}）")
+        token, clause = value, hit["clause"]
+        _need(names(ind, clause), f"{where} 的 indicator「{ind}」与这个数不在一个分句：取「{clause}」里的词")
 
         op_raw = str(t.get("op") or "").strip()
         _need(op_raw, f"{where} 须给出 op（原文的比较符：≥ / > / ≤ / <）")
@@ -557,12 +623,23 @@ def _item(it, facts: Mapping[str, dict], where: str, structure: str, max_chars: 
             "units": [x["unit_id"] for x in parts]}
 
 
+def _name(v, where: str) -> str | None:
+    """A name quoted from a sentence: only its shape is checked here, the caller finds it in the sentence."""
+    if v is None:
+        return None
+    _need(isinstance(v, str) and v.strip() and "\n" not in v, f"{where} 须为一行文字")
+    _need(len(v.strip()) <= _INDICATOR_MAX, f"{where} 超过 {_INDICATOR_MAX} 字")
+    return v.strip()
+
+
 def _label(v, where: str, limit: int) -> str | None:
+    """Organising text: the same lint every authored label gets.  It names; it states nothing."""
     if v is None:
         return None
     _need(isinstance(v, str) and v.strip() and "\n" not in v, f"{where} 须为一行文字")
     _need(len(v.strip()) <= limit, f"{where} 超过 {limit} 字")
-    _need(not _digits(v), f"{where} 是组织文字，不能写数字：{v}")
+    bad = lint_text(v.strip())
+    _need(not bad, f"{where} 是组织文字，只命名不陈述：{'；'.join(bad)}")
     return v.strip()
 
 
@@ -575,7 +652,7 @@ def _labels(v, structure: str, i: int) -> list[str] | None:
     return [_label(x, f"第{i}页 labels[{k}]", 14) for k, x in enumerate(v)]
 
 
-def contract(n: int = 6) -> dict:
+def contract(n: int = 8) -> dict:
     """What a model writing this needs to see: the forms it may ask for, and one page per structure.
 
     ``forms`` is the menu with its requirement; ``figures`` is what a page's picture may be made of.  A model picks
@@ -585,24 +662,29 @@ def contract(n: int = 6) -> dict:
     instead of guessing.  ``roles`` and ``weights`` are the two dials for hierarchy: whether the page may breathe,
     and which points lead.
     """
+    title = {"fact": "", "show": ""}
+    point = {"fact": "", "label": ""}
+    gauge = {"indicator": "", "op": "", "value": "", "fact": ""}
     pages = [
-        {"id": "p1", "structure": "stat", "role": "hero", "headline": "",
-         "lead": {"value": "", "label": "", "from": ""}, "items": [{"fact": ""}], "takeaway": {"fact": ""}},
-        {"id": "p2", "structure": "points", "headline": "", "items": [{"fact": ""} for _ in range(3)]},
-        {"id": "p3", "structure": "compare", "headline": "",
-         "items": [{"fact": ""} for _ in range(4)], "labels": ["", ""]},
-        {"id": "p4", "structure": "steps", "headline": "", "items": [{"fact": ""} for _ in range(3)]},
+        {"id": "p1", "structure": "stat", "role": "hero", "section": "", "headline": title,
+         "lead": {"value": "", "label": "", "from": ""}, "items": [point], "takeaway": {"fact": ""}},
+        {"id": "p2", "structure": "points", "headline": title, "items": [point for _ in range(3)]},
+        {"id": "p3", "structure": "compare", "headline": title,
+         "items": [point for _ in range(4)], "labels": ["", ""]},
+        {"id": "p4", "structure": "steps", "headline": title, "items": [point for _ in range(3)]},
         # One part, shorthand: the one-word way to say "this page is a boundary".
-        {"id": "p5", "structure": "stat", "form": "threshold", "headline": "",
-         "thresholds": [{"indicator": "", "op": "", "value": "", "fact": ""}]},
-        # Composed: a boundary over a set of bars, each part checked on its own.
-        {"id": "p6", "structure": "stat", "headline": "", "figure": [
-            {"kind": "split", "thresholds": [{"indicator": "", "op": "", "value": "", "fact": ""}]},
-            {"kind": "bars", "label": "", "series": [{"indicator": "", "value": "", "fact": ""} for _ in range(2)]}]},
+        {"id": "p5", "structure": "stat", "form": "threshold", "headline": title, "thresholds": [gauge]},
+        # Composed: a boundary over a set of bars.  indicator is a word of the sentence; base names the denominator
+        # of a percentage.
+        {"id": "p6", "structure": "stat", "headline": title, "figure": [
+            {"kind": "split", "thresholds": [gauge]},
+            {"kind": "bars", "label": "", "series": [{"indicator": "", "value": "", "fact": "", "base": ""}
+                                                     for _ in range(2)]}]},
         # Emphasis: two of four points carry the page, the rest support them.
-        {"id": "p7", "structure": "points", "headline": "",
-         "items": [{"fact": "", "weight": "core"}, {"fact": "", "weight": "support"},
-                   {"fact": "", "weight": "support"}]},
+        {"id": "p7", "structure": "points", "headline": title,
+         "items": [{**point, "weight": "core"}, {**point, "weight": "support"}, {**point, "weight": "support"}]},
+        # A synthesis across sentences is allowed, and stays off the slide until a person confirms it.
+        {"id": "p8", "structure": "points", "headline": {"derived": "", "from": [""]}, "items": [point for _ in range(3)]},
     ]
     return {"schema_version": SCHEMA, "forms": FORMS, "figures": FIGURES,
             "roles": list(ROLES), "weights": list(WEIGHTS), "pages": pages[:n]}
