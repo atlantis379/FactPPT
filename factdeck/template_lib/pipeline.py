@@ -29,18 +29,16 @@ from .html_render import render_deck_html
 from .measure import MEASURE_JS
 from .slots import validate_fill
 
-V1_FAMILIES = {"cover", "section", "key_points", "comparison", "flow", "timeline"}
-V1_THEME, CHART_THEME = "premium_clinical", "gold_clinical"
+DECK_THEME = "gold_clinical"     # one deck, one look; premium_clinical (teal cards) is retired, kept only by explicit request
 
 
 def theme_for(layout: str, plan: dict) -> str:
-    fam, var = S.LAYOUTS[layout][0], S.LAYOUTS[layout][1]
     themes = plan.get("themes") or {}
     if layout in themes:
         return themes[layout]
     if plan.get("theme"):
         return plan["theme"]
-    return V1_THEME if fam in V1_FAMILIES and var != "evidence_takeaways" else CHART_THEME
+    return DECK_THEME
 
 
 def stamp_note(layout: str, fill: dict, note: str | None) -> dict:

@@ -5,7 +5,8 @@
 //   text  — one text box per block-level text owner, with styled runs (size, weight, colour, spacing)
 //   table — native table grid (cells, spans, fills, borders, runs)
 //   line / poly / ellipse / rect — SVG primitives mapped through getScreenCTM (chart geometry stays exact)
-// Pictures are never produced; <img> or url() backgrounds are reported in `unsupported`.
+//   image — only an <img data-asset> with its file in data-file: a declared asset layer, never text or a chart
+// Any other <img> or url() background is reported in `unsupported`.
 (args) => {
   const slide = document.querySelector(args && args.selector ? args.selector : '.slide');
   const S = slide.getBoundingClientRect();
@@ -393,6 +394,10 @@
     for (let e = el; e && e !== document.body; e = e.parentElement) if (hidden(e)) { h = true; break; }
     if (h) continue;
     const tag = el.tagName.toLowerCase();
+    if (tag === 'img' && el.dataset.asset && el.dataset.file) {
+      push({ type: 'image', ...rel(el.getBoundingClientRect()), asset: el.dataset.asset, file: el.dataset.file }, el, 'box');
+      continue;
+    }
     if (tag === 'img' || tag === 'picture' || tag === 'canvas' || tag === 'video') { out.unsupported.push(tag); continue; }
     if (tag === 'svg') { boxOf(el); svgOf(el); continue; }
     if (tag === 'table') { tableOf(el); continue; }

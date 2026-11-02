@@ -31,13 +31,15 @@ from __future__ import annotations
 import html as _html
 import re
 from html.parser import HTMLParser
+from pathlib import Path
 
 TAGS = {"div", "span", "b", "br", "img", "svg", "polyline"}
 VOID = {"br", "img", "polyline"}
 ATTRS = {"class", "id", "style", "points", "width", "height", "viewbox"}
 DATA = {"data-fact", "data-text", "data-emph", "data-t", "data-shape", "data-group", "data-edges", "data-from", "data-to",
         "data-backed", "data-encodes", "data-axis", "data-icon", "data-for", "data-value-of", "data-scale",
-        "data-ring", "data-pictogram", "data-count", "data-icon-pale", "data-icon-off", "data-tone", "data-size", "data-thick"}
+        "data-ring", "data-pictogram", "data-count", "data-icon-pale", "data-icon-off", "data-tone", "data-size", "data-thick",
+        "data-show", "data-derived", "data-asset", "data-role", "data-tier", "data-anchor", "data-label"}
 RING_TONES = {"accent": "var(--accent)", "primary": "var(--primary)", "primary2": "var(--primary2)", "muted": "var(--muted)"}
 PROPS = {"position", "left", "top", "right", "bottom", "width", "height", "min-width", "min-height", "max-width", "max-height",
          "display", "flex", "flex-direction", "flex-wrap", "flex-grow", "flex-shrink", "flex-basis", "align-items",
@@ -51,6 +53,10 @@ PROPS = {"position", "left", "top", "right", "bottom", "width", "height", "min-w
          "border-radius", "color", "font-size", "font-weight", "line-height", "text-align", "white-space", "vertical-align",
          "word-break", "line-break", "fill", "stroke", "stroke-width", "stroke-dasharray", "stroke-linecap", "stroke-linejoin"}
 BANNED_VALUE = re.compile(r"url\(|gradient|expression|@import|image-set|attr\(|calc\(.*var\(--k", re.I)
+# A designed page (factdeck.designed) exports through template_lib.native, which writes gradients and shadows natively.
+RICH_PROPS = {"box-shadow", "background-image", "opacity"}
+RICH_BANNED = re.compile(r"url\(|expression|@import|image-set|attr\(|calc\(.*var\(--k|(?<!linear-)gradient\(", re.I)
+ASSET_ROLES = {"backdrop", "illustration", "icon"}
 SELECTOR = re.compile(r"^[A-Za-z0-9_\-.#\s>+~:*(),]+$")
 
 
@@ -137,11 +143,14 @@ def _decls(style: str) -> list[tuple[str, str]]:
     return out
 
 
-def _decl_errors(where: str, decls) -> list[str]:
+def _decl_errors(where: str, decls, rich: bool = False) -> list[str]:
     errors = []
     for k, v in decls:
         if k.startswith("--"):
             errors.append(f"{where}：不能定义 CSS 变量 {k}（用主题变量 var(--…)）")
+        elif rich and k in RICH_PROPS | PROPS:
+            if RICH_BANNED.search(v):
+                errors.append(f"{where}：样式 {k}: {v} 不可用（只支持线性渐变；图片用 data-asset 的 img）")
         elif k not in PROPS:
             errors.append(f"{where}：不支持样式 {k}（PowerPoint 无法同样呈现；可用：位置尺寸、flex/grid、内外边距、纯色填充与边框、圆角、文字颜色/字号/字重/行高/对齐）")
         elif BANNED_VALUE.search(v) or (k == "background" and re.search(r"\b(url|gradient|no-repeat|cover)\b", v, re.I)):
@@ -149,7 +158,7 @@ def _decl_errors(where: str, decls) -> list[str]:
     return errors
 
 
-def css_rules(css: str) -> tuple[list[tuple[str, list[tuple[str, str]]]], list[str]]:
+def css_rules(css: str, rich: bool = False) -> tuple[list[tuple[str, list[tuple[str, str]]]], list[str]]:
     rules, errors = [], []
     text = re.sub(r"/\*.*?\*/", "", css or "", flags=re.S)
     if "@" in text:
@@ -159,19 +168,19 @@ def css_rules(css: str) -> tuple[list[tuple[str, list[tuple[str, str]]]], list[s
         if not SELECTOR.match(sel) or "::" in sel or re.search(r":(?:before|after)\b", sel):
             errors.append(f"css 选择器“{sel}”不可用：只用类、id、标签与组合，不用属性选择器和伪元素")
         rules.append((sel, _decls(body)))
-        errors += _decl_errors(f"css {sel}", _decls(body))
+        errors += _decl_errors(f"css {sel}", _decls(body), rich)
     if re.sub(r"([^{}]+)\{([^{}]*)\}", "", text).strip():
         errors.append("css 有无法解析的内容")
     return rules, errors
 
 
-def structure_errors(page: dict) -> list[str]:
+def structure_errors(page: dict, rich: bool = False) -> list[str]:
     """Shape of a free page's HTML: allowed tags, attributes and styles; every word in a fact or authored span inside
     one text box; drawings named after the facts they draw; a page that draws states its figure layer."""
     root, errors = parse(page.get("html") or "")
     if not (page.get("html") or "").strip():
         return ["free 页需有 html（本页正文）"]
-    _, css_errors = css_rules(page.get("css") or "")
+    _, css_errors = css_rules(page.get("css") or "", rich)
     errors += css_errors
     nodes = list(root.walk())
     ids = [n.attrs["id"] for n in nodes if n.attrs.get("id")]
@@ -191,11 +200,13 @@ def structure_errors(page: dict) -> list[str]:
         for a in n.attrs:
             if a.startswith("on") or (a not in ATTRS and a not in DATA):
                 errors.append(f"{where} 的属性 {a} 不可用")
-        errors += _decl_errors(where, _decls(n.attrs.get("style", "")))
+        errors += _decl_errors(where, _decls(n.attrs.get("style", "")), rich)
         for c in n.children:
             if isinstance(c, str) and c.strip() and not (n.tag == "span" and n.has("data-text")):
                 errors.append(f"文字“{c.strip()[:20]}”须放在 data-fact 或 data-text 的 span 里")
-        if n.has("data-fact") or n.has("data-text"):
+        if n.has("data-derived") and n.children:
+            errors.append(f"{where}：data-derived 的 span 须留空（由程序填入确认过的综合句）")
+        if n.has("data-fact") or n.has("data-text") or n.has("data-derived"):
             if n.tag != "span":
                 errors.append(f"{where}：data-fact / data-text 只用在 span 上")
             if n.has("data-fact") and n.children:
@@ -208,7 +219,7 @@ def structure_errors(page: dict) -> list[str]:
             errors.append(f"{where}：data-t 文本框不能嵌套")
         if n.has("data-t") and n.tag not in ("div", "span"):
             errors.append(f"{where}：data-t 只用在 div 或 span 上")
-        if n.tag in ("svg", "polyline", "img"):
+        if n.tag in ("svg", "polyline", "img") and not n.has("data-asset"):
             drawn = True
         if n.tag == "svg" and not n.has("data-edges"):
             errors.append(f"{where}：svg 只用来画箭头和线（data-edges）")
@@ -226,9 +237,14 @@ def structure_errors(page: dict) -> list[str]:
                     errors.append("箭头需以 data-from / data-to 指明两端文本框（data-t 元素）的 id")
                 if not n.attrs.get("data-backed"):
                     errors.append("箭头需以 data-backed 给出支持事实")
-            elif not (n.attrs.get("data-encodes", "").split() or n.has("data-axis")):
+            elif not (n.attrs.get("data-encodes", "").split() or n.has("data-axis") or n.has("data-anchor")):
                 errors.append("线条需以 data-encodes 写明它画出的事实，或标为 data-axis（坐标轴、刻度）")
-        if n.tag == "img":
+        if n.tag == "img" and n.has("data-asset"):
+            if not rich:
+                errors.append(f"{where}：data-asset 只用于 designed 页")
+            if n.attrs.get("data-role") not in ASSET_ROLES:
+                errors.append(f"{where}：素材须以 data-role 标明用途（{'、'.join(sorted(ASSET_ROLES))}）")
+        elif n.tag == "img":
             if not n.attrs.get("data-icon"):
                 errors.append("图标需以 data-icon 指明图标文件")
             if n.attrs.get("data-for") not in first:
@@ -280,21 +296,29 @@ def view(page: dict) -> list[dict]:
     for n in root.walk():
         if n.has("data-t"):
             refs = []
-            for m in ([n] if (n.has("data-fact") or n.has("data-text")) else []) + list(n.walk()):
+            for m in ([n] if (n.has("data-fact") or n.has("data-text") or n.has("data-derived")) else []) + list(n.walk()):
                 if m.has("data-fact"):
                     ref = {"fact": m.attrs["data-fact"]}
+                    if m.attrs.get("data-show"):
+                        ref["show"] = m.attrs["data-show"]
                     if m.attrs.get("data-emph"):
                         ref["emph"] = [x for x in m.attrs["data-emph"].split("|") if x]
                     refs.append(ref)
+                elif m.has("data-derived"):
+                    refs.append({"derived": m.attrs["data-derived"]})
                 elif m.has("data-text"):
                     refs.append({"text": m.text().strip()})
             auto += 1
             blocks.append({"kind": "text", "id": n.attrs.get("id") or f"_t{auto}", "refs": refs})
+        elif n.tag == "polyline" and n.has("data-anchor"):
+            blocks.append({"kind": "leader", "anchor": n.attrs["data-anchor"], "label": n.attrs.get("data-label")})
         elif n.tag == "polyline" and (n.has("data-from") or n.has("data-backed")):
             blocks.append({"kind": "arrow", "from": n.attrs.get("data-from"), "to": n.attrs.get("data-to"),
                            "backed_by": n.attrs.get("data-backed")})
         elif n.tag == "polyline":
             blocks.append({"kind": "line", **({"axis": True} if n.has("data-axis") else {"encodes": n.attrs.get("data-encodes", "").split()})})
+        elif n.tag == "img" and n.has("data-asset"):
+            blocks.append({"kind": "asset", "asset": n.attrs["data-asset"], "role": n.attrs.get("data-role")})
         elif n.tag == "img":
             blocks.append({"kind": "icon", "icon": n.attrs.get("data-icon"), "for": n.attrs.get("data-for")})
         if n.has("data-ring") or n.has("data-pictogram"):
@@ -348,12 +372,13 @@ def render(page: dict, fview: dict, icon_files: dict, emph_spans) -> tuple[str, 
             return _html.escape(n)
         if n.tag == "#root":
             return "".join(out(c) for c in n.children)
-        if n.has("data-fact"):
-            f = fview[n.attrs["data-fact"]]
+        if n.has("data-fact") or n.has("data-derived"):
+            f = fview[n.attrs["data-fact"] if n.has("data-fact") else "derived:" + n.attrs["data-derived"]]
+            shown = n.attrs.get("data-show") or f["text"]
             emph = [x for x in n.attrs.get("data-emph", "").split("|") if x]
-            body = "".join(f'<b class="em">{_html.escape(t)}</b>' if on else _html.escape(t) for t, on in emph_spans(f["text"], emph)) \
-                if emph else _html.escape(f["text"])
-            a = {k: v for k, v in n.attrs.items() if k != "data-emph"}
+            body = "".join(f'<b class="em">{_html.escape(t)}</b>' if on else _html.escape(t) for t, on in emph_spans(shown, emph)) \
+                if emph else _html.escape(shown)
+            a = {k: v for k, v in n.attrs.items() if k not in ("data-emph", "data-show")}
             a["class"] = ("f " + a.get("class", "")).strip()
             mark = '<span class="mark" data-mark="pending" title="待人工确认">●</span>' if f["pending"] else ""
             return f"<span{attrs(Node('span', a))}>{body}</span>{mark}"
@@ -396,6 +421,9 @@ def render(page: dict, fview: dict, icon_files: dict, emph_spans) -> tuple[str, 
             imgs = "".join(f'<img data-icon="{i}" src="{_html.escape(icon_files.get(i, ""))}" alt="" '
                            f'style="width:{size}px;height:{size}px;object-fit:contain">' for i in ids)
             return f"<div{attrs(n)}>{imgs}</div>"
+        if n.tag == "img" and n.has("data-asset"):
+            file = icon_files[n.attrs["data-asset"]]
+            return f'<img{attrs(n, {"src": Path(file).as_uri(), "alt": "", "data-file": file})}>'
         if n.tag == "img":
             src = icon_files.get(n.attrs.get("data-icon"), "")
             return f'<img{attrs(n, {"src": src, "alt": ""})}>'
@@ -403,7 +431,7 @@ def render(page: dict, fview: dict, icon_files: dict, emph_spans) -> tuple[str, 
             return f"<{n.tag}{attrs(n)}>"
         return f"<{n.tag}{attrs(n)}>{''.join(out(c) for c in n.children)}</{n.tag}>"
 
-    rules, _ = css_rules(page.get("css") or "")
+    rules, _ = css_rules(page.get("css") or "", rich=True)
     css = "\n".join(",".join(f"#{pid} .body {s.strip()}" for s in sel.split(",")) + "{" + ";".join(f"{k}:{v}" for k, v in decls) + "}"
                     for sel, decls in rules)
     return out(root), css

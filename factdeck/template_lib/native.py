@@ -10,8 +10,9 @@ python-pptx writes native objects at the measured geometry:
                boxes, mapped through each element's screen CTM, so chart geometry computed in pharma.py
                (bars, CI whiskers, markers, axes, ticks, tree connectors) lands 1:1.
 
-No whole-slide bitmap, no embedded SVG, no picture object of any kind is written.  Slide size = the HTML slide
-(1280×720 px = 13.333 in × 7.5 in, 16:9).
+Text, tables and charts are never bitmaps and no SVG is embedded.  The one picture object written is a declared
+asset (``<img data-asset>``): a visual layer that carries no text.  Slide size = the HTML slide (1280×720 px =
+13.333 in × 7.5 in, 16:9).
 """
 from __future__ import annotations
 
@@ -299,6 +300,12 @@ def _write_poly(shapes, it: dict) -> int:
     return 1
 
 
+def _write_image(shapes, it: dict) -> int:
+    pic = shapes.add_picture(it["file"], E(it["x"]), E(it["y"]), E(it["w"]), E(it["h"]))
+    pic.name = f'asset:{it["asset"]}'
+    return 1
+
+
 def _write_text(shapes, it: dict, font: str) -> int:
     from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE
     if it.get("svg"):
@@ -439,6 +446,8 @@ def build_pptx(models: list[dict], out: Path | str, *, title: str = "", font: st
                 k = _write_line(s.shapes, it)
             elif t == "poly":
                 k = _write_poly(s.shapes, it)
+            elif t == "image":
+                k = _write_image(s.shapes, it)
             else:
                 k = 0
             counts[t] = counts.get(t, 0) + k

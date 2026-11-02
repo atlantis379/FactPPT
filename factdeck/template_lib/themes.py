@@ -155,7 +155,7 @@ THEME_META = {
     },
     "premium_clinical": {
         "id": "premium_clinical",
-        "name": "精品临床教学",
+        "name": "精品临床教学（已弃用）",
         "suitable_for": "付费级医学教育课件、医院教学查房、药企 MLR 教学稿。",
         "tone": "深墨、钢青强调、暖纸面、色块分层，非描边白盒",
         "reference_academic_id": None,
@@ -179,5 +179,5 @@ def get_theme(name: str) -> dict[str, str]:
 
 
 def list_themes() -> list[dict]:
-    order = ("premium_clinical", "gold_clinical", "journal", "steel")
+    order = ("gold_clinical", "journal", "steel", "premium_clinical")
     return [dict(THEME_META[k], tokens=dict(THEMES[k])) for k in order]
