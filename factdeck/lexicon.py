@@ -123,11 +123,43 @@ def number_spans(text: str) -> list[dict]:
     Adjacent values joined by a range mark (``5%~10%``) are one span, not two.  Classification numbers (``2型``),
     years and anything the cut already flagged as a chart dump are not quantities and are left out.
     """
+    out, seen = [], set()
+    for item in _number_hits(text):
+        start, end, clause = _clause_around(text, item)
+        if not clause or clause in seen:                                # one anchor per clause
+            continue
+        seen.add(clause)
+        out.append({"token": item["token"], "clause": clause, "start": start, "end": end})
+    return out
+
+
+def number_occurrences(text: str) -> list[dict]:
+    """Every quantity in `text`, each where it stands: what a figure binds a label to.
+
+    ``number_spans`` keeps one anchor per clause, so 「分别高出15.5倍和2.8倍」loses its second number; and it reads
+    the 20 in PCV20 as a quantity.  A figure needs each number's own position, because who a number belongs to is a
+    matter of where it stands in the sentence.  Names and reference markers are left out.
+    """
+    cites = [m.span() for m in _CITE.finditer(text)]
+    out = []
+    for item in _number_hits(text):
+        m, last = item["m"], item["end_m"]
+        if m.start() and (text[m.start() - 1].isascii() and text[m.start() - 1].isalpha()
+                          or "α" <= text[m.start() - 1] <= "ω"):
+            continue                                                    # FEV1, PCV20, β2: part of a name
+        if any(a <= m.start() < b for a, b in cites):
+            continue
+        out.append({"token": item["token"], "start": m.start(), "end": last.end(),
+                    "clause": _clause_around(text, item)[2]})
+    return out
+
+
+def _number_hits(text: str) -> list[dict]:
     hits = []
     for m in _num_re().finditer(text):
         token = _token_of(m)
         plain = re.fullmatch(r"(\d+)([^\d]*)", token)
-        if plain and _YEAR.match(plain.group(1)):                       # 2024年 is a date, not a measure
+        if plain and _YEAR.match(plain.group(1)) and plain.group(2) in ("", "年"):  # 2024年 is a date; 2000例 is a measure
             continue
         if plain and not plain.group(2) and text[m.end():m.end() + 1] in _CLASSIFIER:
             continue                                                    # 2型炎症 / 1级推荐
@@ -141,21 +173,17 @@ def number_spans(text: str) -> list[dict]:
             prev["token"], prev["end_m"] = f"{a}-{b}{unit}", h["m"]
             continue
         merged.append({**h, "end_m": h["m"]})
-    out, seen = [], set()
-    for item in merged:
-        m, last = item["m"], item["end_m"]
-        start = 0
-        for br in _CLAUSE_BREAK.finditer(text, 0, m.start()):
-            start = br.end()
-        nxt = _CLAUSE_BREAK.search(text, last.end())
-        end = nxt.start() if nxt else len(text)
-        lead = len(text[start:end]) - len(text[start:end].lstrip())
-        clause = text[start:end].strip()
-        if not clause or clause in seen:                                # one anchor per clause
-            continue
-        seen.add(clause)
-        out.append({"token": item["token"], "clause": clause, "start": start + lead, "end": end})
-    return out
+    return merged
+
+
+def _clause_around(text: str, item: dict) -> tuple[int, int, str]:
+    start = 0
+    for br in _CLAUSE_BREAK.finditer(text, 0, item["m"].start()):
+        start = br.end()
+    nxt = _CLAUSE_BREAK.search(text, item["end_m"].end())
+    end = nxt.start() if nxt else len(text)
+    lead = len(text[start:end]) - len(text[start:end].lstrip())
+    return start + lead, end, text[start:end].strip()
 
 
 def split_fragments(display: str) -> list[str]:
