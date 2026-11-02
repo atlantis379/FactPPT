@@ -99,7 +99,8 @@ def prompt_for(spec: Mapping, style: Mapping) -> str:
     if spec["relations"]:
         parts.append("Arrangement: " + "; ".join(f'{r["from"]} {r["kind"].replace("_", " ")} {r["to"]}' for r in spec["relations"]) + ".")
     parts += [f"Rendering: {img['rendering']}.", f"Camera: {img['camera']}.", f"Background: {img['background']}.",
-              f"Palette: {', '.join(img['palette'])}.", "Do not draw any: " + ", ".join(img["forbid"] + spec["exclude"]) + "."]
+              f"Palette: {', '.join(img['palette'])}.",
+              "Do not draw any: " + ", ".join(img["forbid"] + list(spec.get("exclude") or [])) + "."]
     return " ".join(parts)
 
 
