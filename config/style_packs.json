@@ -1,0 +1,35 @@
+{
+ "_comment": "Style packs: everything a deck's look is fixed by, as data. No subject matter belongs here.",
+ "clinical_blue": {
+  "name": "医院讲课蓝",
+  "font": "\"Microsoft YaHei\",\"PingFang SC\",\"Noto Sans CJK SC\",sans-serif",
+  "pptx_font": "Microsoft YaHei",
+  "tokens": {
+   "canvas": "#F4F8FE", "ink": "#1F2A3C", "caption": "#4A5A70", "primary": "#0B46B4", "primary2": "#0A3A96",
+   "accent": "#2F8CF0", "soft": "#E3EEFC", "surface": "#FFFFFF", "line": "#C6D8F2", "muted": "#4A5A70", "sky": "#EAF2FD"
+  },
+  "image": {
+   "palette": ["#0B46B4", "#2F8CF0", "#E3EEFC", "#FFFFFF"],
+   "rendering": "clean scientific illustration, soft studio lighting, high detail, smooth materials",
+   "camera": "three-quarter view, centred subject, generous margin",
+   "background": "plain light background, nothing behind the subject",
+   "forbid": ["text", "letters", "numbers", "labels", "logos", "watermarks", "signatures"]
+  }
+ },
+ "academic_plain": {
+  "name": "学术简洁",
+  "font": "\"Microsoft YaHei\",\"PingFang SC\",\"Noto Sans CJK SC\",sans-serif",
+  "pptx_font": "Microsoft YaHei",
+  "tokens": {
+   "canvas": "#FFFFFF", "ink": "#1A1A1A", "caption": "#555555", "primary": "#1F3A5F", "primary2": "#17304F",
+   "accent": "#3E6FA3", "soft": "#EEF2F6", "surface": "#FFFFFF", "line": "#D0D7DF", "muted": "#555555", "sky": "#F4F6F8"
+  },
+  "image": {
+   "palette": ["#1F3A5F", "#3E6FA3", "#EEF2F6", "#FFFFFF"],
+   "rendering": "flat textbook schematic, even lighting, restrained colour",
+   "camera": "straight-on view, centred subject, generous margin",
+   "background": "plain white background, nothing behind the subject",
+   "forbid": ["text", "letters", "numbers", "labels", "logos", "watermarks", "signatures"]
+  }
+ }
+}

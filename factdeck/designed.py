@@ -24,7 +24,7 @@ from .assets import Manifest
 from .compose import chain_backs
 from .deck import arrow_backs, emph_spans
 from .lexicon import lint_text, number_occurrences
-from .shown import ShownError, resolve
+from .shown import ShownError, digest, resolve
 from .template_lib import native as N
 from .template_lib.measure import MEASURE_JS
 
@@ -171,10 +171,17 @@ def bar_values(drawn: list[dict], facts: Mapping) -> tuple[dict[str, float], lis
     return values, errors
 
 
-def trace(pages: list[Mapping], checked: list[dict], facts: Mapping[str, dict], manifest: Manifest) -> str:
+def trace(pages: list[Mapping], checked: list[dict], facts: Mapping[str, dict], manifest: Manifest,
+          note: str = "") -> str:
     """Where every shown line came from, and for each picture how far it got.  The wording is deliberate: a picture
-    is reported as signed by a person, never as verified, because nothing here can verify one."""
+    is reported as signed by a person, never as verified, because nothing here can verify one.
+
+    `note` says how the derivations were confirmed.  This report cannot tell a review from a blanket signature, so
+    it does not claim one: without a note it prints the digest and leaves the question open.
+    """
     lines = ["# 溯源报告", ""]
+    if note:
+        lines += [f"> {note}", ""]
     for p, c in zip(pages, checked):
         lines += [f"## {p['id']}", ""]
         for b in free.view(p):
@@ -184,7 +191,8 @@ def trace(pages: list[Mapping], checked: list[dict], facts: Mapping[str, dict], 
                     lines.append(f"- 「{r.get('show') or f['quote']}」← {f.get('source_id', '')} {f.get('location', '')}（{r['fact']}）")
                 elif "derived" in r:
                     d = p["derived"][r["derived"]]
-                    lines.append(f"- 综合句「{d['text']}」← {'、'.join(d['from'])}，已由人确认")
+                    h = digest(d["text"], d["from"], facts)
+                    lines.append(f"- 综合句「{d['text']}」← {'、'.join(d['from'])}（digest {h}）")
                 else:
                     lines.append(f"- 标签「{r['text']}」（只命名）")
         for aid in c["assets"]:
@@ -200,8 +208,10 @@ def trace(pages: list[Mapping], checked: list[dict], facts: Mapping[str, dict], 
 
 
 def export(pages: list[Mapping], facts: Mapping[str, dict], manifest: Manifest, style: Mapping, out: Path | str,
-           *, source: str, confirmed: Collection[str] = (), shots: Path | str | None = None) -> dict:
+           *, source: str, confirmed: Collection[str] = (), shots: Path | str | None = None,
+           note: str = "") -> dict:
     """Check, draw, measure and write a deck.  A page with any error or pending line is refused, never written."""
+    out = Path(out).resolve()      # the temporary page files are opened by the browser as file:// URIs
     assets = manifest.items
     from playwright.sync_api import sync_playwright
 
@@ -243,7 +253,7 @@ def export(pages: list[Mapping], facts: Mapping[str, dict], manifest: Manifest, 
     ok = len(models) == len(pages)
     written = N.build_pptx(models, out, title=source, font=style.get("pptx_font") or N.DEFAULT_FONT) if ok else None
     if ok:
-        Path(out).with_suffix(".trace.md").write_text(trace(pages, checked, facts, manifest), encoding="utf-8")
+        Path(out).with_suffix(".trace.md").write_text(trace(pages, checked, facts, manifest, note), encoding="utf-8")
     return {"ok": ok, "pages": report, "pptx": written["path"] if written else None}
 
 
